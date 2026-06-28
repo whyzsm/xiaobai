@@ -17,6 +17,7 @@ workspace/        = 运行空间，放 loop 配置、项目知识、agent、conn
 npm install
 npm run validate
 npm run dry-run
+npm run simulate
 npm test
 ```
 
@@ -31,6 +32,9 @@ npm run dry-run
 
 # 指定 loop，输出人类可读计划
 npm run loop -- dry-run --loop morning-triage
+
+# 模拟从初始化、代码仓接入、任务处理到知识沉淀的全过程
+npm run simulate
 
 # 构建 TypeScript
 npm run build
@@ -234,6 +238,40 @@ npm run dry-run
 - generator run plan
 - evaluator review plan
 - memory 写回计划
+
+## 全过程模拟
+
+执行：
+
+```bash
+npm run simulate
+```
+
+该命令会在本地确定性模拟一轮完整 Loop 生命周期，不调用外部 API，不创建真实 PR，不发送真实通知。
+
+模拟阶段：
+
+```text
+1. 初始化 Loop 工作空间
+2. 接入代码仓与项目知识
+3. 发现可处理事项
+4. 隔离交付计划
+5. 生成者与评审者模拟
+6. 知识沉淀
+```
+
+模拟会写出这些产物：
+
+```text
+workspace/reports/simulations/<run-id>.md       # 全过程模拟报告
+workspace/memory/loops/morning-triage/state.md # 更新后的 loop 状态
+workspace/memory/loops/morning-triage/runs.jsonl
+workspace/memory/loops/morning-triage/findings.jsonl
+workspace/memory/loops/morning-triage/metrics.jsonl
+data/cases/<date>-loop-simulation-lifecycle.md # 团队成长 case
+data/index/cases-index.json                    # case 机器索引
+data/index/patterns-index.md                   # pattern 人工索引
+```
 
 ## 维护约定
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
+import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson } from '../packages/shared/src/fs';
 import { validateWorkspace } from '../packages/shared/src/validation';
 
@@ -43,6 +44,24 @@ async function main(argv: string[]): Promise<void> {
       process.stdout.write(formatJson(plan));
     } else {
       printPlan(plan);
+    }
+    return;
+  }
+
+  if (options.command === 'simulate') {
+    const validation = await validateWorkspace(workspaceRoot, loopPath);
+    if (!validation.ok) {
+      process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const runtime = new SimulationRuntime();
+    const result = await runtime.simulate({ workspaceRoot, loopPath, repoRoot: process.cwd() });
+    if (options.json) {
+      process.stdout.write(formatJson(result));
+    } else {
+      printSimulation(result);
     }
     return;
   }
@@ -99,10 +118,26 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Memory writes: ${plan.persistence.plannedWrites.join(', ')}\n`);
 }
 
+function printSimulation(result: Awaited<ReturnType<SimulationRuntime['simulate']>>): void {
+  process.stdout.write(`Simulation: ${result.runId}\n`);
+  process.stdout.write(`Loop: ${result.loopId}\n`);
+  process.stdout.write(`Stages: ${result.stages.length}\n`);
+  for (const stage of result.stages) {
+    process.stdout.write(`- ${stage.id}: ${stage.title} [${stage.status}]\n`);
+  }
+  process.stdout.write(`Findings: ${result.summary.findings}\n`);
+  process.stdout.write(`Generator runs: ${result.summary.generatorRuns}\n`);
+  process.stdout.write(`Evaluator runs: ${result.summary.evaluatorRuns}\n`);
+  process.stdout.write(`Knowledge cases: ${result.summary.knowledgeCases}\n`);
+  process.stdout.write(`Report: ${path.relative(process.cwd(), result.artifacts.reportPath)}\n`);
+  process.stdout.write(`Case: ${path.relative(process.cwd(), result.artifacts.casePath)}\n`);
+}
+
 function printHelp(): void {
   process.stdout.write(`Usage:
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--json]
+  loop simulate [--workspace workspace] [--loop morning-triage] [--json]
 `);
 }
 

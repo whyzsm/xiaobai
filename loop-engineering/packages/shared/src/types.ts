@@ -231,6 +231,39 @@ export interface RuntimePlan {
   humanGate: HumanGatePlan;
 }
 
+export interface SimulationStage {
+  id: string;
+  title: string;
+  status: 'completed' | 'skipped';
+  detail: string;
+  outputs: string[];
+}
+
+export interface SimulationArtifact {
+  reportPath: string;
+  statePath: string;
+  runLogPath: string;
+  findingsPath: string;
+  metricsPath: string;
+  casePath: string;
+  casesIndexPath: string;
+  patternsIndexPath: string;
+}
+
+export interface SimulationResult {
+  runId: string;
+  loopId: string;
+  mode: 'simulation';
+  stages: SimulationStage[];
+  artifacts: SimulationArtifact;
+  summary: {
+    findings: number;
+    generatorRuns: number;
+    evaluatorRuns: number;
+    knowledgeCases: number;
+  };
+}
+
 export interface ValidationResult {
   ok: boolean;
   errors: string[];
