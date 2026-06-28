@@ -1,0 +1,65 @@
+kind: Harness
+version: 1
+metadata:
+  id: frontend-delivery-harness
+tools:
+  allow:
+    - read_file
+    - write_file
+    - search_code
+    - git_diff
+    - run_tests
+    - browser_check
+    - screenshot
+    - create_branch
+    - prepare_pull_request
+  deny:
+    - direct_merge
+    - release
+    - write_unmounted_repository
+    - write_business_artifacts_to_engineering_repo
+    - delete_repository
+    - modify_budget_policy
+context:
+  loaders:
+    - repository-skill
+    - project-skill
+    - requirement-brief
+    - dynamic-mounted-repositories
+    - frontend-master-design
+    - repository-design-supplements
+    - previous-memory
+  maxCharacters: 24000
+completion:
+  type: staged-objective
+  conditions:
+    - requirement_source_traceable
+    - target_repositories_resolved
+    - master_design_written_to_primary_target_repository
+    - repository_design_supplements_written_to_each_target_repository
+    - frontend_design_review_passed
+    - human_design_approval_recorded
+    - code_changed_after_design_approval
+    - tests_attempted
+    - ui_smoke_attempted
+    - pr_ready_summary_written
+failure:
+  onRequirementIncomplete: persist-to-inbox
+  onDesignReviewFailure: stop-before-implementation
+  onHumanDesignApprovalMissing: stop-before-implementation
+  onToolError: retry-once
+  onTestFailure: return-to-loop
+  onBudgetExceeded: stop-and-persist
+output:
+  required:
+    - requirementBrief
+    - targetRepositories
+    - masterDesignPath
+    - repositoryDesignPaths
+    - designReviewReport
+    - humanDesignApproval
+    - changedFiles
+    - testResult
+    - uiQaResult
+    - pullRequestPlan
+    - riskAndRollback

@@ -1,0 +1,29 @@
+kind: Connector
+id: yuque
+capabilities:
+  - read_doc_by_url
+  - read_doc_by_id
+  - read_doc_metadata
+permissions:
+  write:
+    allow: []
+    deny:
+      - write_doc
+      - delete_doc
+      - change_permissions
+rateLimit:
+  maxCallsPerRun: 40
+config:
+  baseUrl: https://www.yuque.com/api/v2
+auth:
+  type: env
+  tokenEnv: YUQUE_TOKEN
+mock:
+  yuque:
+    - title: Yuque frontend requirement intake
+      severity: high
+      status: ready
+      area: requirement/yuque
+      sourceUrl: https://yuque.example.com/team/book/doc
+      sourceUpdatedAt: 2026-06-28T00:00:00.000Z
+      nextGate: requirement-complete

@@ -45,6 +45,21 @@ export interface LoopSpec {
     requiredBefore: string[];
     reviewers: string[];
   };
+  workflow?: {
+    stages: LoopWorkflowStage[];
+  };
+}
+
+export interface LoopWorkflowStage {
+  id: string;
+  kind: string;
+  gate?: 'automatic' | 'manual';
+  agent?: string;
+  harness?: string;
+  evaluator?: string;
+  requiredChecks?: string[];
+  requiredBefore?: string[];
+  outputs?: string[];
 }
 
 export interface DiscoverySource {
@@ -109,6 +124,14 @@ export interface ConnectorSpec {
   };
   rateLimit: {
     maxCallsPerRun: number;
+  };
+  config?: {
+    baseUrl?: string;
+    [key: string]: unknown;
+  };
+  auth?: {
+    type: string;
+    tokenEnv?: string;
   };
   mock?: JsonRecord;
 }
@@ -199,6 +222,23 @@ export interface HumanGatePlan {
   reviewers: string[];
 }
 
+export interface WorkflowStagePlan {
+  id: string;
+  kind: string;
+  status: 'planned';
+  gate: 'automatic' | 'manual';
+  agent?: string;
+  harness?: string;
+  evaluator?: string;
+  requiredChecks: string[];
+  requiredBefore: string[];
+  outputs: string[];
+}
+
+export interface WorkflowPlan {
+  stages: WorkflowStagePlan[];
+}
+
 export interface RuntimePlan {
   loopId: string;
   schedule: {
@@ -229,6 +269,23 @@ export interface RuntimePlan {
     plannedWrites: string[];
   };
   humanGate: HumanGatePlan;
+  workflow?: WorkflowPlan;
+  memoryContext?: {
+    indexPath: string;
+    included: Array<{
+      path: string;
+      title: string;
+      kind: string;
+      characters: number;
+    }>;
+    omitted: Array<{
+      path: string;
+      title: string;
+      reason: string;
+      characters: number;
+    }>;
+    warnings: string[];
+  };
 }
 
 export interface SimulationStage {
@@ -246,6 +303,7 @@ export interface SimulationArtifact {
   findingsPath: string;
   metricsPath: string;
   casePath: string;
+  obsidianCasePath?: string;
   casesIndexPath: string;
   patternsIndexPath: string;
 }

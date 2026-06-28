@@ -1,0 +1,23 @@
+kind: Connector
+id: requirement-input
+capabilities:
+  - read_local_documents
+  - read_conversation_requirements
+  - normalize_requirement_brief
+permissions:
+  write:
+    allow: []
+    deny:
+      - write_business_code
+      - write_business_design
+      - delete_requirement_source
+rateLimit:
+  maxCallsPerRun: 60
+mock:
+  requirement:
+    - title: Local or conversation frontend requirement intake
+      severity: high
+      status: ready
+      area: requirement/local-conversation
+      sourcePath: memory/loops/frontend-delivery/manual-input.md
+      nextGate: target-repository-ready

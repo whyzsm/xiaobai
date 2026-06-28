@@ -11,6 +11,7 @@ import {
 } from './types';
 import { pathExists, readYamlFile, resolveWorkspacePath } from './fs';
 import { readFile } from 'node:fs/promises';
+import { resolveMemoryPath, resolveMemoryRoot } from './memoryRoot';
 
 type SchemaName = 'loop' | 'harness' | 'agent' | 'connector' | 'budget';
 
@@ -65,6 +66,7 @@ export async function validateWorkspace(
   const errors: string[] = [];
   const ajv = await buildAjv(workspaceRoot);
   const loop = await readYamlFile<LoopSpec>(loopPath);
+  const memoryRoot = await resolveMemoryRoot(workspaceRoot);
 
   errors.push(...(await validateObject(ajv, 'loop', path.relative(workspaceRoot, loopPath), loop)));
 
@@ -102,13 +104,56 @@ export async function validateWorkspace(
     errors.push(...(await validateObject(ajv, 'budget', path.relative(workspaceRoot, budgetPath), budget)));
   }
 
+  const workflowStageIds = new Set<string>();
+  for (const stage of loop.workflow?.stages ?? []) {
+    if (workflowStageIds.has(stage.id)) {
+      errors.push(`Duplicate workflow stage id: ${stage.id}`);
+    }
+    workflowStageIds.add(stage.id);
+
+    if (stage.agent) {
+      const stageAgentPath = path.join(workspaceRoot, 'agents', stage.agent);
+      if (!(await pathExists(stageAgentPath))) {
+        errors.push(`Missing workflow stage agent: ${stageAgentPath}`);
+      } else {
+        const stageAgent = await readYamlFile<AgentSpec>(stageAgentPath);
+        errors.push(...(await validateObject(ajv, 'agent', path.relative(workspaceRoot, stageAgentPath), stageAgent)));
+      }
+    }
+
+    if (stage.evaluator) {
+      const stageEvaluatorPath = path.join(workspaceRoot, 'agents', stage.evaluator);
+      if (!(await pathExists(stageEvaluatorPath))) {
+        errors.push(`Missing workflow stage evaluator: ${stageEvaluatorPath}`);
+      } else {
+        const stageEvaluator = await readYamlFile<AgentSpec>(stageEvaluatorPath);
+        errors.push(
+          ...(await validateObject(ajv, 'agent', path.relative(workspaceRoot, stageEvaluatorPath), stageEvaluator))
+        );
+      }
+    }
+
+    if (stage.harness) {
+      const stageHarnessPath = path.join(workspaceRoot, 'agents', stage.harness);
+      if (!(await pathExists(stageHarnessPath))) {
+        errors.push(`Missing workflow stage harness: ${stageHarnessPath}`);
+      } else {
+        const stageHarness = await readYamlFile<HarnessSpec>(stageHarnessPath);
+        errors.push(...(await validateObject(ajv, 'harness', path.relative(workspaceRoot, stageHarnessPath), stageHarness)));
+      }
+    }
+  }
+
   const connectorIds = new Set<string>();
   for (const source of loop.discovery.sources) {
     if (source.connector) {
       connectorIds.add(source.connector);
     }
     if (source.path) {
-      const memoryPath = resolveWorkspacePath(workspaceRoot, source.path);
+      const memoryPath =
+        source.type === 'memory'
+          ? resolveMemoryPath(memoryRoot, source.path)
+          : resolveWorkspacePath(workspaceRoot, source.path);
       if (!(await pathExists(memoryPath))) {
         errors.push(`Missing discovery path: ${memoryPath}`);
       }

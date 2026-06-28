@@ -6,13 +6,17 @@ Main branch stability and repeated CI failures.
 
 ## Last Run
 
-No completed automated runs yet.
+2026-06-28T03:50:32.628Z (simulation)
 
 ## Open Findings
 
 | ID | Title | Status | Owner |
 |---|---|---|---|
+| task-001 | Auth tests failing on main | simulated_reviewed | loop |
+| task-002 | Checkout test flaky | simulated_reviewed | loop |
+| task-003 | Checkout returns 500 for expired sessions | simulated_reviewed | loop |
 
 ## Carry Over
 
-- First run should establish baseline findings from mocked connectors.
+- Simulation completed from initialization through knowledge capture.
+- Real execution still requires connector, worktree, agent, evaluator, and output side effects.

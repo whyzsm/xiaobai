@@ -1,0 +1,9 @@
+# Copy this file to workspace.local.yaml on each computer, then adjust paths.
+# workspace.local.yaml is ignored by git because these paths are machine-specific.
+#
+# Default when omitted:
+#   memoryRoot: workspace/memory
+#
+# Recommended Obsidian setup:
+#   memoryRoot: /absolute/path/to/ObsidianVault/88-学习/Loop Engineering Memory
+memoryRoot: memory

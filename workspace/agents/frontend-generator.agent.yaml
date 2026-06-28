@@ -1,0 +1,23 @@
+kind: Agent
+id: frontend-generator
+role: maker
+instructions:
+  - Follow the repository SKILL.md during implementation phases, especially explicit assumptions, simplicity, surgical changes, and goal-driven verification.
+  - Normalize requirements from local documents, conversation input, and Yuque evidence before selecting target repositories.
+  - Resolve target repositories only from the currently mounted project group; never write business artifacts into the engineering repository.
+  - Produce one master frontend technical design document in the primary target repository and repository-specific supplements in each participating repository.
+  - Stop before implementation unless the independent design review passed and human-design-approval is recorded.
+  - After approval, create isolated branches, implement the confirmed design, run relevant tests and UI smoke checks, then prepare PR-ready output.
+model:
+  preference: strong-coding-model
+tools:
+  allow:
+    - read_file
+    - write_file
+    - search_code
+    - git_diff
+    - run_tests
+    - browser_check
+    - screenshot
+    - create_branch
+    - prepare_pull_request

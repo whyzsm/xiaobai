@@ -1,34 +1,60 @@
 #!/usr/bin/env node
 import path from 'node:path';
+import { readdir } from 'node:fs/promises';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson } from '../packages/shared/src/fs';
 import { validateWorkspace } from '../packages/shared/src/validation';
+import { runMemoryCommand } from './memory';
 
 interface CliOptions {
   command: string;
   workspace: string;
   loop?: string;
   json: boolean;
+  rest: string[];
 }
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgs(argv);
   const workspaceRoot = path.resolve(process.cwd(), options.workspace);
-  const loopPath = await findLoopSpec(workspaceRoot, options.loop);
 
-  if (options.command === 'validate') {
-    const result = await validateWorkspace(workspaceRoot, loopPath);
-    if (options.json) {
-      process.stdout.write(formatJson(result));
-    } else if (result.ok) {
-      process.stdout.write(`OK: ${path.relative(process.cwd(), loopPath)}\n`);
-    } else {
-      process.stderr.write(`Validation failed:\n${result.errors.map((error) => `- ${error}`).join('\n')}\n`);
-    }
-    process.exitCode = result.ok ? 0 : 1;
+  if (options.command === 'memory') {
+    const [memoryCommand = 'help', ...memoryArgs] = options.rest;
+    await runMemoryCommand({
+      command: memoryCommand,
+      args: memoryArgs,
+      workspaceRoot,
+      repoRoot: process.cwd()
+    });
     return;
   }
+
+  if (options.command === 'validate') {
+    const loopPaths = options.loop ? [await findLoopSpec(workspaceRoot, options.loop)] : await listLoopSpecs(workspaceRoot);
+    const results = await Promise.all(
+      loopPaths.map(async (loopPath) => ({
+        loopPath,
+        result: await validateWorkspace(workspaceRoot, loopPath)
+      }))
+    );
+    const allOk = results.every(({ result }) => result.ok);
+    if (options.json) {
+      process.stdout.write(formatJson(results));
+    } else if (allOk) {
+      process.stdout.write(results.map(({ loopPath }) => `OK: ${path.relative(process.cwd(), loopPath)}`).join('\n'));
+      process.stdout.write('\n');
+    } else {
+      const errors = results.flatMap(({ loopPath, result }) =>
+        result.errors.map((error) => `${path.relative(process.cwd(), loopPath)}: ${error}`)
+      );
+      process.stderr.write(`Validation failed:\n${errors.map((error) => `- ${error}`).join('\n')}\n`);
+    }
+    process.exitCode = allOk ? 0 : 1;
+    return;
+  }
+
+  const loopPath = await findLoopSpec(workspaceRoot, options.loop);
 
   if (options.command === 'dry-run') {
     const validation = await validateWorkspace(workspaceRoot, loopPath);
@@ -70,17 +96,34 @@ async function main(argv: string[]): Promise<void> {
   process.exitCode = 1;
 }
 
+async function listLoopSpecs(workspaceRoot: string): Promise<string[]> {
+  const loopsDir = path.join(workspaceRoot, 'loops');
+  const files = (await readdir(loopsDir)).filter((file) => file.endsWith('.loop.yaml')).sort();
+  if (files.length === 0) {
+    throw new Error(`No loop specs found in ${loopsDir}`);
+  }
+  return files.map((file) => path.join(loopsDir, file));
+}
+
 function parseArgs(argv: string[]): CliOptions {
   const [command = 'help', ...rest] = argv;
   const options: CliOptions = {
     command,
     workspace: 'workspace',
-    json: false
+    json: false,
+    rest: []
   };
 
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index];
-    if (arg === '--workspace') {
+    if (command === 'memory') {
+      if (arg === '--workspace') {
+        options.workspace = requireValue(rest, index, arg);
+        index += 1;
+      } else {
+        options.rest.push(arg);
+      }
+    } else if (arg === '--workspace') {
       options.workspace = requireValue(rest, index, arg);
       index += 1;
     } else if (arg === '--loop') {
@@ -89,7 +132,7 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--json') {
       options.json = true;
     } else {
-      throw new Error(`Unknown argument: ${arg}`);
+      options.rest.push(arg);
     }
   }
 
@@ -115,6 +158,12 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   }
   process.stdout.write(`Generator runs: ${plan.generatorRuns.length}\n`);
   process.stdout.write(`Evaluator runs: ${plan.evaluations.length}\n`);
+  if (plan.workflow) {
+    process.stdout.write(`Workflow stages: ${plan.workflow.stages.length}\n`);
+    for (const stage of plan.workflow.stages) {
+      process.stdout.write(`- ${stage.id} [${stage.kind}, ${stage.gate}, ${stage.status}]\n`);
+    }
+  }
   process.stdout.write(`Memory writes: ${plan.persistence.plannedWrites.join(', ')}\n`);
 }
 
@@ -138,6 +187,7 @@ function printHelp(): void {
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
+  loop memory <init|validate|doctor|index|search|context|capture|promote|report> [...]
 `);
 }
 

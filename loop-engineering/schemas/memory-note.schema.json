@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory-note.schema.json",
+  "title": "Memory Note Frontmatter",
+  "type": "object",
+  "required": ["title", "status", "type", "confidence"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["draft", "active", "archived", "deprecated"] },
+    "type": { "type": "string", "minLength": 1 },
+    "project": { "type": "string", "minLength": 1 },
+    "loop": { "type": "string", "minLength": 1 },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "domain": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "source": { "type": "string", "minLength": 1 },
+    "access": { "type": "string", "minLength": 1 },
+    "confidence": { "enum": ["low", "medium", "high"] },
+    "source_project": { "type": "string", "minLength": 1 },
+    "source_loop": { "type": "string", "minLength": 1 },
+    "source_run_id": { "type": "string", "minLength": 1 },
+    "promote_score": { "type": "number" }
+  }
+}

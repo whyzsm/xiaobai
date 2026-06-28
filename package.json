@@ -11,8 +11,9 @@
     "test": "npm run build && node --test dist/loop-engineering/tests/*.test.js",
     "loop": "npm run build --silent && node dist/loop-engineering/cli/loop.js",
     "validate": "npm run loop -- validate",
-    "dry-run": "npm run loop -- dry-run --json",
-    "simulate": "npm run loop -- simulate"
+    "dry-run": "npm run loop -- dry-run --json --loop morning-triage",
+    "simulate": "npm run loop -- simulate --loop morning-triage",
+    "mount:tmax": "node workspace/projects/t-max/scripts/mount-local.mjs"
   },
   "dependencies": {
     "ajv": "^8.17.1",

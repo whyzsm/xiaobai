@@ -1,23 +1,25 @@
 import path from 'node:path';
 import { LoopSpec } from '../../shared/src/types';
-import { pathExists, readText, resolveWorkspacePath } from '../../shared/src/fs';
+import { pathExists, readText } from '../../shared/src/fs';
+import { resolveMemoryPath } from '../../shared/src/memoryRoot';
 
 export class MemoryStore {
   constructor(
     private readonly workspaceRoot: string,
+    private readonly memoryRoot: string,
     private readonly loop: LoopSpec
   ) {}
 
   stateFile(): string {
-    return resolveWorkspacePath(this.workspaceRoot, this.loop.persistence.memory.stateFile);
+    return resolveMemoryPath(this.memoryRoot, this.loop.persistence.memory.stateFile);
   }
 
   inboxFile(): string {
-    return resolveWorkspacePath(this.workspaceRoot, this.loop.persistence.memory.inboxFile);
+    return resolveMemoryPath(this.memoryRoot, this.loop.persistence.memory.inboxFile);
   }
 
   runLog(): string {
-    return resolveWorkspacePath(this.workspaceRoot, this.loop.persistence.memory.runLog);
+    return resolveMemoryPath(this.memoryRoot, this.loop.persistence.memory.runLog);
   }
 
   async readState(): Promise<string> {
@@ -32,9 +34,14 @@ export class MemoryStore {
 
   plannedWrites(): string[] {
     return [
-      path.relative(this.workspaceRoot, this.stateFile()),
-      path.relative(this.workspaceRoot, this.inboxFile()),
-      path.relative(this.workspaceRoot, this.runLog())
+      displayPath(this.workspaceRoot, this.stateFile()),
+      displayPath(this.workspaceRoot, this.inboxFile()),
+      displayPath(this.workspaceRoot, this.runLog())
     ];
   }
+}
+
+function displayPath(workspaceRoot: string, filePath: string): string {
+  const relativePath = path.relative(workspaceRoot, filePath);
+  return relativePath === '..' || relativePath.startsWith(`..${path.sep}`) ? filePath : relativePath;
 }

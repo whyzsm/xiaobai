@@ -1,0 +1,160 @@
+kind: Loop
+version: 1
+metadata:
+  id: frontend-delivery
+  name: Frontend Delivery Loop
+  owner: wusheng
+schedule:
+  type: manual
+  expression: on-demand
+  timezone: Asia/Shanghai
+discovery:
+  skill: frontend-delivery
+  sources:
+    - type: yuque
+      connector: yuque
+    - type: requirement
+      connector: requirement-input
+    - type: memory
+      path: memory/loops/frontend-delivery/state.md
+handoff:
+  strategy: one-worktree-per-target-repository
+  project: t-max
+  worktreeRoot: .local/frontend-delivery/worktrees
+  branchTemplate: "loop/frontend-delivery/{date}/{taskId}"
+generator:
+  agent: "frontend-generator.agent.yaml"
+  harness: frontend-delivery.harness.yaml
+verification:
+  evaluator: frontend-evaluator.agent.yaml
+  requiredChecks:
+    - requirement-source-accessible
+    - yuque-accessible
+    - requirement-complete
+    - target-repository-ready
+    - design-doc-location-resolved
+    - frontend-design-review-passed
+    - human-design-approval
+    - implementation-verification-passed
+    - independent-code-review-passed
+    - ui-smoke-desktop
+    - ui-smoke-mobile
+    - pr-ready
+  allowSelfReview: false
+persistence:
+  memory:
+    stateFile: memory/loops/frontend-delivery/state.md
+    inboxFile: memory/loops/frontend-delivery/inbox.md
+    runLog: memory/loops/frontend-delivery/runs.jsonl
+  outputs:
+    - type: design-review-report
+      path: reports/frontend-delivery/design-reviews
+    - type: pull-request
+      connector: github
+    - type: yuque-source-trace
+      connector: yuque
+budget:
+  maxTokensPerRun: 300000
+  maxRunsPerDay: 2
+  maxRetriesPerTask: 2
+  maxParallelTasks: 4
+humanGate:
+  requiredBefore:
+    - human-design-approval
+    - coding
+    - merge
+    - release
+    - external-api-contract-change
+    - major-dependency-upgrade
+    - destructive-file-change
+  reviewers:
+    - owner
+workflow:
+  stages:
+    - id: requirement-intake
+      kind: intake
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: frontend-delivery.harness.yaml
+      requiredChecks:
+        - requirement-source-accessible
+        - yuque-accessible
+      outputs:
+        - requirementBrief
+        - sourceTrace
+    - id: target-repository-resolution
+      kind: intake
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: frontend-delivery.harness.yaml
+      requiredChecks:
+        - requirement-complete
+        - target-repository-ready
+      outputs:
+        - targetRepositories
+        - primaryTargetRepository
+    - id: frontend-master-design
+      kind: design
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: frontend-delivery.harness.yaml
+      requiredChecks:
+        - design-doc-location-resolved
+      outputs:
+        - masterDesignPath
+    - id: frontend-repository-design
+      kind: design
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: frontend-delivery.harness.yaml
+      requiredChecks:
+        - design-doc-location-resolved
+      outputs:
+        - repositoryDesignPaths
+    - id: frontend-design-review
+      kind: review
+      gate: automatic
+      evaluator: frontend-evaluator.agent.yaml
+      requiredChecks:
+        - frontend-design-review-passed
+      outputs:
+        - designReviewReport
+    - id: human-design-approval
+      kind: human-gate
+      gate: manual
+      requiredBefore:
+        - coding
+      requiredChecks:
+        - human-design-approval
+      outputs:
+        - humanDesignApproval
+    - id: frontend-implementation
+      kind: coding
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: frontend-delivery.harness.yaml
+      requiredBefore:
+        - human-design-approval
+      outputs:
+        - changedFiles
+    - id: implementation-verification
+      kind: review
+      gate: automatic
+      evaluator: frontend-evaluator.agent.yaml
+      requiredChecks:
+        - implementation-verification-passed
+        - independent-code-review-passed
+        - ui-smoke-desktop
+        - ui-smoke-mobile
+      outputs:
+        - testResult
+        - uiQaResult
+    - id: pr-readiness
+      kind: pr-readiness
+      gate: automatic
+      evaluator: frontend-evaluator.agent.yaml
+      requiredChecks:
+        - pr-ready
+      outputs:
+        - pullRequestPlan
+        - riskAndRollback

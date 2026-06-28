@@ -15,6 +15,7 @@ tools:
     - modify_budget_policy
 context:
   loaders:
+    - repository-skill
     - project-skill
     - task-brief
     - relevant-files

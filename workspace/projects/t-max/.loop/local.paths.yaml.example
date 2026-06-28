@@ -1,0 +1,12 @@
+# Copy this file to local.paths.yaml on each computer, then adjust paths.
+# local.paths.yaml is ignored by git because these paths are machine-specific.
+background:
+  shared-skills: /absolute/path/to/shared-skills
+repositories:
+  KPIUI: /absolute/path/to/T-MAX/KPIUI
+  max-console-ui: /absolute/path/to/T-MAX/max-console-ui
+  max-operate-monitor-ui: /absolute/path/to/T-MAX/max-operate-monitor-ui
+  operateBusiness: /absolute/path/to/T-MAX/operateBusiness
+  operateSupport: /absolute/path/to/T-MAX/operateSupport
+  dcm: /absolute/path/to/T-MAX/dcm
+  scan: /absolute/path/to/T-MAX/scan

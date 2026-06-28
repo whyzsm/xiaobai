@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory-index.schema.json",
+  "title": "Memory Index",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "learningRoot",
+    "globalIndexRoot",
+    "projectRoot",
+    "projects",
+    "notes",
+    "cases",
+    "patterns",
+    "tags",
+    "links",
+    "warnings"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string", "minLength": 1 },
+    "vaultRoot": { "type": "string", "minLength": 1 },
+    "learningRoot": { "type": "string", "minLength": 1 },
+    "globalIndexRoot": { "type": "string", "minLength": 1 },
+    "projectRoot": { "type": "string", "minLength": 1 },
+    "projects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/projectEntry" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/noteEntry" }
+    },
+    "cases": { "type": "array" },
+    "patterns": { "type": "array" },
+    "tags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tagEntry" }
+    },
+    "links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/linkEntry" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "projectEntry": {
+      "type": "object",
+      "required": ["id", "name", "status", "memoryRoot", "entry", "tags", "confidence"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "memoryRoot": { "type": "string", "minLength": 1 },
+        "entry": { "type": "string", "minLength": 1 },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "confidence": { "enum": ["low", "medium", "high"] }
+      }
+    },
+    "noteEntry": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "path",
+        "vaultRelativePath",
+        "obsidianLink",
+        "tags",
+        "status",
+        "type",
+        "domain",
+        "source",
+        "access",
+        "confidence",
+        "summary",
+        "headings",
+        "links",
+        "keywords",
+        "mtimeMs",
+        "sizeBytes",
+        "contentHash"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "vaultRelativePath": { "type": "string", "minLength": 1 },
+        "obsidianLink": { "type": "string", "minLength": 1 },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "status": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "domain": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "access": { "type": "string", "minLength": 1 },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "summary": { "type": "string" },
+        "headings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "links": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "mtimeMs": { "type": "number" },
+        "sizeBytes": { "type": "number" },
+        "contentHash": { "type": "string", "minLength": 1 }
+      }
+    },
+    "tagEntry": {
+      "type": "object",
+      "required": ["tag", "count", "notes"],
+      "additionalProperties": true,
+      "properties": {
+        "tag": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 0 },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "linkEntry": {
+      "type": "object",
+      "required": ["from", "to", "raw"],
+      "additionalProperties": true,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "raw": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

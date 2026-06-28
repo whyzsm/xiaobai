@@ -9,6 +9,12 @@ coverage/
 .DS_Store
 npm-debug.log*
 
+# Local workspace state
+workspace/.local/
+workspace/reports/simulations/
+workspace/workspace.local.yaml
+workspace/projects/*/.loop/local.paths.yaml
+
 # Other files and folders
 .settings/
 

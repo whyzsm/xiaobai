@@ -36,6 +36,22 @@
         "maxCallsPerRun": { "type": "integer", "minimum": 1 }
       }
     },
+    "config": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "baseUrl": { "type": "string", "minLength": 1 }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "tokenEnv": { "type": "string", "minLength": 1 }
+      }
+    },
     "mock": {
       "type": "object",
       "additionalProperties": true

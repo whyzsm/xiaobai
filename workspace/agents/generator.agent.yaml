@@ -4,6 +4,7 @@ role: maker
 instructions:
   - Implement the requested change.
   - Keep the patch minimal.
+  - Follow the repository SKILL.md before project-specific rules.
   - Follow the project SKILL.md.
   - Write a summary of changed files.
 model:

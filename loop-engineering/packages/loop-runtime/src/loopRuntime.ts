@@ -7,11 +7,16 @@ import { EvaluatorRuntime } from '../../evaluator-runtime/src/evaluatorRuntime';
 import { HarnessRuntime } from '../../harness-runtime/src/harnessRuntime';
 import { HumanGate } from '../../human-gate/src/humanGate';
 import { MemoryStore } from '../../memory-store/src/memoryStore';
+import { resolveMemoryRoot } from '../../shared/src/memoryRoot';
 import { Scheduler } from '../../scheduler/src/scheduler';
 import { readYamlFile } from '../../shared/src/fs';
-import { LoopSpec, RuntimePlan } from '../../shared/src/types';
+import { LoopSpec, RuntimePlan, WorkflowPlan } from '../../shared/src/types';
 import { SkillRuntime } from '../../skill-runtime/src/skillRuntime';
 import { WorktreeManager } from '../../worktree-manager/src/worktreeManager';
+import { buildMemoryIndex, writeMemoryIndexAtomic } from '../../memory-indexer/src';
+import { loadMemoryContext } from '../../memory-context/src';
+import { resolveMemoryProtocolPaths } from '../../memory-protocol/src';
+import { pathExists } from '../../shared/src/fs';
 
 export interface RuntimeOptions {
   workspaceRoot: string;
@@ -23,10 +28,11 @@ export class LoopRuntime {
   async dryRun(options: RuntimeOptions): Promise<RuntimePlan> {
     const workspaceRoot = path.resolve(options.workspaceRoot);
     const loop = await readYamlFile<LoopSpec>(options.loopPath);
+    const memoryRoot = await resolveMemoryRoot(workspaceRoot);
 
     const scheduler = new Scheduler(loop);
     const budget = new BudgetGuard(loop.budget).check();
-    const memoryStore = new MemoryStore(workspaceRoot, loop);
+    const memoryStore = new MemoryStore(workspaceRoot, memoryRoot, loop);
     const skillRuntime = new SkillRuntime(workspaceRoot);
     const connectorRuntime = new ConnectorRuntime(workspaceRoot);
     const contextEngine = new ContextEngine();
@@ -57,6 +63,12 @@ export class LoopRuntime {
     const worktrees = worktreeManager.plan(findings, options.now);
     const generatorRuns = harnessRuntime.planGeneratorRuns(loop, harness, worktrees);
     const evaluations = evaluatorRuntime.plan(loop, evaluator, worktrees);
+    const memoryContext = await buildMemoryContextMetadata({
+      workspaceRoot,
+      memoryRoot,
+      loop,
+      maxCharacters: context.maxCharacters
+    });
 
     return {
       loopId: loop.metadata.id,
@@ -65,8 +77,8 @@ export class LoopRuntime {
       context: {
         skillPath: path.relative(workspaceRoot, context.skill.path),
         evidenceSources: context.evidence.length,
-        stateFile: path.relative(workspaceRoot, memoryStore.stateFile()),
-        inboxFile: path.relative(workspaceRoot, memoryStore.inboxFile()),
+        stateFile: displayPath(workspaceRoot, memoryStore.stateFile()),
+        inboxFile: displayPath(workspaceRoot, memoryStore.inboxFile()),
         maxCharacters: context.maxCharacters
       },
       findings,
@@ -74,12 +86,96 @@ export class LoopRuntime {
       generatorRuns,
       evaluations,
       persistence: {
-        stateFile: path.relative(workspaceRoot, memoryStore.stateFile()),
-        inboxFile: path.relative(workspaceRoot, memoryStore.inboxFile()),
-        runLog: path.relative(workspaceRoot, memoryStore.runLog()),
+        stateFile: displayPath(workspaceRoot, memoryStore.stateFile()),
+        inboxFile: displayPath(workspaceRoot, memoryStore.inboxFile()),
+        runLog: displayPath(workspaceRoot, memoryStore.runLog()),
         plannedWrites: memoryStore.plannedWrites()
       },
-      humanGate: humanGate.plan()
+      humanGate: humanGate.plan(),
+      workflow: buildWorkflowPlan(loop),
+      memoryContext
     };
   }
+}
+
+async function buildMemoryContextMetadata(input: {
+  workspaceRoot: string;
+  memoryRoot: string;
+  loop: LoopSpec;
+  maxCharacters: number;
+}): Promise<RuntimePlan['memoryContext']> {
+  const protocol = resolveMemoryProtocolPaths({
+    workspaceRoot: input.workspaceRoot,
+    vaultRoot: inferVaultRoot(input.memoryRoot),
+    projectId: inferProjectId(input.memoryRoot) ?? input.loop.handoff.project,
+    loopId: input.loop.metadata.id
+  });
+  const index = await buildMemoryIndex({
+    workspaceRoot: input.workspaceRoot,
+    vaultRoot: protocol.vaultRoot
+  });
+  if (!(await pathExists(protocol.indexPath))) {
+    await writeMemoryIndexAtomic(protocol.indexPath, index);
+  }
+  const bundle = await loadMemoryContext({
+    index,
+    projectId: inferProjectId(input.memoryRoot) ?? input.loop.handoff.project,
+    loopId: input.loop.metadata.id,
+    query: input.loop.metadata.name,
+    maxCharacters: input.maxCharacters
+  });
+  return {
+    indexPath: protocol.indexPath,
+    included: bundle.included.map((item) => ({
+      path: displayPath(input.workspaceRoot, item.path),
+      title: item.title,
+      kind: item.kind,
+      characters: item.characters
+    })),
+    omitted: bundle.omitted.map((item) => ({
+      path: displayPath(input.workspaceRoot, item.path),
+      title: item.title,
+      reason: item.reason,
+      characters: item.characters
+    })),
+    warnings: bundle.warnings
+  };
+}
+
+function inferVaultRoot(memoryRoot: string): string {
+  const marker = `${path.sep}88-学习${path.sep}`;
+  const index = memoryRoot.indexOf(marker);
+  return index >= 0 ? memoryRoot.slice(0, index) : memoryRoot;
+}
+
+function inferProjectId(memoryRoot: string): string | undefined {
+  const parts = memoryRoot.split(path.sep);
+  const markerIndex = parts.lastIndexOf('10-项目记忆');
+  return markerIndex >= 0 ? parts[markerIndex + 1] : undefined;
+}
+
+function buildWorkflowPlan(loop: LoopSpec): WorkflowPlan | undefined {
+  if (!loop.workflow) {
+    return undefined;
+  }
+
+  return {
+    stages: loop.workflow.stages.map((stage) => ({
+      id: stage.id,
+      kind: stage.kind,
+      status: 'planned',
+      gate: stage.gate ?? 'automatic',
+      agent: stage.agent,
+      harness: stage.harness,
+      evaluator: stage.evaluator,
+      requiredChecks: stage.requiredChecks ?? [],
+      requiredBefore: stage.requiredBefore ?? [],
+      outputs: stage.outputs ?? []
+    }))
+  };
+}
+
+function displayPath(workspaceRoot: string, filePath: string): string {
+  const relativePath = path.relative(workspaceRoot, filePath);
+  return relativePath === '..' || relativePath.startsWith(`..${path.sep}`) ? filePath : relativePath;
 }
