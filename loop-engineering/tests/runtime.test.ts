@@ -202,6 +202,41 @@ test('frontend delivery skills document dynamic repositories and design gates', 
   assert.match(skill, /must not enter implementation/);
 });
 
+test('harmony wardrobe project background is mounted as a standalone repository', async () => {
+  const projectRoot = path.join(workspaceRoot, 'projects', 'harmony-wardrobe');
+  const project = await readYamlFile<{
+    kind: string;
+    id: string;
+    background: { id: string; localPathKey: string; mount: string };
+    repositories: Array<{ id: string; localPathKey: string; mount: string; remote: string }>;
+  }>(path.join(projectRoot, '.loop', 'project.yaml'));
+
+  assert.equal(project.kind, 'ProjectGroup');
+  assert.equal(project.id, 'harmony-wardrobe');
+  assert.equal(project.background.localPathKey, 'harmonyWardrobe');
+  assert.equal(project.repositories.length, 1);
+  assert.equal(project.repositories[0].id, 'harmonyWardrobe');
+  assert.equal(project.repositories[0].localPathKey, project.background.localPathKey);
+  assert.equal(
+    project.repositories[0].remote,
+    'git@codeup.aliyun.com:62ecbcd881ddd27ad912a7b9/harmonyWardrobe.git'
+  );
+  assert.match(project.background.mount, /mounts\/background\/harmonyWardrobe$/);
+  assert.match(project.repositories[0].mount, /mounts\/repos\/harmonyWardrobe$/);
+
+  const packageJson = await readYamlFile<{ scripts: Record<string, string> }>(path.join(repoRoot, 'package.json'));
+  assert.equal(packageJson.scripts['mount:harmony-wardrobe'], 'node workspace/projects/harmony-wardrobe/scripts/mount-local.mjs');
+
+  const skill = await readText(path.join(projectRoot, 'SKILL.md'));
+  assert.match(skill, /鸿蒙原生开发/);
+  assert.match(skill, /harmonyWardrobe/);
+  assert.match(skill, /mount:harmony-wardrobe/);
+
+  const readme = await readText(path.join(projectRoot, 'README.md'));
+  assert.match(readme, /个人衣橱柜管理 app/);
+  assert.match(readme, /workspace\/\.local\/harmony-wardrobe\/mounts\/repos\/harmonyWardrobe/);
+});
+
 test('simulation writes report, memory, and knowledge artifacts', async () => {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-sim-'));
   const tempWorkspace = path.join(tempRoot, 'workspace');
