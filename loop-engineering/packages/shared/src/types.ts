@@ -1,0 +1,237 @@
+export type JsonRecord = Record<string, unknown>;
+
+export interface LoopSpec {
+  kind: 'Loop';
+  version: number;
+  metadata: {
+    id: string;
+    name: string;
+    owner: string;
+  };
+  schedule: {
+    type: string;
+    expression: string;
+    timezone: string;
+  };
+  discovery: {
+    skill: string;
+    sources: DiscoverySource[];
+  };
+  handoff: {
+    strategy: string;
+    project: string;
+    worktreeRoot: string;
+    branchTemplate: string;
+  };
+  generator: {
+    agent: string;
+    harness: string;
+  };
+  verification: {
+    evaluator: string;
+    requiredChecks: string[];
+    allowSelfReview: boolean;
+  };
+  persistence: {
+    memory: {
+      stateFile: string;
+      inboxFile: string;
+      runLog: string;
+    };
+    outputs: OutputTarget[];
+  };
+  budget: BudgetLimits;
+  humanGate: {
+    requiredBefore: string[];
+    reviewers: string[];
+  };
+}
+
+export interface DiscoverySource {
+  type: string;
+  connector?: string;
+  path?: string;
+}
+
+export interface OutputTarget {
+  type: string;
+  connector?: string;
+  path?: string;
+}
+
+export interface HarnessSpec {
+  kind: 'Harness';
+  version: number;
+  metadata: {
+    id: string;
+  };
+  tools: {
+    allow: string[];
+    deny: string[];
+  };
+  context: {
+    loaders: string[];
+    maxCharacters: number;
+  };
+  completion: {
+    type: string;
+    conditions: string[];
+  };
+  failure: Record<string, string>;
+  output: {
+    required: string[];
+  };
+}
+
+export interface AgentSpec {
+  kind: 'Agent';
+  id: string;
+  role: string;
+  stance?: string;
+  instructions: string[];
+  model: {
+    preference: string;
+  };
+  tools?: {
+    allow: string[];
+  };
+}
+
+export interface ConnectorSpec {
+  kind: 'Connector';
+  id: string;
+  capabilities: string[];
+  permissions: {
+    write: {
+      allow: string[];
+      deny: string[];
+    };
+  };
+  rateLimit: {
+    maxCallsPerRun: number;
+  };
+  mock?: JsonRecord;
+}
+
+export interface BudgetSpec {
+  kind: 'Budget';
+  id: string;
+  limits: BudgetLimits;
+  onExceeded: {
+    action: string;
+    persistToInbox: boolean;
+    notify?: {
+      connector: string;
+      channel: string;
+    };
+  };
+}
+
+export interface BudgetLimits {
+  maxTokensPerRun: number;
+  maxTokensPerDay?: number;
+  maxCostPerDayUsd?: number;
+  maxRetriesPerTask: number;
+  maxParallelTasks: number;
+  maxRunsPerDay?: number;
+  maxWallClockMinutesPerRun?: number;
+}
+
+export interface SkillDocument {
+  id: string;
+  path: string;
+  content: string;
+  decisionRules: string[];
+}
+
+export interface ConnectorEvidence {
+  sourceType: string;
+  connectorId: string;
+  items: JsonRecord[];
+}
+
+export interface DiscoveryContext {
+  loopId: string;
+  projectId: string;
+  skill: SkillDocument;
+  state: string;
+  inbox: string;
+  evidence: ConnectorEvidence[];
+  maxCharacters: number;
+}
+
+export interface Finding {
+  id: string;
+  title: string;
+  evidence: string[];
+  suspectedArea: string;
+  suggestedNextAction: string;
+  riskLevel: 'low' | 'medium' | 'high';
+}
+
+export interface WorktreePlan {
+  taskId: string;
+  loopId: string;
+  project: string;
+  branch: string;
+  path: string;
+  finding: Finding;
+}
+
+export interface AgentRunPlan {
+  taskId: string;
+  agentId: string;
+  harnessId: string;
+  worktreePath: string;
+  expectedOutput: string[];
+}
+
+export interface EvaluationPlan {
+  taskId: string;
+  evaluatorId: string;
+  requiredChecks: string[];
+  decision: 'pending_independent_review';
+  allowSelfReview: boolean;
+}
+
+export interface HumanGatePlan {
+  protectedActions: string[];
+  reviewers: string[];
+}
+
+export interface RuntimePlan {
+  loopId: string;
+  schedule: {
+    type: string;
+    expression: string;
+    timezone: string;
+    nextAction: string;
+  };
+  budget: {
+    ok: boolean;
+    reasons: string[];
+  };
+  context: {
+    skillPath: string;
+    evidenceSources: number;
+    stateFile: string;
+    inboxFile: string;
+    maxCharacters: number;
+  };
+  findings: Finding[];
+  handoff: WorktreePlan[];
+  generatorRuns: AgentRunPlan[];
+  evaluations: EvaluationPlan[];
+  persistence: {
+    stateFile: string;
+    inboxFile: string;
+    runLog: string;
+    plannedWrites: string[];
+  };
+  humanGate: HumanGatePlan;
+}
+
+export interface ValidationResult {
+  ok: boolean;
+  errors: string[];
+}

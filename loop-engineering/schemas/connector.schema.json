@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "connector.schema.json",
+  "title": "Connector Spec",
+  "type": "object",
+  "required": ["kind", "id", "capabilities", "permissions", "rateLimit"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "Connector" },
+    "id": { "type": "string", "minLength": 1 },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "permissions": {
+      "type": "object",
+      "required": ["write"],
+      "additionalProperties": false,
+      "properties": {
+        "write": {
+          "type": "object",
+          "required": ["allow", "deny"],
+          "additionalProperties": false,
+          "properties": {
+            "allow": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "deny": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        }
+      }
+    },
+    "rateLimit": {
+      "type": "object",
+      "required": ["maxCallsPerRun"],
+      "additionalProperties": false,
+      "properties": {
+        "maxCallsPerRun": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mock": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

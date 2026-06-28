@@ -1,0 +1,38 @@
+kind: Harness
+version: 1
+metadata:
+  id: coding-harness
+tools:
+  allow:
+    - read_file
+    - write_file
+    - run_tests
+    - git_diff
+    - search_code
+  deny:
+    - direct_merge
+    - delete_repository
+    - modify_budget_policy
+context:
+  loaders:
+    - project-skill
+    - task-brief
+    - relevant-files
+    - previous-memory
+  maxCharacters: 12000
+completion:
+  type: objective
+  conditions:
+    - code_changed
+    - tests_attempted
+    - summary_written
+failure:
+  onToolError: retry-once
+  onTestFailure: return-to-loop
+  onBudgetExceeded: stop-and-persist
+output:
+  required:
+    - summary
+    - changedFiles
+    - testResult
+    - nextRecommendation

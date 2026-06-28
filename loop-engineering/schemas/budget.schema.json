@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "budget.schema.json",
+  "title": "Budget Spec",
+  "type": "object",
+  "required": ["kind", "id", "limits", "onExceeded"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "Budget" },
+    "id": { "type": "string", "minLength": 1 },
+    "limits": {
+      "type": "object",
+      "required": ["maxTokensPerRun", "maxTokensPerDay", "maxCostPerDayUsd", "maxRetriesPerTask", "maxParallelTasks", "maxWallClockMinutesPerRun"],
+      "additionalProperties": false,
+      "properties": {
+        "maxTokensPerRun": { "type": "integer", "minimum": 1 },
+        "maxTokensPerDay": { "type": "integer", "minimum": 1 },
+        "maxCostPerDayUsd": { "type": "number", "exclusiveMinimum": 0 },
+        "maxRetriesPerTask": { "type": "integer", "minimum": 0 },
+        "maxParallelTasks": { "type": "integer", "minimum": 1 },
+        "maxWallClockMinutesPerRun": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "onExceeded": {
+      "type": "object",
+      "required": ["action", "persistToInbox"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "type": "string", "minLength": 1 },
+        "persistToInbox": { "type": "boolean" },
+        "notify": {
+          "type": "object",
+          "required": ["connector", "channel"],
+          "additionalProperties": false,
+          "properties": {
+            "connector": { "type": "string", "minLength": 1 },
+            "channel": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}

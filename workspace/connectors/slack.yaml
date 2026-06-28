@@ -1,0 +1,14 @@
+kind: Connector
+id: slack
+capabilities:
+  - send_message
+permissions:
+  write:
+    allow:
+      - message
+    deny:
+      - invite_user
+      - archive_channel
+rateLimit:
+  maxCallsPerRun: 20
+mock: {}

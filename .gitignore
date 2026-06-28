@@ -3,6 +3,11 @@ bin-debug/
 bin-release/
 [Oo]bj/
 [Bb]in/
+dist/
+node_modules/
+coverage/
+.DS_Store
+npm-debug.log*
 
 # Other files and folders
 .settings/

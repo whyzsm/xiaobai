@@ -1,0 +1,34 @@
+kind: Connector
+id: github
+capabilities:
+  - read_issues
+  - read_commits
+  - create_pull_request
+  - comment_pull_request
+permissions:
+  write:
+    allow:
+      - pull_request
+      - comment
+    deny:
+      - merge
+      - delete_branch
+      - modify_repository_settings
+rateLimit:
+  maxCallsPerRun: 100
+mock:
+  issues:
+    - title: Checkout returns 500 for expired sessions
+      severity: high
+      status: open
+      area: auth/session
+      reproduction: Login, wait for token expiry, then open checkout.
+    - title: Button spacing is inconsistent on settings
+      severity: low
+      status: open
+      area: settings/ui
+  commits:
+    - title: Recent auth session refactor
+      severity: medium
+      area: auth/session
+      sha: abc123

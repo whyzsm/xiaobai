@@ -1,0 +1,10 @@
+kind: Agent
+id: generator
+role: maker
+instructions:
+  - Implement the requested change.
+  - Keep the patch minimal.
+  - Follow the project SKILL.md.
+  - Write a summary of changed files.
+model:
+  preference: strong-coding-model

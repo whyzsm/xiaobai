@@ -1,0 +1,56 @@
+kind: Loop
+version: 1
+metadata:
+  id: morning-triage
+  name: Morning Triage Loop
+  owner: owner
+schedule:
+  type: cron
+  expression: "0 8 * * *"
+  timezone: Asia/Shanghai
+discovery:
+  skill: triage
+  sources:
+    - type: ci
+      connector: github-actions
+    - type: issues
+      connector: github
+    - type: commits
+      connector: github
+    - type: memory
+      path: memory/loops/morning-triage/state.md
+handoff:
+  strategy: one-worktree-per-finding
+  project: app-a
+  worktreeRoot: worktrees/runs
+  branchTemplate: "loop/morning-triage/{date}/{taskId}"
+generator:
+  agent: generator.agent.yaml
+  harness: coding.harness.yaml
+verification:
+  evaluator: evaluator.agent.yaml
+  requiredChecks:
+    - lint
+    - unit-tests
+    - project-skill-review
+  allowSelfReview: false
+persistence:
+  memory:
+    stateFile: memory/loops/morning-triage/state.md
+    inboxFile: memory/loops/morning-triage/inbox.md
+    runLog: memory/loops/morning-triage/runs.jsonl
+  outputs:
+    - type: pull-request
+      connector: github
+    - type: report
+      path: reports/daily
+budget:
+  maxTokensPerRun: 200000
+  maxRunsPerDay: 3
+  maxRetriesPerTask: 2
+  maxParallelTasks: 5
+humanGate:
+  requiredBefore:
+    - merge
+  reviewers:
+    - owner

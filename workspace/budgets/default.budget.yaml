@@ -1,0 +1,15 @@
+kind: Budget
+id: default
+limits:
+  maxTokensPerRun: 200000
+  maxTokensPerDay: 1000000
+  maxCostPerDayUsd: 20
+  maxRetriesPerTask: 2
+  maxParallelTasks: 5
+  maxWallClockMinutesPerRun: 60
+onExceeded:
+  action: stop
+  persistToInbox: true
+  notify:
+    connector: slack
+    channel: loop-alerts

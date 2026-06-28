@@ -1,0 +1,16 @@
+kind: Connector
+id: jira
+capabilities:
+  - read_tickets
+  - update_ticket
+permissions:
+  write:
+    allow:
+      - ticket_comment
+      - ticket_status
+    deny:
+      - delete_ticket
+      - change_project_permissions
+rateLimit:
+  maxCallsPerRun: 60
+mock: {}

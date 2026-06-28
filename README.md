@@ -1,38 +1,256 @@
-### 3 分钟了解如何进入开发
+# Loop Engineering 工程说明
 
-欢迎使用云效代码管理 Codeup，通过阅读以下内容，你可以快速熟悉 Codeup ，并立即开始今天的工作。
+本工程按共享对话里的《Loop Engineering 橙皮书》思路搭建，目标不是做一个单次 agent runner，而是把“发现、交付、验证、持久化、调度”拆成可维护、可审计、可扩展的工程系统。
 
-### 提交**文件**
+核心边界：
 
-Codeup 支持两种方式进行代码提交：网页端提交，以及本地 Git 客户端提交。
+```text
+loop-engineering/ = 引擎层，放 runtime、schema、模板、CLI、测试
+workspace/        = 运行空间，放 loop 配置、项目知识、agent、connector、memory、worktree、budget
+```
 
-* 如需体验本地命令行操作，请先安装 Git 工具，安装方法参见[安装Git](https://help.aliyun.com/document_detail/153800.html)。
+当前版本是最小可运行骨架：不会真正调用 LLM，也不会真正创建 PR；它会读取 workspace 里的配置和 mock connector 数据，生成一次 loop dry-run 计划，用来验证目录、配置、职责边界是否成立。
 
-* 如需体验 SSH 方式克隆和提交代码，请先在平台账号内配置 SSH 公钥，配置方法参见[配置 SSH 密钥](https://help.aliyun.com/document_detail/153709.html)。
+## 快速开始
 
-* 如需体验 HTTP 方式克隆和提交代码，请先在平台账号内配置克隆账密，配置方法参见[配置 HTTPS 克隆账号密码](https://help.aliyun.com/document_detail/153710.html)。
+```bash
+npm install
+npm run validate
+npm run dry-run
+npm test
+```
 
-现在，你可以在 Codeup 中提交代码文件了，跟着文档「[__提交第一行代码__](https://help.aliyun.com/document_detail/153707.html?spm=a2c4g.153710.0.0.3c213774PFSMIV#6a5dbb1063ai5)」一起操作试试看吧。
+常用命令：
 
-<img src="https://img.alicdn.com/imgextra/i3/O1CN013zHrNR1oXgGu8ccvY_!!6000000005235-0-tps-2866-1268.jpg" width="100%" />
+```bash
+# 校验 loop spec、schema、引用文件
+npm run validate
 
+# 生成一次 dry-run 计划，输出 JSON
+npm run dry-run
 
-### 进行代码检测
+# 指定 loop，输出人类可读计划
+npm run loop -- dry-run --loop morning-triage
 
-开发过程中，为了更好的维护你的代码质量，你可以开启 Codeup 内置开箱即用的「[代码检测服务](https://help.aliyun.com/document_detail/434321.html)」，开启后提交或合并请求的变更将自动触发检测，识别代码编写规范和安全漏洞问题，并及时提供结果报表和修复建议。
+# 构建 TypeScript
+npm run build
 
-<img src="https://img.alicdn.com/imgextra/i2/O1CN01BRzI1I1IO0CR2i4Aw_!!6000000000882-0-tps-2862-1362.jpg" width="100%" />
+# 构建并运行测试
+npm test
+```
 
-### 开展代码评审
+## 运行链路
 
-功能开发完毕后，通常你需要发起「[代码评审并执行合并](https://help.aliyun.com/document_detail/153872.html)」，Codeup 支持多人协作的代码评审服务，你可以通过「[保护分支设置合并规则](https://help.aliyun.com/document_detail/153873.html?spm=a2c4g.203108.0.0.430765d1l9tTRR#p-4on-aep-l5q)」策略及「[__合并请求设置__](https://help.aliyun.com/document_detail/153874.html?spm=a2c4g.153871.0.0.3d38686cJpcdJI)」对合并过程进行流程化管控，同时提供在线代码评审及冲突解决能力，让评审过程更加流畅。
+一个 loop 的标准运行链路：
 
-<img src="https://img.alicdn.com/imgextra/i1/O1CN01MaBDFH1WWcGnQqMHy_!!6000000002796-0-tps-2592-1336.jpg" width="100%" />
+```text
+1. Scheduler 触发 loop
+2. Discovery skill 读取 CI / issue / commit / memory
+3. Skill Runtime 生成 findings
+4. Worktree Manager 为每个 finding 生成独立 task/worktree/branch 计划
+5. Harness Runtime 装配单次 agent run 的工具、权限、完成条件
+6. Generator Agent 负责产出修改计划
+7. Evaluator Agent 独立审查
+8. Memory Store 计划写回 state / inbox / run log
+9. Budget Guard 检查预算
+10. Human Gate 保留人工复核点
+```
 
-### 成员协作
+抽象成橙皮书语言：
 
-是时候邀请成员一起编写卓越的代码工程了，请点击左下角「成员」邀请你的小伙伴开始协作吧！
+```text
+发现 -> 交付 -> 验证 -> 持久化 -> 调度
+```
 
-### 更多
+## 目录结构
 
-Git 使用教学、高级功能指引等更多说明，参见[Codeup帮助文档](https://help.aliyun.com/document_detail/153402.html)。
+```text
+.
+├── package.json                         # npm 脚本、依赖、CLI bin 定义
+├── package-lock.json                    # npm 依赖锁定文件
+├── tsconfig.json                        # TypeScript 编译配置
+├── README.md                            # 工程说明及目录
+├── loop-engineering/                    # Loop Engineering 引擎层
+│   ├── cli/
+│   │   └── loop.ts                      # CLI 入口，支持 validate / dry-run
+│   ├── docs/
+│   │   └── architecture.md              # 架构说明
+│   ├── packages/                        # 按职责拆分的 runtime 包
+│   │   ├── loop-runtime/                # 顶层编排：串联各 runtime 生成计划
+│   │   ├── scheduler/                   # 调度计划：cron/manual/webhook 等触发描述
+│   │   ├── harness-runtime/             # 单次 agent run 的工具、权限、完成条件
+│   │   ├── context-engine/              # 上下文装配：skill、memory、connector evidence
+│   │   ├── skill-runtime/               # 读取 SKILL.md，并从证据中筛选 findings
+│   │   ├── worktree-manager/            # finding -> task/branch/worktree 计划
+│   │   ├── connector-runtime/           # 读取 connector 配置和 mock 外部数据
+│   │   ├── agent-runtime/               # 读取 generator/evaluator agent 配置
+│   │   ├── evaluator-runtime/           # 生成独立 evaluator 审查计划
+│   │   ├── memory-store/                # 读取/计划写回磁盘记忆
+│   │   ├── budget-guard/                # token、重试、并发等预算检查
+│   │   ├── human-gate/                  # 人工复核点配置
+│   │   └── shared/                      # 公共类型、文件读取、schema 校验
+│   ├── schemas/                         # JSON Schema，校验配置文件结构
+│   │   ├── loop.schema.json
+│   │   ├── harness.schema.json
+│   │   ├── agent.schema.json
+│   │   ├── connector.schema.json
+│   │   └── budget.schema.json
+│   ├── templates/                       # 可复制的配置模板
+│   │   ├── triage.loop.yaml
+│   │   ├── fix-bug.loop.yaml
+│   │   ├── evaluator.agent.yaml
+│   │   └── project.SKILL.md
+│   └── tests/
+│       └── runtime.test.ts              # 校验 workspace 与 dry-run 计划
+└── workspace/                           # Loop 运行空间
+    ├── loops/
+    │   └── morning-triage.loop.yaml     # 当前示例 loop spec，系统核心配置
+    ├── projects/
+    │   └── app-a/
+    │       ├── SKILL.md                 # 项目级工程规则
+    │       └── .loop/
+    │           ├── project.yaml         # 项目元信息
+    │           └── skills/
+    │               ├── triage.SKILL.md  # discovery skill
+    │               └── fix-tests.SKILL.md
+    ├── agents/
+    │   ├── coding.harness.yaml          # 单次 agent run 的 harness 配置
+    │   ├── generator.agent.yaml         # 生成者 agent 配置
+    │   └── evaluator.agent.yaml         # 独立评审 agent 配置
+    ├── connectors/
+    │   ├── github.yaml                  # GitHub issue/commit/PR connector mock
+    │   ├── github-actions.yaml          # CI connector mock
+    │   ├── jira.yaml                    # ticket connector mock
+    │   └── slack.yaml                   # 通知 connector mock
+    ├── budgets/
+    │   └── default.budget.yaml          # 默认预算上限
+    ├── memory/
+    │   └── loops/
+    │       └── morning-triage/
+    │           ├── state.md             # loop 当前状态，人可读
+    │           ├── inbox.md             # 需要人工处理的事项
+    │           ├── decisions.md         # 历史决策记录
+    │           ├── runs.jsonl           # 每轮运行日志
+    │           ├── findings.jsonl       # 发现项记录
+    │           └── metrics.jsonl        # token、耗时、成功率等指标
+    ├── worktrees/
+    │   └── runs/                        # dry-run 会规划到这里，当前不实际创建
+    └── reports/
+        └── daily/                       # 每日报告输出目录
+```
+
+## 核心配置
+
+### Loop Spec
+
+入口文件：
+
+```text
+workspace/loops/morning-triage.loop.yaml
+```
+
+它定义一个 loop 如何运行，包括：
+
+- `schedule`: 什么时候触发
+- `discovery`: 从哪里发现任务，使用哪个 skill
+- `handoff`: 如何把 finding 变成 task/worktree/branch
+- `generator`: 使用哪个 generator agent 和 harness
+- `verification`: 使用哪个 evaluator，必须跑哪些检查
+- `persistence`: 状态写回哪里
+- `budget`: 单次运行预算
+- `humanGate`: 哪些动作必须人工复核
+
+### Harness Spec
+
+入口文件：
+
+```text
+workspace/agents/coding.harness.yaml
+```
+
+它只描述一次 agent run 怎么武装，不负责调度下一轮：
+
+- 允许/禁止的工具
+- 上下文加载器
+- 最大上下文字符数
+- 完成条件
+- 失败处理策略
+- 输出字段要求
+
+### Skill
+
+入口文件：
+
+```text
+workspace/projects/app-a/.loop/skills/triage.SKILL.md
+```
+
+Skill 不是一整墙 prompt，而是可维护的项目知识和决策规则。当前 triage skill 会按 CI 失败、open issue、最近 commit、memory 记录筛选值得处理的 finding。
+
+### Agent
+
+入口文件：
+
+```text
+workspace/agents/generator.agent.yaml
+workspace/agents/evaluator.agent.yaml
+```
+
+generator 负责产出，evaluator 负责独立说“不”。当前工程明确禁止 generator 自评：
+
+```yaml
+allowSelfReview: false
+```
+
+### Memory
+
+入口目录：
+
+```text
+workspace/memory/loops/morning-triage/
+```
+
+Memory 是磁盘状态，不是上下文窗口。它用于跨轮保存状态、人工 inbox、决策、运行日志、finding 和指标。
+
+## 当前 dry-run 会做什么
+
+执行：
+
+```bash
+npm run dry-run
+```
+
+当前会从 mock connector 中发现 3 个 finding：
+
+- `task-001`: Auth tests failing on main
+- `task-002`: Checkout test flaky
+- `task-003`: Checkout returns 500 for expired sessions
+
+并为每个 finding 生成：
+
+- 独立 task id
+- 独立 branch 名
+- 独立 worktree 路径
+- generator run plan
+- evaluator review plan
+- memory 写回计划
+
+## 维护约定
+
+- 新增 loop：在 `workspace/loops/` 增加 `*.loop.yaml`，并补齐对应 skill、memory、connector、agent 引用。
+- 新增配置类型：先补 `loop-engineering/schemas/`，再补 `shared/src/types.ts` 和校验逻辑。
+- 新增 runtime 能力：优先在 `loop-engineering/packages/<责任名>/` 下扩展，不把逻辑塞进 CLI。
+- 修改 workspace 配置后：先跑 `npm run validate`。
+- 修改 runtime 代码后：跑 `npm test`。
+
+## 当前边界
+
+当前工程只实现确定性骨架：
+
+- 不实际调用 LLM
+- 不实际创建 git worktree
+- 不实际创建 GitHub PR
+- 不实际发送 Slack/Jira 请求
+- connector 数据来自 YAML 中的 `mock` 字段
+
+后续接入真实能力时，应优先替换 connector-runtime、agent-runtime、worktree-manager 的具体实现，而不是改变 loop spec 的核心结构。

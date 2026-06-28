@@ -1,0 +1,49 @@
+kind: Loop
+version: 1
+metadata:
+  id: fix-failing-tests
+  name: Fix Failing Tests Loop
+  owner: owner
+schedule:
+  type: manual
+  expression: "on-demand"
+  timezone: Asia/Shanghai
+discovery:
+  skill: fix-tests
+  sources:
+    - type: ci
+      connector: github-actions
+    - type: memory
+      path: memory/loops/fix-failing-tests/state.md
+handoff:
+  strategy: one-worktree-per-finding
+  project: app-a
+  worktreeRoot: worktrees/runs
+  branchTemplate: "loop/fix-failing-tests/{date}/{taskId}"
+generator:
+  agent: generator.agent.yaml
+  harness: coding.harness.yaml
+verification:
+  evaluator: evaluator.agent.yaml
+  requiredChecks:
+    - unit-tests
+    - regression-test
+  allowSelfReview: false
+persistence:
+  memory:
+    stateFile: memory/loops/fix-failing-tests/state.md
+    inboxFile: memory/loops/fix-failing-tests/inbox.md
+    runLog: memory/loops/fix-failing-tests/runs.jsonl
+  outputs:
+    - type: pull-request
+      connector: github
+budget:
+  maxTokensPerRun: 120000
+  maxRunsPerDay: 2
+  maxRetriesPerTask: 2
+  maxParallelTasks: 2
+humanGate:
+  requiredBefore:
+    - merge
+  reviewers:
+    - owner

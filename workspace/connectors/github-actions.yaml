@@ -1,0 +1,28 @@
+kind: Connector
+id: github-actions
+capabilities:
+  - read_ci_runs
+  - read_ci_logs
+permissions:
+  write:
+    allow: []
+    deny:
+      - rerun_workflow
+      - cancel_workflow
+      - modify_secrets
+rateLimit:
+  maxCallsPerRun: 80
+mock:
+  ci:
+    - title: Auth tests failing on main
+      severity: high
+      status: failed
+      area: auth/session
+      failureCount: 3
+      job: auth-test
+    - title: Checkout test flaky
+      severity: medium
+      status: failed
+      area: checkout
+      failureCount: 2
+      job: checkout-test

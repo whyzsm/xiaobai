@@ -1,0 +1,27 @@
+{
+  "name": "xiaobaicode-loop-engineering",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A minimal Loop Engineering system scaffold with a decoupled engine and workspace.",
+  "bin": {
+    "loop": "dist/loop-engineering/cli/loop.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/loop-engineering/tests/*.test.js",
+    "loop": "npm run build --silent && node dist/loop-engineering/cli/loop.js",
+    "validate": "npm run loop -- validate",
+    "dry-run": "npm run loop -- dry-run --json"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.1",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

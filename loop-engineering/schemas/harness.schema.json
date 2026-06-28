@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harness.schema.json",
+  "title": "Harness Spec",
+  "type": "object",
+  "required": ["kind", "version", "metadata", "tools", "context", "completion", "failure", "output"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "Harness" },
+    "version": { "type": "integer", "minimum": 1 },
+    "metadata": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "required": ["allow", "deny"],
+      "additionalProperties": false,
+      "properties": {
+        "allow": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "deny": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": ["loaders", "maxCharacters"],
+      "additionalProperties": false,
+      "properties": {
+        "loaders": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "maxCharacters": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "completion": {
+      "type": "object",
+      "required": ["type", "conditions"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "conditions": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "output": {
+      "type": "object",
+      "required": ["required"],
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}
