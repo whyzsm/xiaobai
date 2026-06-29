@@ -73,14 +73,31 @@ export async function validateWorkspace(
   const projectRoot = path.join(workspaceRoot, 'projects', loop.handoff.project);
   const projectSkill = path.join(projectRoot, 'SKILL.md');
   const discoverySkill = path.join(projectRoot, '.loop', 'skills', `${loop.discovery.skill}.SKILL.md`);
+  const orchestratorPath = loop.orchestrator?.agent ? path.join(workspaceRoot, 'agents', loop.orchestrator.agent) : undefined;
   const generatorPath = path.join(workspaceRoot, 'agents', loop.generator.agent);
   const evaluatorPath = path.join(workspaceRoot, 'agents', loop.verification.evaluator);
   const harnessPath = path.join(workspaceRoot, 'agents', loop.generator.harness);
   const budgetPath = path.join(workspaceRoot, 'budgets', 'default.budget.yaml');
 
-  for (const requiredPath of [projectRoot, projectSkill, discoverySkill, generatorPath, evaluatorPath, harnessPath]) {
+  for (const requiredPath of [
+    projectRoot,
+    projectSkill,
+    discoverySkill,
+    orchestratorPath,
+    generatorPath,
+    evaluatorPath,
+    harnessPath
+  ].filter((requiredPath): requiredPath is string => Boolean(requiredPath))) {
     if (!(await pathExists(requiredPath))) {
       errors.push(`Missing required file: ${requiredPath}`);
+    }
+  }
+
+  if (orchestratorPath && (await pathExists(orchestratorPath))) {
+    const orchestrator = await readYamlFile<AgentSpec>(orchestratorPath);
+    errors.push(...(await validateObject(ajv, 'agent', path.relative(workspaceRoot, orchestratorPath), orchestrator)));
+    if (orchestrator.role !== 'orchestrator') {
+      errors.push(`Orchestrator agent must use role: orchestrator (${orchestratorPath})`);
     }
   }
 

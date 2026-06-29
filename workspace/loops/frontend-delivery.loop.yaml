@@ -17,6 +17,8 @@ discovery:
       connector: requirement-input
     - type: memory
       path: memory/loops/frontend-delivery/state.md
+orchestrator:
+  agent: xiaobai.orchestrator.agent.yaml
 handoff:
   strategy: one-worktree-per-target-repository
   project: t-max

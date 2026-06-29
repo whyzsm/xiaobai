@@ -151,6 +151,15 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Loop: ${plan.loopId}\n`);
   process.stdout.write(`Schedule: ${plan.schedule.type} ${plan.schedule.expression} (${plan.schedule.timezone})\n`);
   process.stdout.write(`Budget: ${plan.budget.ok ? 'ok' : plan.budget.reasons.join(', ')}\n`);
+  if (plan.orchestrator) {
+    const project = plan.orchestrator.routesTo.project;
+    process.stdout.write(`Orchestrator: ${plan.orchestrator.agentId} (${plan.orchestrator.agentFile})\n`);
+    process.stdout.write(`Project route: ${project.projectId}`);
+    if (project.background) {
+      process.stdout.write(` -> ${project.background.id}`);
+    }
+    process.stdout.write(`, repositories: ${project.repositories.length}\n`);
+  }
   process.stdout.write(`Context: ${plan.context.evidenceSources} evidence sources, ${plan.context.skillPath}\n`);
   process.stdout.write(`Findings: ${plan.findings.length}\n`);
   for (const finding of plan.findings) {
