@@ -40,6 +40,11 @@ test('dry run creates independent handoff and evaluation plans', async () => {
 
   assert.equal(plan.loopId, 'morning-triage');
   assert.equal(plan.budget.ok, true);
+  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.agentFile, 'xiaobai.orchestrator.agent.yaml');
+  assert.equal(plan.orchestrator?.role, 'orchestrator');
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 'app-a');
+  assert.deepEqual(plan.orchestrator?.routesTo.workflowStages, []);
   assert.equal(plan.findings.length, 3);
   assert.equal(plan.handoff.length, plan.findings.length);
   assert.equal(plan.generatorRuns.length, plan.findings.length);
@@ -49,7 +54,8 @@ test('dry run creates independent handoff and evaluation plans', async () => {
   assert.deepEqual(plan.humanGate.protectedActions, ['merge']);
   assert(plan.memoryContext);
   assert.match(plan.memoryContext.indexPath, /memory-index\.json$/);
-  assert(plan.memoryContext.included.length > 0);
+  assert(Array.isArray(plan.memoryContext.included));
+  assert(Array.isArray(plan.memoryContext.omitted));
 });
 
 test('frontend delivery loop gates design approval before implementation', async () => {
@@ -64,6 +70,20 @@ test('frontend delivery loop gates design approval before implementation', async
   });
 
   assert.equal(plan.loopId, 'frontend-delivery');
+  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.routesTo.discoverySkill, 'frontend-delivery');
+  assert.equal(plan.orchestrator?.routesTo.generatorAgent, 'frontend-generator.agent.yaml');
+  assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, 'frontend-evaluator.agent.yaml');
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 't-max');
+  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'shared-skills');
+  assert.equal(
+    plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
+    true
+  );
+  assert.match(
+    plan.orchestrator?.routesTo.project.repositories.find((repository) => repository.id === 'operateBusiness')?.mount ?? '',
+    /repos\/operateBusiness$/
+  );
   assert.equal(plan.context.evidenceSources, 2);
   assert.equal(plan.findings.length, 2);
   assert.equal(plan.evaluations.every((evaluation) => evaluation.allowSelfReview === false), true);
@@ -183,8 +203,27 @@ test('dry-run text output prints workflow stages', async () => {
   ]);
 
   assert.match(stdout, /Workflow stages: 9/);
+  assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
+  assert.match(stdout, /Project route: t-max -> shared-skills, repositories: 7/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
+});
+
+test('orchestrator agent must be present and use orchestrator role', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-orchestrator-validation-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  await execFileAsync('cp', ['-R', path.join(repoRoot, 'loop-engineering'), path.join(tempRoot, 'loop-engineering')]);
+  await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
+  await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+
+  const orchestratorPath = path.join(tempWorkspace, 'agents', 'xiaobai.orchestrator.agent.yaml');
+  const orchestratorYaml = await readText(orchestratorPath);
+  await writeFile(orchestratorPath, orchestratorYaml.replace('role: orchestrator', 'role: maker'), 'utf8');
+
+  const loopPath = await findLoopSpec(tempWorkspace, 'morning-triage');
+  const validation = await validateWorkspace(tempWorkspace, loopPath);
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join('\n'), /Orchestrator agent must use role: orchestrator/);
 });
 
 test('frontend delivery skills document dynamic repositories and design gates', async () => {

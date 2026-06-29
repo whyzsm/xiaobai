@@ -10,7 +10,15 @@ import { MemoryStore } from '../../memory-store/src/memoryStore';
 import { MemoryRootConfig, resolveMemoryRootConfig } from '../../shared/src/memoryRoot';
 import { Scheduler } from '../../scheduler/src/scheduler';
 import { readYamlFile } from '../../shared/src/fs';
-import { LoopSpec, RuntimePlan, WorkflowPlan } from '../../shared/src/types';
+import {
+  AgentSpec,
+  LoopSpec,
+  OrchestratorPlan,
+  ProjectRoutePlan,
+  ProjectSpec,
+  RuntimePlan,
+  WorkflowPlan
+} from '../../shared/src/types';
 import { SkillRuntime } from '../../skill-runtime/src/skillRuntime';
 import { WorktreeManager } from '../../worktree-manager/src/worktreeManager';
 import { buildMemoryIndex, writeMemoryIndexAtomic } from '../../memory-indexer/src';
@@ -43,13 +51,15 @@ export class LoopRuntime {
     const evaluatorRuntime = new EvaluatorRuntime();
     const humanGate = new HumanGate(loop);
 
-    const [state, inbox, skill, evidence, harness, evaluator] = await Promise.all([
+    const [state, inbox, skill, evidence, harness, evaluator, orchestrator, project] = await Promise.all([
       memoryStore.readState(),
       memoryStore.readInbox(),
       skillRuntime.loadDiscoverySkill(loop),
       connectorRuntime.collect(loop.discovery.sources),
       harnessRuntime.load(loop),
-      agentRuntime.loadAgent(loop.verification.evaluator)
+      agentRuntime.loadAgent(loop.verification.evaluator),
+      loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined),
+      loadProjectSpec(workspaceRoot, loop)
     ]);
 
     const context = contextEngine.buildDiscoveryContext({
@@ -76,6 +86,7 @@ export class LoopRuntime {
       loopId: loop.metadata.id,
       schedule: scheduler.plan(),
       budget,
+      orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, project),
       context: {
         skillPath: path.relative(workspaceRoot, context.skill.path),
         evidenceSources: context.evidence.length,
@@ -98,6 +109,12 @@ export class LoopRuntime {
       memoryContext
     };
   }
+}
+
+async function loadProjectSpec(workspaceRoot: string, loop: LoopSpec): Promise<ProjectSpec> {
+  return readYamlFile<ProjectSpec>(
+    path.join(workspaceRoot, 'projects', loop.handoff.project, '.loop', 'project.yaml')
+  );
 }
 
 async function buildMemoryContextMetadata(input: {
@@ -145,6 +162,56 @@ async function buildMemoryContextMetadata(input: {
       characters: item.characters
     })),
     warnings: bundle.warnings
+  };
+}
+
+function buildOrchestratorPlan(
+  workspaceRoot: string,
+  loop: LoopSpec,
+  agent: AgentSpec | undefined,
+  project: ProjectSpec
+): OrchestratorPlan | undefined {
+  if (!loop.orchestrator || !agent) {
+    return undefined;
+  }
+
+  return {
+    agentId: agent.id,
+    agentFile: loop.orchestrator.agent,
+    role: agent.role,
+    stance: agent.stance,
+    routesTo: {
+      discoverySkill: loop.discovery.skill,
+      project: buildProjectRoutePlan(workspaceRoot, project),
+      generatorAgent: loop.generator.agent,
+      evaluatorAgent: loop.verification.evaluator,
+      workflowStages: (loop.workflow?.stages ?? []).map((stage) => stage.id)
+    }
+  };
+}
+
+function buildProjectRoutePlan(workspaceRoot: string, project: ProjectSpec): ProjectRoutePlan {
+  const projectRoot = path.join(workspaceRoot, 'projects', project.id);
+  return {
+    projectId: project.id,
+    projectKind: project.kind,
+    projectName: project.name,
+    projectSkillPath: displayPath(workspaceRoot, path.join(projectRoot, project.skill)),
+    root: displayPath(projectRoot, path.resolve(projectRoot, project.root)),
+    defaultBranch: project.defaultBranch,
+    background: project.background
+      ? {
+          id: project.background.id,
+          name: project.background.name,
+          mount: displayPath(projectRoot, path.resolve(projectRoot, project.background.mount))
+        }
+      : undefined,
+    repositories: (project.repositories ?? []).map((repository) => ({
+      id: repository.id,
+      name: repository.name,
+      mount: displayPath(projectRoot, path.resolve(projectRoot, repository.mount)),
+      remote: repository.remote
+    }))
   };
 }
 

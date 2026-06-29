@@ -17,6 +17,9 @@ export interface LoopSpec {
     skill: string;
     sources: DiscoverySource[];
   };
+  orchestrator?: {
+    agent: string;
+  };
   handoff: {
     strategy: string;
     project: string;
@@ -110,6 +113,33 @@ export interface AgentSpec {
   tools?: {
     allow: string[];
   };
+}
+
+export interface ProjectSpec {
+  kind: 'Project' | 'ProjectGroup';
+  id: string;
+  name: string;
+  root: string;
+  defaultBranch: string;
+  skill: string;
+  localPaths?: string;
+  background?: ProjectBackground;
+  repositories?: ProjectRepository[];
+}
+
+export interface ProjectBackground {
+  id: string;
+  name: string;
+  localPathKey: string;
+  mount: string;
+}
+
+export interface ProjectRepository {
+  id: string;
+  name: string;
+  localPathKey?: string;
+  mount: string;
+  remote?: string;
 }
 
 export interface ConnectorSpec {
@@ -222,6 +252,40 @@ export interface HumanGatePlan {
   reviewers: string[];
 }
 
+export interface ProjectRoutePlan {
+  projectId: string;
+  projectKind: ProjectSpec['kind'];
+  projectName: string;
+  projectSkillPath: string;
+  root: string;
+  defaultBranch: string;
+  background?: {
+    id: string;
+    name: string;
+    mount: string;
+  };
+  repositories: Array<{
+    id: string;
+    name: string;
+    mount: string;
+    remote?: string;
+  }>;
+}
+
+export interface OrchestratorPlan {
+  agentId: string;
+  agentFile: string;
+  role: string;
+  stance?: string;
+  routesTo: {
+    discoverySkill: string;
+    project: ProjectRoutePlan;
+    generatorAgent: string;
+    evaluatorAgent: string;
+    workflowStages: string[];
+  };
+}
+
 export interface WorkflowStagePlan {
   id: string;
   kind: string;
@@ -251,6 +315,7 @@ export interface RuntimePlan {
     ok: boolean;
     reasons: string[];
   };
+  orchestrator?: OrchestratorPlan;
   context: {
     skillPath: string;
     evidenceSources: number;
