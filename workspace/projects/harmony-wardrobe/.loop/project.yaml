@@ -1,0 +1,18 @@
+kind: ProjectGroup
+id: harmony-wardrobe
+name: Harmony Wardrobe
+root: ../../.local/harmony-wardrobe/mounts
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: harmony-wardrobe-context
+  name: Harmony Wardrobe Project Context
+  localPathKey: harmonyWardrobe
+  mount: ../../.local/harmony-wardrobe/mounts/background/harmonyWardrobe
+repositories:
+  - id: harmonyWardrobe
+    name: harmonyWardrobe
+    localPathKey: harmonyWardrobe
+    mount: ../../.local/harmony-wardrobe/mounts/repos/harmonyWardrobe
+    remote: git@codeup.aliyun.com:62ecbcd881ddd27ad912a7b9/harmonyWardrobe.git

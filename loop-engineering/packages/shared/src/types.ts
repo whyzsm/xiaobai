@@ -23,6 +23,9 @@ export interface LoopSpec {
   handoff: {
     strategy: string;
     project: string;
+    targetResolution?: {
+      required?: boolean;
+    };
     worktreeRoot: string;
     branchTemplate: string;
   };
@@ -142,6 +145,21 @@ export interface ProjectRepository {
   remote?: string;
 }
 
+export type ProjectRouteSource =
+  | 'explicit-project'
+  | 'explicit-repository'
+  | 'cwd'
+  | 'remote'
+  | 'loop-default';
+
+export interface ProjectRouteResolution {
+  source: ProjectRouteSource;
+  target?: string;
+  matchedRepositoryId?: string;
+  matchedRemote?: string;
+  matchedPath?: string;
+}
+
 export interface ConnectorSpec {
   kind: 'Connector';
   id: string;
@@ -256,6 +274,7 @@ export interface ProjectRoutePlan {
   projectId: string;
   projectKind: ProjectSpec['kind'];
   projectName: string;
+  resolution: ProjectRouteResolution;
   projectSkillPath: string;
   root: string;
   defaultBranch: string;

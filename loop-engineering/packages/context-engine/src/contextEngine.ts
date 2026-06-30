@@ -3,6 +3,7 @@ import { DiscoveryContext, ConnectorEvidence, LoopSpec, SkillDocument } from '..
 export class ContextEngine {
   buildDiscoveryContext(input: {
     loop: LoopSpec;
+    projectId?: string;
     skill: SkillDocument;
     state: string;
     inbox: string;
@@ -11,7 +12,7 @@ export class ContextEngine {
   }): DiscoveryContext {
     return {
       loopId: input.loop.metadata.id,
-      projectId: input.loop.handoff.project,
+      projectId: input.projectId ?? input.loop.handoff.project,
       skill: input.skill,
       state: truncate(input.state, input.maxCharacters),
       inbox: truncate(input.inbox, input.maxCharacters),

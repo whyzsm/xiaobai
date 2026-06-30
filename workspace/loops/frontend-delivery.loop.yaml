@@ -22,6 +22,8 @@ orchestrator:
 handoff:
   strategy: one-worktree-per-target-repository
   project: t-max
+  targetResolution:
+    required: true
   worktreeRoot: .local/frontend-delivery/worktrees
   branchTemplate: "loop/frontend-delivery/{date}/{taskId}"
 generator:

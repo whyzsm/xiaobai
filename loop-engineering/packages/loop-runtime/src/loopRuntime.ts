@@ -25,11 +25,16 @@ import { buildMemoryIndex, writeMemoryIndexAtomic } from '../../memory-indexer/s
 import { loadMemoryContext } from '../../memory-context/src';
 import { resolveMemoryProtocolPaths } from '../../memory-protocol/src';
 import { pathExists } from '../../shared/src/fs';
+import { ResolvedProjectRoute, resolveProjectRoute } from '../../project-registry/src/projectRegistry';
 
 export interface RuntimeOptions {
   workspaceRoot: string;
   loopPath: string;
   now?: Date;
+  targetProject?: string;
+  targetRepository?: string;
+  targetCwd?: string;
+  targetRemote?: string;
 }
 
 export class LoopRuntime {
@@ -38,6 +43,13 @@ export class LoopRuntime {
     const loop = await readYamlFile<LoopSpec>(options.loopPath);
     const memoryConfig = await resolveMemoryRootConfig(workspaceRoot);
     const memoryRoot = memoryConfig.memoryRoot;
+    const projectRoute = await resolveProjectRoute(workspaceRoot, loop, {
+      targetProject: options.targetProject,
+      targetRepository: options.targetRepository,
+      targetCwd: options.targetCwd,
+      targetRemote: options.targetRemote
+    });
+    const project = projectRoute.project;
 
     const scheduler = new Scheduler(loop);
     const budget = new BudgetGuard(loop.budget).check();
@@ -45,25 +57,25 @@ export class LoopRuntime {
     const skillRuntime = new SkillRuntime(workspaceRoot);
     const connectorRuntime = new ConnectorRuntime(workspaceRoot);
     const contextEngine = new ContextEngine();
-    const worktreeManager = new WorktreeManager(workspaceRoot, loop);
+    const worktreeManager = new WorktreeManager(workspaceRoot, loop, project.id);
     const harnessRuntime = new HarnessRuntime(workspaceRoot);
     const agentRuntime = new AgentRuntime(workspaceRoot);
     const evaluatorRuntime = new EvaluatorRuntime();
     const humanGate = new HumanGate(loop);
 
-    const [state, inbox, skill, evidence, harness, evaluator, orchestrator, project] = await Promise.all([
+    const [state, inbox, skill, evidence, harness, evaluator, orchestrator] = await Promise.all([
       memoryStore.readState(),
       memoryStore.readInbox(),
-      skillRuntime.loadDiscoverySkill(loop),
+      skillRuntime.loadDiscoverySkill(loop, project.id),
       connectorRuntime.collect(loop.discovery.sources),
       harnessRuntime.load(loop),
       agentRuntime.loadAgent(loop.verification.evaluator),
-      loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined),
-      loadProjectSpec(workspaceRoot, loop)
+      loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined)
     ]);
 
     const context = contextEngine.buildDiscoveryContext({
       loop,
+      projectId: project.id,
       skill,
       state,
       inbox,
@@ -79,6 +91,7 @@ export class LoopRuntime {
       memoryRoot,
       memoryConfig,
       loop,
+      projectId: project.id,
       maxCharacters: context.maxCharacters
     });
 
@@ -86,7 +99,7 @@ export class LoopRuntime {
       loopId: loop.metadata.id,
       schedule: scheduler.plan(),
       budget,
-      orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, project),
+      orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, projectRoute),
       context: {
         skillPath: path.relative(workspaceRoot, context.skill.path),
         evidenceSources: context.evidence.length,
@@ -111,20 +124,15 @@ export class LoopRuntime {
   }
 }
 
-async function loadProjectSpec(workspaceRoot: string, loop: LoopSpec): Promise<ProjectSpec> {
-  return readYamlFile<ProjectSpec>(
-    path.join(workspaceRoot, 'projects', loop.handoff.project, '.loop', 'project.yaml')
-  );
-}
-
 async function buildMemoryContextMetadata(input: {
   workspaceRoot: string;
   memoryRoot: string;
   memoryConfig: MemoryRootConfig;
   loop: LoopSpec;
+  projectId: string;
   maxCharacters: number;
 }): Promise<RuntimePlan['memoryContext']> {
-  const projectId = inferProjectId(input.memoryRoot) ?? input.loop.handoff.project;
+  const projectId = inferProjectId(input.memoryRoot) ?? input.projectId;
   const protocol = resolveMemoryProtocolPaths({
     workspaceRoot: input.workspaceRoot,
     vaultRoot: input.memoryConfig.memoryVaultRoot ?? inferVaultRoot(input.memoryRoot),
@@ -169,7 +177,7 @@ function buildOrchestratorPlan(
   workspaceRoot: string,
   loop: LoopSpec,
   agent: AgentSpec | undefined,
-  project: ProjectSpec
+  projectRoute: ResolvedProjectRoute
 ): OrchestratorPlan | undefined {
   if (!loop.orchestrator || !agent) {
     return undefined;
@@ -182,7 +190,7 @@ function buildOrchestratorPlan(
     stance: agent.stance,
     routesTo: {
       discoverySkill: loop.discovery.skill,
-      project: buildProjectRoutePlan(workspaceRoot, project),
+      project: buildProjectRoutePlan(workspaceRoot, projectRoute),
       generatorAgent: loop.generator.agent,
       evaluatorAgent: loop.verification.evaluator,
       workflowStages: (loop.workflow?.stages ?? []).map((stage) => stage.id)
@@ -190,12 +198,14 @@ function buildOrchestratorPlan(
   };
 }
 
-function buildProjectRoutePlan(workspaceRoot: string, project: ProjectSpec): ProjectRoutePlan {
-  const projectRoot = path.join(workspaceRoot, 'projects', project.id);
+function buildProjectRoutePlan(workspaceRoot: string, projectRoute: ResolvedProjectRoute): ProjectRoutePlan {
+  const project = projectRoute.project;
+  const projectRoot = projectRoute.projectRoot;
   return {
     projectId: project.id,
     projectKind: project.kind,
     projectName: project.name,
+    resolution: projectRoute.resolution,
     projectSkillPath: displayPath(workspaceRoot, path.join(projectRoot, project.skill)),
     root: displayPath(projectRoot, path.resolve(projectRoot, project.root)),
     defaultBranch: project.defaultBranch,

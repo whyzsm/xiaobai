@@ -1,0 +1,6 @@
+# Copy this file to local.paths.yaml on each computer, then adjust paths.
+# local.paths.yaml is ignored by git because these paths are machine-specific.
+background:
+  harmonyWardrobe: /absolute/path/to/harmonyWardrobe
+repositories:
+  harmonyWardrobe: /absolute/path/to/harmonyWardrobe

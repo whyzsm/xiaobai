@@ -4,7 +4,8 @@ import { Finding, LoopSpec, WorktreePlan } from '../../shared/src/types';
 export class WorktreeManager {
   constructor(
     private readonly workspaceRoot: string,
-    private readonly loop: LoopSpec
+    private readonly loop: LoopSpec,
+    private readonly projectId = loop.handoff.project
   ) {}
 
   plan(findings: Finding[], date = new Date()): WorktreePlan[] {
@@ -14,7 +15,7 @@ export class WorktreeManager {
     return findings.map((finding) => ({
       taskId: finding.id,
       loopId: this.loop.metadata.id,
-      project: this.loop.handoff.project,
+      project: this.projectId,
       branch: this.loop.handoff.branchTemplate
         .replace('{date}', datePart)
         .replace('{taskId}', finding.id),

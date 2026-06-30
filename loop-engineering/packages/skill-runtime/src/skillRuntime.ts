@@ -1,19 +1,21 @@
 import path from 'node:path';
 import { ConnectorEvidence, Finding, LoopSpec, SkillDocument } from '../../shared/src/types';
-import { readText } from '../../shared/src/fs';
+import { pathExists, readText } from '../../shared/src/fs';
 
 export class SkillRuntime {
   constructor(private readonly workspaceRoot: string) {}
 
-  async loadDiscoverySkill(loop: LoopSpec): Promise<SkillDocument> {
-    const skillPath = path.join(
+  async loadDiscoverySkill(loop: LoopSpec, projectId = loop.handoff.project): Promise<SkillDocument> {
+    const loopSkillPath = path.join(
       this.workspaceRoot,
       'projects',
-      loop.handoff.project,
+      projectId,
       '.loop',
       'skills',
       `${loop.discovery.skill}.SKILL.md`
     );
+    const projectSkillPath = path.join(this.workspaceRoot, 'projects', projectId, 'SKILL.md');
+    const skillPath = (await pathExists(loopSkillPath)) ? loopSkillPath : projectSkillPath;
     const content = await readText(skillPath);
     const decisionRules = content
       .split('\n')

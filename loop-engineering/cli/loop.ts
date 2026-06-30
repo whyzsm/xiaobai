@@ -12,6 +12,10 @@ interface CliOptions {
   workspace: string;
   loop?: string;
   json: boolean;
+  targetProject?: string;
+  targetRepository?: string;
+  targetCwd?: string;
+  targetRemote?: string;
   rest: string[];
 }
 
@@ -65,7 +69,14 @@ async function main(argv: string[]): Promise<void> {
     }
 
     const runtime = new LoopRuntime();
-    const plan = await runtime.dryRun({ workspaceRoot, loopPath });
+    const plan = await runtime.dryRun({
+      workspaceRoot,
+      loopPath,
+      targetProject: options.targetProject,
+      targetRepository: options.targetRepository,
+      targetCwd: options.targetCwd,
+      targetRemote: options.targetRemote
+    });
     if (options.json) {
       process.stdout.write(formatJson(plan));
     } else {
@@ -129,6 +140,18 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--loop') {
       options.loop = requireValue(rest, index, arg);
       index += 1;
+    } else if (arg === '--target-project') {
+      options.targetProject = requireValue(rest, index, arg);
+      index += 1;
+    } else if (arg === '--target-repository') {
+      options.targetRepository = requireValue(rest, index, arg);
+      index += 1;
+    } else if (arg === '--target-cwd') {
+      options.targetCwd = requireValue(rest, index, arg);
+      index += 1;
+    } else if (arg === '--target-remote') {
+      options.targetRemote = requireValue(rest, index, arg);
+      index += 1;
     } else if (arg === '--json') {
       options.json = true;
     } else {
@@ -153,7 +176,14 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Budget: ${plan.budget.ok ? 'ok' : plan.budget.reasons.join(', ')}\n`);
   if (plan.orchestrator) {
     const project = plan.orchestrator.routesTo.project;
+    const resolvedTarget = project.resolution.matchedRepositoryId ?? project.resolution.target ?? project.projectId;
     process.stdout.write(`Orchestrator: ${plan.orchestrator.agentId} (${plan.orchestrator.agentFile})\n`);
+    process.stdout.write(`Resolved target: ${resolvedTarget} -> ${project.projectId}`);
+    if (project.background) {
+      process.stdout.write(` -> ${project.background.id}`);
+    }
+    process.stdout.write('\n');
+    process.stdout.write(`Route source: ${project.resolution.source}\n`);
     process.stdout.write(`Project route: ${project.projectId}`);
     if (project.background) {
       process.stdout.write(` -> ${project.background.id}`);
@@ -194,7 +224,7 @@ function printSimulation(result: Awaited<ReturnType<SimulationRuntime['simulate'
 function printHelp(): void {
   process.stdout.write(`Usage:
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
-  loop dry-run  [--workspace workspace] [--loop morning-triage] [--json]
+  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|promote|report> [...]
 `);
