@@ -12,6 +12,7 @@
 - 技术方向：鸿蒙原生开发。
 - 本地挂载仓：`../../.local/harmony-wardrobe/mounts/repos/harmonyWardrobe`。
 - 项目背景挂载：`../../.local/harmony-wardrobe/mounts/background/harmonyWardrobe`。
+- 外部参考背景：`external-references.md` 与 `background/harmonyos-samples-repositories.json` 记录 HarmonyOS_Samples 只读示例仓清单。
 - 远端仓库：`git@codeup.aliyun.com:62ecbcd881ddd27ad912a7b9/harmonyWardrobe.git`。
 - 本机路径来自 `.loop/local.paths.yaml`，该文件不提交。
 
@@ -33,8 +34,9 @@
 3. 工程仓只记录项目背景、挂载关系、门禁结果、需求引用和交付说明，不保存业务代码。
 4. 修改前检查目标仓库当前分支和工作区状态。
 5. 不要提交本机 `.loop/local.paths.yaml`、`workspace/.local/` 软链接或外部仓库内容。
-6. 涉及数据删除、账号权限、支付、发布配置、证书、签名、依赖升级或构建入口变更时，先停在人工确认。
-7. 交付前至少保留一种与改动风险匹配的验证证据，例如类型检查、单元测试、构建、真机/模拟器冒烟或关键流程截图。
+6. HarmonyOS_Samples 仓库只能作为只读参考背景；不要把这些仓库加入 `.loop/project.yaml` 的 `repositories`，也不要把克隆内容写入工程仓。
+7. 涉及数据删除、账号权限、支付、发布配置、证书、签名、依赖升级或构建入口变更时，先停在人工确认。
+8. 交付前至少保留一种与改动风险匹配的验证证据，例如类型检查、单元测试、构建、真机/模拟器冒烟或关键流程截图。
 
 ## English
 
@@ -48,6 +50,7 @@ Persist the standalone `harmonyWardrobe` project context in this loop workspace 
 - Technical direction: native HarmonyOS development.
 - Mounted repository: `../../.local/harmony-wardrobe/mounts/repos/harmonyWardrobe`.
 - Project context mount: `../../.local/harmony-wardrobe/mounts/background/harmonyWardrobe`.
+- External reference background: `external-references.md` and `background/harmonyos-samples-repositories.json` record the read-only HarmonyOS_Samples repository inventory.
 - Remote repository: `git@codeup.aliyun.com:62ecbcd881ddd27ad912a7b9/harmonyWardrobe.git`.
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
 
@@ -69,5 +72,6 @@ When a task matches multiple skills, read this project `SKILL.md` and the mounte
 3. The engineering repository records only project context, mount mapping, gate results, requirement references, and delivery notes. It must not store business code.
 4. Check the target repository branch and working tree before editing.
 5. Do not commit local `.loop/local.paths.yaml`, `workspace/.local/` symlinks, or external repository contents.
-6. Stop for human confirmation before data deletion, account or permission changes, payment changes, release config, certificates, signing, dependency upgrades, or build entry changes.
-7. Before delivery, keep at least one verification artifact appropriate to the change risk, such as typecheck, unit tests, build, device or simulator smoke, or screenshots of critical flows.
+6. HarmonyOS_Samples repositories are read-only reference background only; do not add them to `.loop/project.yaml` `repositories`, and do not write cloned contents into the engineering repository.
+7. Stop for human confirmation before data deletion, account or permission changes, payment changes, release config, certificates, signing, dependency upgrades, or build entry changes.
+8. Before delivery, keep at least one verification artifact appropriate to the change risk, such as typecheck, unit tests, build, device or simulator smoke, or screenshots of critical flows.

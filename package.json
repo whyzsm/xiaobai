@@ -14,7 +14,8 @@
     "dry-run": "npm run loop -- dry-run --json --loop morning-triage",
     "simulate": "npm run loop -- simulate --loop morning-triage",
     "mount:tmax": "node workspace/projects/t-max/scripts/mount-local.mjs",
-    "mount:harmony-wardrobe": "node workspace/projects/harmony-wardrobe/scripts/mount-local.mjs"
+    "mount:harmony-wardrobe": "node workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
+    "fetch:harmonyos-samples": "node workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs"
   },
   "dependencies": {
     "ajv": "^8.17.1",
