@@ -324,6 +324,7 @@ export interface WorkflowPlan {
 
 export interface RuntimePlan {
   loopId: string;
+  loopWorkCount: number;
   schedule: {
     type: string;
     expression: string;
@@ -395,6 +396,7 @@ export interface SimulationArtifact {
 export interface SimulationResult {
   runId: string;
   loopId: string;
+  loopWorkCount: number;
   mode: 'simulation';
   stages: SimulationStage[];
   artifacts: SimulationArtifact;

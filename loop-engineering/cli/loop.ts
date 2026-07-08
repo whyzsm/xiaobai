@@ -172,6 +172,7 @@ function requireValue(args: string[], index: number, flag: string): string {
 
 function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Loop: ${plan.loopId}\n`);
+  process.stdout.write(`Loop work count: ${plan.loopWorkCount}\n`);
   process.stdout.write(`Schedule: ${plan.schedule.type} ${plan.schedule.expression} (${plan.schedule.timezone})\n`);
   process.stdout.write(`Budget: ${plan.budget.ok ? 'ok' : plan.budget.reasons.join(', ')}\n`);
   if (plan.orchestrator) {
@@ -209,6 +210,7 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
 function printSimulation(result: Awaited<ReturnType<SimulationRuntime['simulate']>>): void {
   process.stdout.write(`Simulation: ${result.runId}\n`);
   process.stdout.write(`Loop: ${result.loopId}\n`);
+  process.stdout.write(`Loop work count: ${result.loopWorkCount}\n`);
   process.stdout.write(`Stages: ${result.stages.length}\n`);
   for (const stage of result.stages) {
     process.stdout.write(`- ${stage.id}: ${stage.title} [${stage.status}]\n`);
@@ -226,7 +228,7 @@ function printHelp(): void {
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
-  loop memory <init|validate|doctor|index|search|context|capture|promote|report> [...]
+  loop memory <init|validate|doctor|index|search|context|capture|promote|report|snapshot> [...]
 `);
 }
 

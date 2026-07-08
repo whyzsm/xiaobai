@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   createMemoryTemplates,
@@ -69,6 +69,7 @@ async function executeMemoryCommand(input: MemoryCliOptions & { parsed: ParsedMe
     if (input.command === 'capture') return handleCapture(command, paths, input.parsed, input.workspaceRoot);
     if (input.command === 'promote') return handlePromote(command, paths, input.parsed, input.workspaceRoot);
     if (input.command === 'report') return handleReport(command, paths, input.parsed);
+    if (input.command === 'snapshot') return handleSnapshot(command, paths, input.parsed, input.workspaceRoot);
 
     return { ok: false, command, errors: [`Unknown memory command: ${input.command}`], warnings: [] };
   } catch (error) {
@@ -108,12 +109,15 @@ function inferProjectId(memoryRoot: string): string | undefined {
 }
 
 async function handleInit(command: string, paths: MemoryPaths, args: ParsedMemoryArgs): Promise<MemoryCommandResult> {
-  const templates = createMemoryTemplates({
+  let templates = createMemoryTemplates({
     projectId: path.basename(paths.projectRoot),
     loopId: args.loop,
     date: new Date().toISOString().slice(0, 10),
     learningRootName: relativeLearningRoot(paths)
   });
+  if (await hasExistingSeedCase(paths.casesRoot)) {
+    templates = templates.filter((template) => !isDatedSeedCaseTemplate(template.path));
+  }
   const planned = [];
   for (const template of templates) {
     const target = resolveSafeWritePath(paths.learningRoot, path.join(paths.vaultRoot, template.path));
@@ -129,6 +133,20 @@ async function handleInit(command: string, paths: MemoryPaths, args: ParsedMemor
     await writeFile(target, template.content, 'utf8');
   }
   return { ok: true, command, errors: [], warnings: [], preview: false, planned };
+}
+
+async function hasExistingSeedCase(casesRoot: string): Promise<boolean> {
+  try {
+    const entries = await readdir(casesRoot, { withFileTypes: true });
+    return entries.some((entry) => entry.isFile() && /^\d{4}-\d{2}-\d{2}-seed-case\.md$/.test(entry.name));
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+function isDatedSeedCaseTemplate(templatePath: string): boolean {
+  return /\/cases\/\d{4}-\d{2}-\d{2}-seed-case\.md$/.test(templatePath);
 }
 
 async function handleIndex(command: string, paths: MemoryPaths, args: ParsedMemoryArgs, workspaceRoot: string): Promise<MemoryCommandResult> {
@@ -271,6 +289,95 @@ async function handleReport(command: string, paths: MemoryPaths, args: ParsedMem
   await mkdir(path.dirname(reportPath), { recursive: true });
   await writeFile(reportPath, content, 'utf8');
   return { ok: true, command, errors: [], warnings: report.warnings, preview: false, reportPath };
+}
+
+async function handleSnapshot(
+  command: string,
+  paths: MemoryPaths,
+  args: ParsedMemoryArgs,
+  workspaceRoot: string
+): Promise<MemoryCommandResult> {
+  const projectId = args.project ?? path.basename(paths.projectRoot);
+  const loopId = args.loop ?? (await inferDefaultLoop(workspaceRoot));
+  const index = await ensureIndex(paths, workspaceRoot, args);
+  const bundle = await loadMemoryContext({
+    index,
+    projectId,
+    loopId,
+    query: args.query,
+    maxCharacters: args.maxCharacters ?? 12000
+  });
+  const date = new Date().toISOString().slice(0, 10);
+  const snapshotPath = path.join(paths.projectRoot, 'snapshots', `${date}-project-memory-snapshot.md`);
+  const sourceItems = bundle.included.filter((item) => !isSeedMemoryContent(item.content) && !isSnapshotMemoryPath(item.path));
+  const content = renderProjectMemorySnapshot({
+    projectId,
+    loopId,
+    date,
+    vaultRoot: paths.vaultRoot,
+    indexPath: paths.indexPath,
+    included: sourceItems,
+    notes: index.notes.filter((note) => note.projectId === projectId)
+  });
+  const included = sourceItems.map((item) => ({
+    title: item.title,
+    kind: item.kind,
+    path: item.path
+  }));
+
+  if (!args.write) {
+    return { ok: true, command, errors: [], warnings: bundle.warnings, preview: true, snapshotPath, content, included };
+  }
+
+  await mkdir(path.dirname(snapshotPath), { recursive: true });
+  await writeFile(snapshotPath, content, 'utf8');
+  const refreshed = await buildMemoryIndex({
+    workspaceRoot,
+    vaultRoot: paths.vaultRoot,
+    learningRootName: relativeLearningRoot(paths),
+    projectId
+  });
+  await writeMemoryIndexAtomic(paths.indexPath, refreshed);
+  return { ok: true, command, errors: [], warnings: bundle.warnings, preview: false, snapshotPath, indexPath: paths.indexPath, included };
+}
+
+function renderProjectMemorySnapshot(input: {
+  projectId: string;
+  loopId?: string;
+  date: string;
+  vaultRoot: string;
+  indexPath: string;
+  included: Array<{ title: string; kind: string; path: string; content: string }>;
+  notes: Array<{ title: string; kind: string; path: string; summary: string; status?: string }>;
+}): string {
+  const summaries = input.notes.filter(
+    (note) => note.status !== 'seed' && !isSnapshotMemoryPath(note.path) && note.summary.trim().length > 0
+  );
+  const sourceList = input.included.length
+    ? input.included.map((item) => `- \`${relativeToVault(input.vaultRoot, item.path)}\` - ${item.title} (${item.kind})`).join('\n')
+    : '- 暂无非 seed 来源文件。\n- No non-seed source files yet.';
+  const summaryList = summaries.length
+    ? summaries
+        .map((note) => `- \`${relativeToVault(input.vaultRoot, note.path)}\` - ${note.summary.replace(/\n/g, ' ')}`)
+        .join('\n')
+    : '- 暂无可摘要的项目记忆。\n- No summarizable project memory yet.';
+  const contextContent = input.included
+    .map((item) => `### ${item.title}\n\n来源 / Source: \`${relativeToVault(input.vaultRoot, item.path)}\`\n\n${item.content.trim()}`)
+    .join('\n\n---\n\n');
+
+  return `---\ntitle: "${input.projectId} 项目记忆快照"\nstatus: active\ntype: report\ntags:\n  - status/active\n  - type/memory-snapshot\n  - project/${input.projectId}\ndomain:\n  - ai-engineering\nsource: local\naccess: private\nconfidence: medium\ncreated_at: ${input.date}\nupdated_at: ${input.date}\nproject: ${input.projectId}\n${input.loopId ? `loop: ${input.loopId}\n` : ''}---\n\n# ${input.projectId} 项目记忆快照 / ${input.projectId} Project Memory Snapshot\n\n## 中文\n\n这份快照由 \`memory snapshot\` 生成，用于把当前小白项目记忆明确落到 Obsidian 项目目录中。它汇总项目入口、项目画像、当前上下文、loop 状态和 inbox 等可读记忆来源。\n\n## English\n\nThis snapshot is generated by \`memory snapshot\` so the current Xiaobai project memory is explicitly persisted in the Obsidian project directory. It summarizes readable memory sources such as the project entry, profile, active context, loop state, and inbox files.\n\n## 元信息 / Metadata\n\n- 项目 / Project: \`${input.projectId}\`\n${input.loopId ? `- Loop: \`${input.loopId}\`\n` : ''}- 日期 / Date: \`${input.date}\`\n- 索引 / Index: \`${relativeToVault(input.vaultRoot, input.indexPath)}\`\n\n## 来源文件 / Source Files\n\n${sourceList}\n\n## 记忆摘要 / Memory Summaries\n\n${summaryList}\n\n## 上下文内容 / Context Content\n\n${contextContent || '暂无上下文内容。\n\nNo context content yet.'}\n`;
+}
+
+function isSeedMemoryContent(content: string): boolean {
+  return /(^|\n)status:\s*seed(\n|$)/.test(content) && /(^|\n)# Seed (Case|Pattern)(\n|$)/.test(content);
+}
+
+function isSnapshotMemoryPath(filePath: string): boolean {
+  return filePath.split(path.sep).includes('snapshots') && /-project-memory-snapshot\.md$/.test(filePath);
+}
+
+function relativeToVault(vaultRoot: string, filePath: string): string {
+  return path.relative(vaultRoot, filePath).replaceAll(path.sep, '/');
 }
 
 async function ensureIndex(paths: MemoryPaths, workspaceRoot: string, args: ParsedMemoryArgs) {

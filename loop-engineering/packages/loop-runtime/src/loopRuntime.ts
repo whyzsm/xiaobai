@@ -97,6 +97,7 @@ export class LoopRuntime {
 
     return {
       loopId: loop.metadata.id,
+      loopWorkCount: await memoryStore.runCount(),
       schedule: scheduler.plan(),
       budget,
       orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, projectRoute),

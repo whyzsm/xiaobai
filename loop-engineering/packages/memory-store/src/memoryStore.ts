@@ -32,6 +32,10 @@ export class MemoryStore {
     return (await pathExists(inbox)) ? readText(inbox) : '';
   }
 
+  async runCount(): Promise<number> {
+    return countRunLogEntries(this.runLog());
+  }
+
   plannedWrites(): string[] {
     return [
       displayPath(this.workspaceRoot, this.stateFile()),
@@ -39,6 +43,12 @@ export class MemoryStore {
       displayPath(this.workspaceRoot, this.runLog())
     ];
   }
+}
+
+export async function countRunLogEntries(runLogPath: string): Promise<number> {
+  if (!(await pathExists(runLogPath))) return 0;
+  const content = await readText(runLogPath);
+  return content.split(/\r?\n/).filter((line) => line.trim().length > 0).length;
 }
 
 function displayPath(workspaceRoot: string, filePath: string): string {
