@@ -72,6 +72,111 @@ test('memory init previews and writes project-isolated Obsidian structure', asyn
   assert.equal(await pathExists(path.join(vaultRoot, '88-学习', '10-项目记忆', 'demo', 'index.md')), true);
 });
 
+test('memory init does not create a new dated seed case when one already exists', async () => {
+  const { workspaceRoot, vaultRoot } = await createTempWorkspace();
+  const casesRoot = path.join(vaultRoot, '88-学习', '10-项目记忆', 'demo', 'cases');
+  const oldSeedCase = path.join(casesRoot, '1999-01-01-seed-case.md');
+  const todaySeedCase = path.join(casesRoot, `${new Date().toISOString().slice(0, 10)}-seed-case.md`);
+  await mkdir(casesRoot, { recursive: true });
+  await writeFile(
+    oldSeedCase,
+    `---\ntitle: "Seed Case"\nstatus: seed\ntype: case\n---\n\n# Seed Case\n`,
+    'utf8'
+  );
+
+  const written = await runLoop([
+    'memory',
+    'init',
+    '--workspace',
+    workspaceRoot,
+    '--vault',
+    vaultRoot,
+    '--project',
+    'demo',
+    '--write',
+    '--json'
+  ]);
+
+  assert.equal(written.ok, true);
+  assert.equal(await pathExists(oldSeedCase), true);
+  assert.equal(await pathExists(todaySeedCase), false);
+});
+
+test('memory snapshot writes project memory into Obsidian and refreshes the index', async () => {
+  const { workspaceRoot, vaultRoot } = await createTempWorkspace();
+  await runLoop([
+    'memory',
+    'init',
+    '--workspace',
+    workspaceRoot,
+    '--vault',
+    vaultRoot,
+    '--project',
+    'demo',
+    '--loop',
+    'morning-triage',
+    '--write',
+    '--json'
+  ]);
+
+  const snapshot = await runLoop([
+    'memory',
+    'snapshot',
+    '--workspace',
+    workspaceRoot,
+    '--vault',
+    vaultRoot,
+    '--project',
+    'demo',
+    '--loop',
+    'morning-triage',
+    '--write',
+    '--json'
+  ]);
+
+  assert.equal(snapshot.ok, true);
+  assert.equal(snapshot.preview, false);
+  assert.equal(await pathExists(snapshot.snapshotPath), true);
+  assert.match(snapshot.snapshotPath, /snapshots\/\d{4}-\d{2}-\d{2}-project-memory-snapshot\.md$/);
+  const content = await readFile(snapshot.snapshotPath, 'utf8');
+  assert.match(content, /# demo 项目记忆快照/);
+  assert.match(content, /## 中文/);
+  assert.match(content, /## English/);
+  assert.match(content, /project-profile\.md/);
+  assert.match(content, /active-context\.md/);
+
+  const secondSnapshot = await runLoop([
+    'memory',
+    'snapshot',
+    '--workspace',
+    workspaceRoot,
+    '--vault',
+    vaultRoot,
+    '--project',
+    'demo',
+    '--loop',
+    'morning-triage',
+    '--write',
+    '--json'
+  ]);
+  const secondContent = await readFile(secondSnapshot.snapshotPath, 'utf8');
+  assert.doesNotMatch(secondContent, /snapshots\/\d{4}-\d{2}-\d{2}-project-memory-snapshot\.md/);
+
+  const search = await runLoop([
+    'memory',
+    'search',
+    '项目记忆快照',
+    '--workspace',
+    workspaceRoot,
+    '--vault',
+    vaultRoot,
+    '--project',
+    'demo',
+    '--json'
+  ]);
+  assert(search.matches.some((match: { path: string }) => match.path === snapshot.snapshotPath));
+});
+
 test('memory lifecycle indexes, searches, builds context, captures, promotes, validates, doctors, and reports', async () => {
   const { workspaceRoot, vaultRoot } = await createTempWorkspace();
   await runLoop(['memory', 'init', '--workspace', workspaceRoot, '--vault', vaultRoot, '--project', 'demo', '--loop', 'morning-triage', '--write', '--json']);

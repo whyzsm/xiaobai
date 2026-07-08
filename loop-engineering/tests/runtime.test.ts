@@ -276,6 +276,39 @@ test('dry-run text output prints workflow stages', async () => {
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
 });
 
+test('dry-run output shows loop work count from run log', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-work-count-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  await execFileAsync('cp', ['-R', path.join(repoRoot, 'loop-engineering'), path.join(tempRoot, 'loop-engineering')]);
+  await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
+  await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+  const runLog = path.join(tempWorkspace, 'memory', 'loops', 'morning-triage', 'runs.jsonl');
+  await mkdir(path.dirname(runLog), { recursive: true });
+  await writeFile(runLog, '{"runId":"prev-1"}\n{"runId":"prev-2"}\n', 'utf8');
+
+  const text = await execFileAsync('node', [
+    'dist/loop-engineering/cli/loop.js',
+    'dry-run',
+    '--workspace',
+    tempWorkspace,
+    '--loop',
+    'morning-triage'
+  ]);
+  assert.match(text.stdout, /Loop work count: 2/);
+
+  const json = await execFileAsync('node', [
+    'dist/loop-engineering/cli/loop.js',
+    'dry-run',
+    '--workspace',
+    tempWorkspace,
+    '--loop',
+    'morning-triage',
+    '--json'
+  ]);
+  const plan = JSON.parse(json.stdout) as { loopWorkCount?: number };
+  assert.equal(plan.loopWorkCount, 2);
+});
+
 test('dry-run text output shows harmony route when target repository is harmonyWardrobe', async () => {
   const { stdout } = await execFileAsync('node', [
     'dist/loop-engineering/cli/loop.js',
@@ -364,6 +397,9 @@ test('simulation writes report, memory, and knowledge artifacts', async () => {
   const tempWorkspace = path.join(tempRoot, 'workspace');
   await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
   await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+  const runLog = path.join(tempWorkspace, 'memory', 'loops', 'morning-triage', 'runs.jsonl');
+  await mkdir(path.dirname(runLog), { recursive: true });
+  await writeFile(runLog, '{"runId":"prev-1"}\n{"runId":"prev-2"}\n', 'utf8');
   const loopPath = await findLoopSpec(tempWorkspace, 'morning-triage');
   const runtime = new SimulationRuntime();
   const result = await runtime.simulate({
@@ -376,6 +412,7 @@ test('simulation writes report, memory, and knowledge artifacts', async () => {
   assert.equal(result.mode, 'simulation');
   assert.equal(result.stages.length, 6);
   assert.equal(result.summary.findings, 3);
+  assert.equal((result as { loopWorkCount?: number }).loopWorkCount, 3);
   assert.equal(await pathExists(result.artifacts.reportPath), true);
   assert.equal(await pathExists(result.artifacts.casePath), true);
   assert.equal(await pathExists(result.artifacts.obsidianCasePath ?? ''), true);

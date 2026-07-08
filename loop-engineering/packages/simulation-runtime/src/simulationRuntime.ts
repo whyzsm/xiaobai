@@ -15,6 +15,7 @@ import { MemoryRootConfig, resolveMemoryPath, resolveMemoryRootConfig } from '..
 import { planCaseWrite, writeCase } from '../../memory-capture/src';
 import { buildMemoryIndex, writeMemoryIndexAtomic } from '../../memory-indexer/src';
 import { resolveMemoryProtocolPaths } from '../../memory-protocol/src';
+import { countRunLogEntries } from '../../memory-store/src/memoryStore';
 
 const execFileAsync = promisify(execFile);
 
@@ -64,6 +65,7 @@ export class SimulationRuntime {
       report: relative(repoRoot, artifacts.reportPath),
       createdAt: now.toISOString()
     });
+    const loopWorkCount = await countRunLogEntries(resolveMemoryPath(memoryRoot, plan.persistence.runLog));
     for (const finding of plan.findings) {
       await appendJsonl(resolveMemoryPath(memoryRoot, `memory/loops/${plan.loopId}/findings.jsonl`), {
         runId,
@@ -84,6 +86,7 @@ export class SimulationRuntime {
     return {
       runId,
       loopId: plan.loopId,
+      loopWorkCount,
       mode: 'simulation',
       stages,
       artifacts,
