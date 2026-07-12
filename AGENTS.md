@@ -172,6 +172,8 @@ memoryLearningRootName: 88-学习/xiaobai
 5. 如果 `memoryRoot` 已经位于 `88-学习/.../10-项目记忆/<projectId>` 下，系统会尽量自动推断 `memoryVaultRoot` 和 `memoryLearningRootName`；但跨电脑迁移时仍优先显式写出三个字段，避免路径歧义。
 6. `state.md`、`inbox.md`、`decisions.md` 适合在 Obsidian 中人工维护。
 7. `runs.jsonl`、`findings.jsonl`、`metrics.jsonl` 是机器追加日志；可以在 Obsidian 查看，但不建议手工编辑。
+8. 完成有持久价值的任务后，agent 必须在最终回复前生成中英双语 Markdown 摘要，并执行 `npm run memory:checkpoint -- --title "<中文 / English>" --body <summary.md> --write --json`。
+9. checkpoint 成功后必须执行 `npm run memory:audit-today -- --json`；如果审计失败，不得声称记忆已经持久化。纯问答、只读排查或没有形成可复用结论的任务可以不写 checkpoint，但最终回复要明确说明。
 
 ### English
 
@@ -189,6 +191,8 @@ memoryLearningRootName: 88-学习/xiaobai
 5. If `memoryRoot` already lives under `88-学习/.../10-项目记忆/<projectId>`, the system will try to infer `memoryVaultRoot` and `memoryLearningRootName`; still prefer writing all three fields explicitly when moving across computers to avoid path ambiguity.
 6. `state.md`, `inbox.md`, and `decisions.md` are suitable for manual maintenance in Obsidian.
 7. `runs.jsonl`, `findings.jsonl`, and `metrics.jsonl` are append-only machine logs. They can be viewed in Obsidian, but manual edits are discouraged.
+8. After completing work with durable value, the agent must create a bilingual Chinese-English Markdown summary and run `npm run memory:checkpoint -- --title "<Chinese / English>" --body <summary.md> --write --json` before the final response.
+9. After a successful checkpoint, the agent must run `npm run memory:audit-today -- --json`. If the audit fails, the agent must not claim that memory was persisted. Pure Q&A, read-only diagnosis, or work without reusable conclusions may skip the checkpoint, but the final response must say so explicitly.
 
 ## 开发与验证命令 / Development And Verification Commands
 

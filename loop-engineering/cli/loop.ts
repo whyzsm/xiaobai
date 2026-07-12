@@ -228,7 +228,7 @@ function printHelp(): void {
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
-  loop memory <init|validate|doctor|index|search|context|capture|checkpoint|promote|report|snapshot> [...]
+  loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
 `);
 }
 

@@ -13,6 +13,8 @@
     "validate": "npm run loop -- validate",
     "dry-run": "npm run loop -- dry-run --json --loop morning-triage",
     "simulate": "npm run loop -- simulate --loop morning-triage",
+    "memory:checkpoint": "npm run loop -- memory checkpoint --project xbaiProjectCode --loop morning-triage",
+    "memory:audit-today": "npm run loop -- memory audit-today --project xbaiProjectCode",
     "mount:tmax": "node workspace/projects/t-max/scripts/mount-local.mjs",
     "mount:harmony-wardrobe": "node workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
     "fetch:harmonyos-samples": "node workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs"

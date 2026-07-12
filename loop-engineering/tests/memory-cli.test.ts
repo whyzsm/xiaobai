@@ -32,6 +32,16 @@ async function runLoop(args: string[]) {
   return JSON.parse(result.stdout);
 }
 
+async function runLoopFailure(args: string[]) {
+  try {
+    await runLoop(args);
+    assert.fail('Expected loop command to fail');
+  } catch (error) {
+    const failure = error as { stdout?: string };
+    return JSON.parse(failure.stdout ?? '{}');
+  }
+}
+
 test('memory init previews and writes project-isolated Obsidian structure', async () => {
   const { workspaceRoot, vaultRoot } = await createTempWorkspace();
   const preview = await runLoop([
@@ -195,6 +205,22 @@ test('memory checkpoint persists a case and snapshot under the machine-local vau
   assert.equal(checkpoint.written.path.startsWith(vaultRoot), true);
   assert.match(await readFile(checkpoint.written.path, 'utf8'), /Fixed memory persistence/);
   assert.equal(await pathExists(path.join(vaultRoot, '88-学习', '00-记忆索引', 'memory-index.json')), true);
+  const checkpointLog = path.join(vaultRoot, '88-学习', '10-项目记忆', 'demo', 'checkpoints.jsonl');
+  const entries = (await readFile(checkpointLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].projectId, 'demo');
+  assert.equal(path.isAbsolute(entries[0].casePath), false);
+
+  const audit = await runLoop(['memory', 'audit-today', '--workspace', workspaceRoot, '--project', 'demo', '--json']);
+  assert.equal(audit.ok, true);
+  assert.equal(audit.checkpoints.length, 1);
+});
+
+test('memory audit-today fails when no checkpoint exists', async () => {
+  const { workspaceRoot } = await createTempWorkspace();
+  const audit = await runLoopFailure(['memory', 'audit-today', '--workspace', workspaceRoot, '--project', 'demo', '--json']);
+  assert.equal(audit.ok, false);
+  assert.match(audit.errors[0], /No memory checkpoint found/);
 });
 
 test('memory index rebases synced absolute paths to the current computer vault', async () => {

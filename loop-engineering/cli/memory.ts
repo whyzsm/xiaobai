@@ -1,4 +1,4 @@
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   createMemoryTemplates,
@@ -68,6 +68,7 @@ async function executeMemoryCommand(input: MemoryCliOptions & { parsed: ParsedMe
     if (input.command === 'doctor') return handleDoctor(command, paths);
     if (input.command === 'capture') return handleCapture(command, paths, input.parsed, input.workspaceRoot);
     if (input.command === 'checkpoint') return handleCheckpoint(command, paths, input.parsed, input.workspaceRoot);
+    if (input.command === 'audit-today') return handleAuditToday(command, paths, input.parsed);
     if (input.command === 'promote') return handlePromote(command, paths, input.parsed, input.workspaceRoot);
     if (input.command === 'report') return handleReport(command, paths, input.parsed);
     if (input.command === 'snapshot') return handleSnapshot(command, paths, input.parsed, input.workspaceRoot);
@@ -100,9 +101,10 @@ async function handleCheckpoint(
 
   const projectId = args.project ?? path.basename(paths.projectRoot);
   const loopId = args.loop ?? (await inferDefaultLoop(workspaceRoot));
+  const title = args.title ?? `${projectId} Work Checkpoint`;
   const casePlan = await planCaseWrite({
     casesRoot: paths.casesRoot,
-    title: args.title ?? `${projectId} Work Checkpoint`,
+    title,
     projectId,
     loopId,
     runId: args.runId,
@@ -129,7 +131,8 @@ async function handleCheckpoint(
     query: args.query,
     maxCharacters: args.maxCharacters ?? 12000
   });
-  const date = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const date = formatLocalDate(now);
   const snapshotPath = path.join(paths.projectRoot, 'snapshots', `${date}-project-memory-snapshot.md`);
   const sourceItems = bundle.included.filter((item) => !isSeedMemoryContent(item.content) && !isSnapshotMemoryPath(item.path));
   await mkdir(path.dirname(snapshotPath), { recursive: true });
@@ -150,7 +153,49 @@ async function handleCheckpoint(
     projectId
   });
   await writeMemoryIndexAtomic(paths.indexPath, refreshed);
+  const checkpointLog = path.join(paths.projectRoot, 'checkpoints.jsonl');
+  await mkdir(path.dirname(checkpointLog), { recursive: true });
+  await appendFile(checkpointLog, `${JSON.stringify({
+    createdAt: now.toISOString(),
+    localDate: date,
+    projectId,
+    loopId,
+    title,
+    casePath: relativeToVault(paths.vaultRoot, written.path),
+    snapshotPath: relativeToVault(paths.vaultRoot, snapshotPath)
+  })}\n`, 'utf8');
   return { ok: true, command, errors: [], warnings: bundle.warnings, preview: false, written, snapshotPath, indexPath: paths.indexPath };
+}
+
+async function handleAuditToday(
+  command: string,
+  paths: MemoryPaths,
+  args: ParsedMemoryArgs
+): Promise<MemoryCommandResult> {
+  const date = formatLocalDate(new Date());
+  const checkpointLog = path.join(paths.projectRoot, 'checkpoints.jsonl');
+  const entries = (await pathExists(checkpointLog))
+    ? (await readText(checkpointLog)).split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line) as Record<string, unknown>)
+    : [];
+  const matches = entries.filter((entry) => entry.localDate === date && (!args.loop || entry.loopId === args.loop));
+  if (matches.length === 0) {
+    return {
+      ok: false,
+      command,
+      errors: [`No memory checkpoint found for ${date}${args.loop ? ` and loop ${args.loop}` : ''}.`],
+      warnings: [],
+      date,
+      checkpointLog
+    };
+  }
+  return { ok: true, command, errors: [], warnings: [], date, checkpointLog, checkpoints: matches };
+}
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 async function resolveCliMemoryPaths(workspaceRoot: string, args: ParsedMemoryArgs): Promise<MemoryPaths> {
