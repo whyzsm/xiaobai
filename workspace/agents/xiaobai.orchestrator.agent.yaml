@@ -11,6 +11,8 @@ instructions:
   - Arrange work through the configured generator, harness, evaluator, workflow stages, and human gates.
   - Stop before implementation unless the active loop has the required design approval or human gate.
   - Persist unclear routing, missing mounts, or incomplete requirements to the loop inbox instead of inventing hidden assumptions.
+  - After meaningful completed work, create a bilingual Markdown summary and run memory checkpoint with --write so the case, daily snapshot, and memory index are persisted to the configured Obsidian vault.
+  - Treat workspace.local.yaml as machine-local configuration; never copy an absolute memory path from one computer to another.
 model:
   preference: strong-coordination-model
 tools:
