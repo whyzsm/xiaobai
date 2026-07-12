@@ -62,6 +62,10 @@ npm run loop -- memory index --write --json
 npm run loop -- memory search "Loop Engineering" --json
 npm run loop -- memory context --loop morning-triage --json
 
+# 在有价值的工作结束后，一次性写入 case、当日快照并刷新索引
+# Persist a case, daily snapshot, and refreshed index after meaningful work
+npm run loop -- memory checkpoint --project xbaiProjectCode --loop morning-triage --title "工作摘要 / Work summary" --body /path/to/bilingual-summary.md --write --json
+
 # 构建 TypeScript
 npm run build
 
@@ -327,6 +331,11 @@ npm run loop -- memory context --loop morning-triage --json
 npm run loop -- memory capture case --title "Auth Triage Lesson" --json
 npm run loop -- memory capture case --title "Auth Triage Lesson" --write --json
 
+# 预览/写入工作 checkpoint；body 必须是中英双语 Markdown
+# Preview/write a work checkpoint; body must be bilingual Markdown
+npm run loop -- memory checkpoint --title "工作摘要 / Work summary" --body /path/to/bilingual-summary.md --json
+npm run loop -- memory checkpoint --title "工作摘要 / Work summary" --body /path/to/bilingual-summary.md --write --json
+
 # 晋升 pattern，必须显式确认
 npm run loop -- memory promote --case <case-path> --confirm --json
 
@@ -338,10 +347,20 @@ npm run loop -- memory report --write --json
 写入安全：
 
 - `init`、`index`、`capture case`、`report` 默认 preview，必须 `--write` 才写入。
+- `checkpoint` 默认 preview，必须提供 `--body`，并使用 `--write` 才会写入 case、当日快照和索引。
+- 两台电脑可以使用不同的绝对 vault 路径；每台电脑只维护各自 ignored 的 `workspace/workspace.local.yaml`，不要互相复制绝对路径。
 - `promote` 默认 preview，必须 `--confirm` 才写入。
 - 当前版本不提供删除、清理、去重命令。
 - `.jsonl` 是机器日志，不建议人工编辑。
 - `memory-index.json` 可随时通过 `memory index --write` 重新生成。
+
+- `init`, `index`, `capture case`, and `report` use preview mode by default and require `--write` to persist changes.
+- `checkpoint` uses preview mode by default, requires `--body`, and writes the case, daily snapshot, and index only with `--write`.
+- Two computers may use different absolute vault paths. Each computer must maintain its own ignored `workspace/workspace.local.yaml`; do not copy absolute paths between machines.
+- `promote` uses preview mode by default and requires `--confirm` to write.
+- The current version provides no delete, cleanup, or deduplication command.
+- `.jsonl` files are machine logs and should not be edited manually.
+- `memory-index.json` can always be rebuilt with `memory index --write`.
 
 ## 当前 dry-run 会做什么
 

@@ -67,6 +67,7 @@ async function executeMemoryCommand(input: MemoryCliOptions & { parsed: ParsedMe
     if (input.command === 'validate') return handleValidate(command, paths, input.repoRoot);
     if (input.command === 'doctor') return handleDoctor(command, paths);
     if (input.command === 'capture') return handleCapture(command, paths, input.parsed, input.workspaceRoot);
+    if (input.command === 'checkpoint') return handleCheckpoint(command, paths, input.parsed, input.workspaceRoot);
     if (input.command === 'promote') return handlePromote(command, paths, input.parsed, input.workspaceRoot);
     if (input.command === 'report') return handleReport(command, paths, input.parsed);
     if (input.command === 'snapshot') return handleSnapshot(command, paths, input.parsed, input.workspaceRoot);
@@ -80,6 +81,76 @@ async function executeMemoryCommand(input: MemoryCliOptions & { parsed: ParsedMe
       warnings: []
     };
   }
+}
+
+async function handleCheckpoint(
+  command: string,
+  paths: MemoryPaths,
+  args: ParsedMemoryArgs,
+  workspaceRoot: string
+): Promise<MemoryCommandResult> {
+  if (!args.bodyFile) {
+    return { ok: false, command, errors: ['Checkpoint requires --body <markdown-file>.'], warnings: [] };
+  }
+
+  const body = await readText(path.resolve(args.bodyFile));
+  if (!body.trim()) {
+    return { ok: false, command, errors: ['Checkpoint body must not be empty.'], warnings: [] };
+  }
+
+  const projectId = args.project ?? path.basename(paths.projectRoot);
+  const loopId = args.loop ?? (await inferDefaultLoop(workspaceRoot));
+  const casePlan = await planCaseWrite({
+    casesRoot: paths.casesRoot,
+    title: args.title ?? `${projectId} Work Checkpoint`,
+    projectId,
+    loopId,
+    runId: args.runId,
+    date: new Date().toISOString().slice(0, 10),
+    body
+  });
+  if (!args.write) {
+    return { ok: true, command, errors: [], warnings: [], preview: true, planned: casePlan };
+  }
+
+  const written = await writeCase(casePlan);
+  const index = await buildMemoryIndex({
+    workspaceRoot,
+    vaultRoot: paths.vaultRoot,
+    learningRootName: relativeLearningRoot(paths),
+    projectId
+  });
+  await writeMemoryIndexAtomic(paths.indexPath, index);
+
+  const bundle = await loadMemoryContext({
+    index,
+    projectId,
+    loopId,
+    query: args.query,
+    maxCharacters: args.maxCharacters ?? 12000
+  });
+  const date = new Date().toISOString().slice(0, 10);
+  const snapshotPath = path.join(paths.projectRoot, 'snapshots', `${date}-project-memory-snapshot.md`);
+  const sourceItems = bundle.included.filter((item) => !isSeedMemoryContent(item.content) && !isSnapshotMemoryPath(item.path));
+  await mkdir(path.dirname(snapshotPath), { recursive: true });
+  await writeFile(snapshotPath, renderProjectMemorySnapshot({
+    projectId,
+    loopId,
+    date,
+    vaultRoot: paths.vaultRoot,
+    indexPath: paths.indexPath,
+    included: sourceItems,
+    notes: index.notes.filter((note) => note.projectId === projectId)
+  }), 'utf8');
+
+  const refreshed = await buildMemoryIndex({
+    workspaceRoot,
+    vaultRoot: paths.vaultRoot,
+    learningRootName: relativeLearningRoot(paths),
+    projectId
+  });
+  await writeMemoryIndexAtomic(paths.indexPath, refreshed);
+  return { ok: true, command, errors: [], warnings: bundle.warnings, preview: false, written, snapshotPath, indexPath: paths.indexPath };
 }
 
 async function resolveCliMemoryPaths(workspaceRoot: string, args: ParsedMemoryArgs): Promise<MemoryPaths> {
@@ -171,7 +242,7 @@ async function handleIndex(command: string, paths: MemoryPaths, args: ParsedMemo
 }
 
 async function handleSearch(command: string, paths: MemoryPaths, args: ParsedMemoryArgs): Promise<MemoryCommandResult> {
-  const index = await readMemoryIndex(paths.indexPath);
+  const index = await readMemoryIndex(paths.indexPath, paths.vaultRoot);
   const matches = searchMemory(index, {
     query: args.query ?? '',
     project: args.project,
@@ -207,7 +278,7 @@ async function handleContext(command: string, paths: MemoryPaths, args: ParsedMe
 }
 
 async function handleValidate(command: string, paths: MemoryPaths, repoRoot: string): Promise<MemoryCommandResult> {
-  const index = (await pathExists(paths.indexPath)) ? await readMemoryIndex(paths.indexPath) : undefined;
+  const index = (await pathExists(paths.indexPath)) ? await readMemoryIndex(paths.indexPath, paths.vaultRoot) : undefined;
   const validation = await validateMemory({
     repoRoot,
     vaultRoot: paths.vaultRoot,
@@ -220,7 +291,7 @@ async function handleValidate(command: string, paths: MemoryPaths, repoRoot: str
 }
 
 async function handleDoctor(command: string, paths: MemoryPaths): Promise<MemoryCommandResult> {
-  const index = await readMemoryIndex(paths.indexPath);
+  const index = await readMemoryIndex(paths.indexPath, paths.vaultRoot);
   const report = doctorMemory(index);
   return { ok: true, command, errors: [], warnings: report.warnings, report };
 }
@@ -281,7 +352,7 @@ async function handlePromote(command: string, paths: MemoryPaths, args: ParsedMe
 }
 
 async function handleReport(command: string, paths: MemoryPaths, args: ParsedMemoryArgs): Promise<MemoryCommandResult> {
-  const index = await readMemoryIndex(paths.indexPath);
+  const index = await readMemoryIndex(paths.indexPath, paths.vaultRoot);
   const report = doctorMemory(index);
   const content = `# Memory Report\n\n- Projects: ${report.stats.projects}\n- Notes: ${report.stats.notes}\n- Cases: ${report.stats.cases}\n- Patterns: ${report.stats.patterns}\n- Score: ${report.score}\n\n## Warnings\n\n${report.warnings.map((warning) => `- ${warning}`).join('\n')}\n`;
   const reportPath = path.join(paths.reportsRoot, `${new Date().toISOString().slice(0, 10)}-memory-report.md`);
@@ -381,7 +452,7 @@ function relativeToVault(vaultRoot: string, filePath: string): string {
 }
 
 async function ensureIndex(paths: MemoryPaths, workspaceRoot: string, args: ParsedMemoryArgs) {
-  if (await pathExists(paths.indexPath)) return readMemoryIndex(paths.indexPath);
+  if (await pathExists(paths.indexPath)) return readMemoryIndex(paths.indexPath, paths.vaultRoot);
   const index = await buildMemoryIndex({
     workspaceRoot,
     vaultRoot: paths.vaultRoot,

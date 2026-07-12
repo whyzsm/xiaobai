@@ -177,6 +177,50 @@ test('memory snapshot writes project memory into Obsidian and refreshes the inde
   assert(search.matches.some((match: { path: string }) => match.path === snapshot.snapshotPath));
 });
 
+test('memory checkpoint persists a case and snapshot under the machine-local vault', async () => {
+  const { tempRoot, workspaceRoot, vaultRoot } = await createTempWorkspace();
+  const bodyPath = path.join(tempRoot, 'checkpoint.md');
+  await writeFile(bodyPath, '## 中文\n\n修复记忆持久化。\n\n## English\n\nFixed memory persistence.\n', 'utf8');
+  await runLoop(['memory', 'init', '--workspace', workspaceRoot, '--project', 'demo', '--loop', 'morning-triage', '--write', '--json']);
+
+  const checkpoint = await runLoop([
+    'memory', 'checkpoint', '--workspace', workspaceRoot, '--project', 'demo', '--loop', 'morning-triage',
+    '--title', 'Memory persistence fix', '--body', bodyPath, '--write', '--json'
+  ]);
+
+  assert.equal(checkpoint.ok, true);
+  assert.equal(checkpoint.preview, false);
+  assert.equal(await pathExists(checkpoint.written.path), true);
+  assert.equal(await pathExists(checkpoint.snapshotPath), true);
+  assert.equal(checkpoint.written.path.startsWith(vaultRoot), true);
+  assert.match(await readFile(checkpoint.written.path, 'utf8'), /Fixed memory persistence/);
+  assert.equal(await pathExists(path.join(vaultRoot, '88-学习', '00-记忆索引', 'memory-index.json')), true);
+});
+
+test('memory index rebases synced absolute paths to the current computer vault', async () => {
+  const first = await createTempWorkspace();
+  await runLoop(['memory', 'init', '--workspace', first.workspaceRoot, '--project', 'demo', '--write', '--json']);
+  await runLoop(['memory', 'index', '--workspace', first.workspaceRoot, '--project', 'demo', '--write', '--json']);
+
+  const secondRoot = await mkdtemp(path.join(tmpdir(), 'memory-cli-second-machine-'));
+  const secondWorkspace = path.join(secondRoot, 'workspace');
+  const secondVault = path.join(secondRoot, 'vault');
+  await execFileAsync('cp', ['-R', first.workspaceRoot, secondWorkspace]);
+  await execFileAsync('cp', ['-R', first.vaultRoot, secondVault]);
+  await writeFile(
+    path.join(secondWorkspace, 'workspace.local.yaml'),
+    `memoryRoot: ${secondVault}/88-学习/10-项目记忆/demo\nmemoryVaultRoot: ${secondVault}\n`,
+    'utf8'
+  );
+
+  const validation = await runLoop(['memory', 'validate', '--workspace', secondWorkspace, '--project', 'demo', '--json']);
+  const search = await runLoop(['memory', 'search', 'demo', '--workspace', secondWorkspace, '--project', 'demo', '--json']);
+  assert.equal(validation.ok, true);
+  assert.deepEqual(validation.warnings, []);
+  assert(search.matches.length > 0);
+  assert(search.matches.every((match: { path: string }) => match.path.startsWith(secondVault)));
+});
+
 test('memory lifecycle indexes, searches, builds context, captures, promotes, validates, doctors, and reports', async () => {
   const { workspaceRoot, vaultRoot } = await createTempWorkspace();
   await runLoop(['memory', 'init', '--workspace', workspaceRoot, '--vault', vaultRoot, '--project', 'demo', '--loop', 'morning-triage', '--write', '--json']);
