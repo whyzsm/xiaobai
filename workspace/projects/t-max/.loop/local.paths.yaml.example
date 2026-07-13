@@ -1,7 +1,7 @@
 # Copy this file to local.paths.yaml on each computer, then adjust paths.
 # local.paths.yaml is ignored by git because these paths are machine-specific.
 background:
-  shared-skills: /absolute/path/to/shared-skills
+  xiaoneng: /absolute/path/to/xiaoneng
 repositories:
   KPIUI: /absolute/path/to/T-MAX/KPIUI
   max-console-ui: /absolute/path/to/T-MAX/max-console-ui

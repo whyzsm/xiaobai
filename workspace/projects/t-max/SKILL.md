@@ -8,7 +8,7 @@
 
 ## 背景
 
-- Shared background mount: `../../.local/t-max/mounts/background/shared-skills`
+- Xiaoneng background mount: `../../.local/t-max/mounts/background/xiaoneng`
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
 - The shared background applies to every repository listed in `.loop/project.yaml`.
 
@@ -24,9 +24,9 @@
 
 ## 规则
 
-1. 修改任何 T-MAX 挂载仓库前，先读取 `workspace/.local/t-max/mounts/background/shared-skills`。
+1. 修改任何 T-MAX 挂载仓库前，先读取 `workspace/.local/t-max/mounts/background/xiaoneng`。
 2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
-3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用 shared-skills 指导。
+3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用 xiaoneng 指导。
 4. 如果挂载缺失或失效，先运行 `npm run mount:tmax` 刷新挂载。
 5. 仓库特定修改只能落在 `workspace/.local/t-max/mounts/repos/` 下选中的本地挂载仓。
 6. 修改前检查目标仓库当前分支；不要假设所有 T-MAX 仓库使用相同默认分支。
@@ -41,7 +41,7 @@ Persist the T-MAX project background in this loop workspace and bind one shared 
 
 ## Background
 
-- Shared background mount: `../../.local/t-max/mounts/background/shared-skills`
+- Xiaoneng background mount: `../../.local/t-max/mounts/background/xiaoneng`
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
 - The shared background applies to every repository listed in `.loop/project.yaml`.
 
@@ -57,9 +57,9 @@ Persist the T-MAX project background in this loop workspace and bind one shared 
 
 ## Rules
 
-1. Load `workspace/.local/t-max/mounts/background/shared-skills` before making changes in any mounted T-MAX repository.
+1. Load `workspace/.local/t-max/mounts/background/xiaoneng` before making changes in any mounted T-MAX repository.
 2. Treat the repositories as separate git worktrees even though they share the same project background.
-3. Apply shared-skills guidance consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, and scan.
+3. Apply xiaoneng guidance consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, and scan.
 4. Refresh missing or broken mounts with `npm run mount:tmax` before editing.
 5. Keep repository-specific changes inside the selected local mount under `workspace/.local/t-max/mounts/repos/`.
 6. Check each repository's current branch before editing; do not assume all T-MAX repositories use the same default branch.

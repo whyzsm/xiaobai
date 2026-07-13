@@ -47,6 +47,8 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
+removeStaleBackgroundSymlinks(desiredMounts[0].mount);
+
 for (const desired of desiredMounts) {
   refreshSymlink(desired.target, desired.mount);
   console.log(`${path.relative(path.resolve(projectDir, '../..'), desired.mount)} -> ${desired.target}`);
@@ -83,6 +85,25 @@ function normalizeLocalPath(value) {
     });
 
   return path.resolve(expanded);
+}
+
+function removeStaleBackgroundSymlinks(desiredMount) {
+  const backgroundDir = path.dirname(desiredMount);
+  if (!fs.existsSync(backgroundDir)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(backgroundDir)) {
+    const candidate = path.join(backgroundDir, entry);
+    if (candidate === desiredMount) {
+      continue;
+    }
+
+    if (!fs.lstatSync(candidate).isSymbolicLink()) {
+      throw new Error(`Refusing to remove stale non-symlink background mount: ${candidate}`);
+    }
+    fs.unlinkSync(candidate);
+  }
 }
 
 function refreshSymlink(target, mount) {
