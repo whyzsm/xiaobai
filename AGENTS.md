@@ -204,7 +204,7 @@ npm run simulate
 npm test
 ```
 
-修改 runtime、schema、memory、workspace 配置或脚本后，至少运行：
+修改 runtime、schema、memory、workspace 配置或脚本后，`npm run validate` 与 `npm test` 属于提交或合并前的人工确认门禁；agent 不得自行直接运行，必须先询问用户是否执行。
 
 ```bash
 npm run validate
@@ -223,7 +223,7 @@ npm run simulate
 npm test
 ```
 
-After changing runtime code, schemas, memory behavior, workspace configuration, or scripts, run at least:
+After changing runtime code, schemas, memory behavior, workspace configuration, or scripts, `npm run validate` and `npm test` are human-confirmed gates before commit or merge; agents must not run them directly without asking the user first.
 
 ```bash
 npm run validate
