@@ -63,7 +63,7 @@ Core boundaries:
    - `workspace/.local/`
    - `workspace/workspace.local.yaml`
    - `workspace/projects/*/.loop/local.paths.yaml`
-3. T-MAX 代码仓和 `shared-skills` 只能通过 ignored 的 `workspace/.local/t-max/mounts/` 挂载访问。
+3. T-MAX 代码仓和 `xiaoneng` 背景只能通过 ignored 的 `workspace/.local/t-max/mounts/` 挂载访问。
 4. 如果需要刷新 T-MAX 挂载，运行：
 
 ```bash
@@ -85,7 +85,7 @@ git status --short -uall
    - `workspace/.local/`
    - `workspace/workspace.local.yaml`
    - `workspace/projects/*/.loop/local.paths.yaml`
-3. T-MAX repositories and `shared-skills` must be accessed through ignored mounts under `workspace/.local/t-max/mounts/`.
+3. T-MAX repositories and the `xiaoneng` background must be accessed through ignored mounts under `workspace/.local/t-max/mounts/`.
 4. To refresh T-MAX mounts, run:
 
 ```bash
@@ -110,13 +110,13 @@ Ensure the output does not include external repository files, `workspace/.local/
 npm install
 ```
 
-如果需要使用 T-MAX 代码仓和 `shared-skills` 背景，必须先创建本机路径配置：
+如果需要使用 T-MAX 代码仓和 `xiaoneng` 背景，必须先创建本机路径配置：
 
 ```bash
 cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
 ```
 
-然后编辑 `workspace/projects/t-max/.loop/local.paths.yaml`，把 `shared-skills` 和各 T-MAX 仓库路径改成这台电脑上的真实绝对路径。
+然后编辑 `workspace/projects/t-max/.loop/local.paths.yaml`，把 `xiaoneng` 和各 T-MAX 仓库路径改成这台电脑上的真实绝对路径。
 
 编辑完成后运行：
 
@@ -124,7 +124,7 @@ cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-
 npm run mount:tmax
 ```
 
-这个命令会在 ignored 的 `workspace/.local/t-max/mounts/` 下生成软链接。没有这一步，agent 仍可读取工程配置，但无法通过统一挂载路径访问本机 T-MAX 仓库和 `shared-skills`。
+这个命令会在 ignored 的 `workspace/.local/t-max/mounts/` 下生成软链接。没有这一步，agent 仍可读取工程配置，但无法通过统一挂载路径访问本机 T-MAX 仓库和 `xiaoneng` 背景。
 
 如果接入新的项目组，也要沿用同样模式：提交项目级 `project.yaml`、`SKILL.md`、`local.paths.yaml.example` 和挂载脚本；不要提交本机 `local.paths.yaml`、`.local/` 软链接或外部代码仓内容。
 
@@ -136,13 +136,13 @@ After cloning this repository on a new machine, install dependencies first:
 npm install
 ```
 
-If T-MAX repositories and the `shared-skills` background are needed, create the local path configuration first:
+If T-MAX repositories and the `xiaoneng` background are needed, create the local path configuration first:
 
 ```bash
 cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
 ```
 
-Then edit `workspace/projects/t-max/.loop/local.paths.yaml` and replace the `shared-skills` and T-MAX repository paths with real absolute paths on that machine.
+Then edit `workspace/projects/t-max/.loop/local.paths.yaml` and replace the `xiaoneng` and T-MAX repository paths with real absolute paths on that machine.
 
 After editing, run:
 
@@ -150,7 +150,7 @@ After editing, run:
 npm run mount:tmax
 ```
 
-This command generates symlinks under the ignored `workspace/.local/t-max/mounts/` directory. Without this step, agents can still read the engineering configuration, but they cannot access local T-MAX repositories or `shared-skills` through the unified mount paths.
+This command generates symlinks under the ignored `workspace/.local/t-max/mounts/` directory. Without this step, agents can still read the engineering configuration, but they cannot access local T-MAX repositories or the `xiaoneng` background through the unified mount paths.
 
 When adding a new project group, use the same pattern: commit the project-level `project.yaml`, `SKILL.md`, `local.paths.yaml.example`, and mount script; do not commit local `local.paths.yaml`, `.local/` symlinks, or external repository contents.
 
@@ -208,7 +208,7 @@ npm run simulate
 npm test
 ```
 
-修改 runtime、schema、memory、workspace 配置或脚本后，至少运行：
+修改 runtime、schema、memory、workspace 配置或脚本后，`npm run validate` 与 `npm test` 属于提交或合并前的人工确认门禁；agent 不得自行直接运行，必须先询问用户是否执行。
 
 ```bash
 npm run validate
@@ -227,7 +227,7 @@ npm run simulate
 npm test
 ```
 
-After changing runtime code, schemas, memory behavior, workspace configuration, or scripts, run at least:
+After changing runtime code, schemas, memory behavior, workspace configuration, or scripts, `npm run validate` and `npm test` are human-confirmed gates before commit or merge; agents must not run them directly without asking the user first.
 
 ```bash
 npm run validate

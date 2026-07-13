@@ -104,6 +104,7 @@ description: Loop Engineering repository-level implementation skill for coding p
 - 已读取并遵守仓级 Skill 与目标项目 Skill。
 - 改动没有写入 ignored 本机状态、外部挂载仓内容或无关 workspace 状态。
 - schema、配置、runtime、memory、connector、agent 或 harness 的修改有对应验证。
+- 提交或合并代码前，`npm run validate` 与 `npm test` 必须先询问用户是否执行，不得作为自动门禁直接运行。
 - generator 没有把自评作为完成条件；需要 evaluator 或等价独立检查的任务已保留门禁。
 - 无法运行验证时，交付说明必须写明原因、风险和下一步最小验证方式。
 
@@ -215,6 +216,7 @@ Before completing an implementation phase, confirm at least:
 - The repository-level Skill and target project Skill were read and followed.
 - The change did not write ignored local state, external mounted repository contents, or unrelated workspace state.
 - Schema, configuration, runtime, memory, connector, agent, or harness changes have matching verification.
+- Before committing or merging code, ask the user before running `npm run validate` or `npm test`; do not run them directly as automatic gates.
 - Generator self-review is not used as the completion gate; tasks requiring evaluator or equivalent independent checks preserve that gate.
 - If verification could not run, the handoff states the reason, risk, and smallest next verification step.
 

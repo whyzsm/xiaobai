@@ -26,8 +26,8 @@ npm test
 Local configuration:
 
 ```bash
-# T-MAX 代码仓和 shared-skills 本机路径
-# Local paths for T-MAX repositories and shared-skills
+# T-MAX 代码仓和 xiaoneng 背景的本机路径
+# Local paths for T-MAX repositories and the xiaoneng background
 cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
 npm run mount:tmax
 
@@ -429,9 +429,9 @@ Obsidian 00-记忆索引/memory-index.json          # 同步刷新索引
 - 新增或评审前端工程能力：遵守 `loop-engineering/docs/frontend-platform-standards.md`。 / For new or reviewed frontend engineering work, follow `loop-engineering/docs/frontend-platform-standards.md`.
 - 新增、澄清或评审产品需求：遵守 `loop-engineering/docs/product-requirement-platform-standards.md`。 / For new, clarified, or reviewed product requirements, follow `loop-engineering/docs/product-requirement-platform-standards.md`.
 - 进入代码实现阶段：先遵守根目录 `SKILL.md`，再叠加项目级 `SKILL.md`。 / During code implementation phases, follow the root `SKILL.md` first, then layer on the project-level `SKILL.md`.
-- 修改 workspace 配置后：先跑 `npm run validate`。
-- 修改 runtime 代码后：跑 `npm test`。
-- 修改 Obsidian memory 协议或 CLI 后：跑 `npm test`，再跑 `npm run loop -- memory validate --json`。
+- 修改 workspace 配置后：`npm run validate` 是提交或合并前门禁，agent 需先询问用户是否执行。 / After changing workspace configuration, `npm run validate` is a pre-commit or pre-merge gate; agents must ask the user before running it.
+- 修改 runtime 代码后：`npm test` 是提交或合并前门禁，agent 需先询问用户是否执行。 / After changing runtime code, `npm test` is a pre-commit or pre-merge gate; agents must ask the user before running it.
+- 修改 Obsidian memory 协议或 CLI 后：`npm test` 与 `npm run loop -- memory validate --json` 需按风险选择验证，其中 `npm test` 需先询问用户是否执行。 / After changing the Obsidian memory protocol or CLI, choose verification based on risk with `npm test` and `npm run loop -- memory validate --json`; ask the user before running `npm test`.
 
 ## 当前边界
 
