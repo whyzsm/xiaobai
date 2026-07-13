@@ -4,13 +4,13 @@
 
 ## 目标
 
-在当前 loop workspace 中持久化 T-MAX 项目背景，并把一个共享背景绑定到多个本地代码仓。
+在当前 loop workspace 中持久化 T-MAX 项目背景，并把小能（xiaoneng）业务背景绑定到多个本地代码仓。
 
 ## 背景
 
-- Shared background mount: `../../.local/t-max/mounts/background/shared-skills`
+- 小能背景挂载：`../../.local/t-max/mounts/background/xiaoneng`
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
-- The shared background applies to every repository listed in `.loop/project.yaml`.
+- 小能业务背景适用于 `.loop/project.yaml` 中列出的所有仓库。
 
 ## 已挂载代码仓
 
@@ -24,9 +24,9 @@
 
 ## 规则
 
-1. 修改任何 T-MAX 挂载仓库前，先读取 `workspace/.local/t-max/mounts/background/shared-skills`。
+1. 修改任何 T-MAX 挂载仓库前，先读取 `workspace/.local/t-max/mounts/background/xiaoneng`。
 2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
-3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用 shared-skills 指导。
+3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用小能业务背景指导。
 4. 如果挂载缺失或失效，先运行 `npm run mount:tmax` 刷新挂载。
 5. 仓库特定修改只能落在 `workspace/.local/t-max/mounts/repos/` 下选中的本地挂载仓。
 6. 修改前检查目标仓库当前分支；不要假设所有 T-MAX 仓库使用相同默认分支。
@@ -37,13 +37,13 @@
 
 ## Purpose
 
-Persist the T-MAX project background in this loop workspace and bind one shared background to multiple local code repositories.
+Persist the T-MAX project background in this loop workspace and bind the Xiaoneng business background to multiple local code repositories.
 
 ## Background
 
-- Shared background mount: `../../.local/t-max/mounts/background/shared-skills`
+- Xiaoneng background mount: `../../.local/t-max/mounts/background/xiaoneng`
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
-- The shared background applies to every repository listed in `.loop/project.yaml`.
+- The Xiaoneng business background applies to every repository listed in `.loop/project.yaml`.
 
 ## Mounted Repositories
 
@@ -57,9 +57,9 @@ Persist the T-MAX project background in this loop workspace and bind one shared 
 
 ## Rules
 
-1. Load `workspace/.local/t-max/mounts/background/shared-skills` before making changes in any mounted T-MAX repository.
+1. Load `workspace/.local/t-max/mounts/background/xiaoneng` before making changes in any mounted T-MAX repository.
 2. Treat the repositories as separate git worktrees even though they share the same project background.
-3. Apply shared-skills guidance consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, and scan.
+3. Apply the Xiaoneng business background consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, and scan.
 4. Refresh missing or broken mounts with `npm run mount:tmax` before editing.
 5. Keep repository-specific changes inside the selected local mount under `workspace/.local/t-max/mounts/repos/`.
 6. Check each repository's current branch before editing; do not assume all T-MAX repositories use the same default branch.

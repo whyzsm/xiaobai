@@ -6,10 +6,10 @@ defaultBranch: master
 skill: SKILL.md
 localPaths: .loop/local.paths.yaml
 background:
-  id: shared-skills
-  name: shared-skills
-  localPathKey: shared-skills
-  mount: ../../.local/t-max/mounts/background/shared-skills
+  id: xiaoneng
+  name: xiaoneng
+  localPathKey: xiaoneng
+  mount: ../../.local/t-max/mounts/background/xiaoneng
 repositories:
   - id: KPIUI
     name: KPIUI
