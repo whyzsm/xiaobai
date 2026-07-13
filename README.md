@@ -26,8 +26,8 @@ npm test
 Local configuration:
 
 ```bash
-# T-MAX 代码仓和 shared-skills 本机路径
-# Local paths for T-MAX repositories and shared-skills
+# T-MAX 代码仓和 xiaoneng 背景的本机路径
+# Local paths for T-MAX repositories and the xiaoneng background
 cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
 npm run mount:tmax
 

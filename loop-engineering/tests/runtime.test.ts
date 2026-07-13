@@ -78,7 +78,7 @@ test('frontend delivery loop gates design approval before implementation', async
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 't-max');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
-  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'shared-skills');
+  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
     true
@@ -269,9 +269,9 @@ test('dry-run text output prints workflow stages', async () => {
 
   assert.match(stdout, /Workflow stages: 9/);
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
-  assert.match(stdout, /Resolved target: operateBusiness -> t-max -> shared-skills/);
+  assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: t-max -> shared-skills, repositories: 7/);
+  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
 });
