@@ -18,6 +18,9 @@ workspace/projects/*/.loop/local.paths.yaml
 # Other files and folders
 .settings/
 
+# AI assistant local working memory (not project code — keep out of remotes)
+.workbuddy/
+
 # Executables
 *.swf
 *.air
