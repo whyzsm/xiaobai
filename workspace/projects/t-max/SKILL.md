@@ -32,6 +32,7 @@
 6. 修改前检查目标仓库当前分支；不要假设所有 T-MAX 仓库使用相同默认分支。
 7. frontend-delivery loop 必须先生成主设计文档和各仓补充分设计文档，通过独立设计评审并获得 `human-design-approval` 后，才允许进入编码。
 8. 业务设计正文和业务代码只能落在当前参与开发的挂载目标仓；工程仓只记录状态、门禁结果、源链接、目标仓和 PR 链接。
+9. 在 T-MAX 背景下处理小能相关项目时，默认只做本地修改、校验和状态说明；除非用户明确要求“推送远端”“提交到远端仓库”或给出等价指令，否则不要自动执行 `git push`。
 
 ## English
 
@@ -65,3 +66,4 @@ Persist the T-MAX project background in this loop workspace and bind the Xiaonen
 6. Check each repository's current branch before editing; do not assume all T-MAX repositories use the same default branch.
 7. The frontend-delivery loop must create the master design document and repository supplements, pass independent design review, and record `human-design-approval` before implementation.
 8. Business design bodies and business code belong only in participating mounted target repositories. The engineering repository records only state, gate results, source links, target repositories, and PR links.
+9. When working on Xiaoneng-related projects under the T-MAX background, default to local edits, verification, and status reporting only. Do not run `git push` automatically unless the user explicitly asks to "push to remote", "submit to the remote repository", or gives an equivalent instruction.
