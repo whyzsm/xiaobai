@@ -102,7 +102,7 @@ description: Loop Engineering repository-level implementation skill for coding p
 实现阶段完成前至少确认：
 
 - 已读取并遵守仓级 Skill 与目标项目 Skill。
-- 改动没有写入 ignored 本机状态、外部挂载仓内容或无关 workspace 状态。
+- 工程仓自身的改动没有把 ignored 本机状态、挂载基础设施、外部仓内容或无关 workspace 状态写入本工程仓 diff；T-MAX 业务任务可以通过挂载入口修改目标仓的真实 worktree，改动归目标仓独立管理。
 - schema、配置、runtime、memory、connector、agent 或 harness 的修改有对应验证。
 - 提交或合并代码前，`npm run validate` 与 `npm test` 必须先询问用户是否执行，不得作为自动门禁直接运行。
 - generator 没有把自评作为完成条件；需要 evaluator 或等价独立检查的任务已保留门禁。
@@ -214,7 +214,7 @@ For multi-step tasks, use a short plan where each step has a verification method
 Before completing an implementation phase, confirm at least:
 
 - The repository-level Skill and target project Skill were read and followed.
-- The change did not write ignored local state, external mounted repository contents, or unrelated workspace state.
+- Changes to this engineering repository did not place ignored local state, mount infrastructure, external repository contents, or unrelated workspace state in this repository's diff. A T-MAX business task may modify a target repository's real worktree through its mount entry, with those changes managed independently by the target repository.
 - Schema, configuration, runtime, memory, connector, agent, or harness changes have matching verification.
 - Before committing or merging code, ask the user before running `npm run validate` or `npm test`; do not run them directly as automatic gates.
 - Generator self-review is not used as the completion gate; tasks requiring evaluator or equivalent independent checks preserve that gate.
