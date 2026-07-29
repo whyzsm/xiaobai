@@ -1,0 +1,41 @@
+name: xiaobai-openhands
+
+x-workspace-volumes: &workspace-volumes
+  - ${OPENHANDS_STATE_PATH:?OPENHANDS_STATE_PATH is required}:/home/openhands/.openhands
+  - ${XIAOBAI_WORKSPACE_PATH:?XIAOBAI_WORKSPACE_PATH is required}:/projects/xiaobai
+  - ${XIAONENG_WORKSPACE_PATH:?XIAONENG_WORKSPACE_PATH is required}:/opt/xiaoneng:ro
+  - ${OBSIDIAN_VAULT_PATH:?OBSIDIAN_VAULT_PATH is required}:/memory/obsidian
+
+services:
+  workspace-init:
+    image: ${OPENHANDS_IMAGE:?OPENHANDS_IMAGE is required}
+    profiles: ["init"]
+    working_dir: /projects/xiaobai
+    entrypoint: ["node", "/projects/xiaobai/deploy/openhands/setup-workspace.mjs"]
+    environment:
+      XIAOBAI_WORKSPACE_ROOT: /projects/xiaobai
+      XIAONENG_ROOT: /opt/xiaoneng
+      OBSIDIAN_VAULT_ROOT: /memory/obsidian
+      MEMORY_CONTAINER_VAULT_ROOT: /memory/obsidian
+      MEMORY_LEARNING_ROOT_NAME: 88-学习/xiaobai
+      MEMORY_PROJECT_ID: xbaiProjectCode
+    volumes: *workspace-volumes
+
+  agent-canvas:
+    image: ${OPENHANDS_IMAGE:?OPENHANDS_IMAGE is required}
+    restart: unless-stopped
+    working_dir: /projects/xiaobai
+    environment:
+      FILE_STORE: local
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LOCAL_BACKEND_API_KEY: ${LOCAL_BACKEND_API_KEY:-}
+      OH_SECRET_KEY: ${OH_SECRET_KEY:-}
+      VITE_DO_NOT_TRACK: "1"
+      XIAOBAI_WORKSPACE_ROOT: /projects/xiaobai
+      XIAONENG_ROOT: /opt/xiaoneng
+      OBSIDIAN_VAULT_ROOT: /memory/obsidian
+    ports:
+      - "${OPENHANDS_PORT:-8000}:8000"
+    volumes: *workspace-volumes

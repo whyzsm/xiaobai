@@ -8,6 +8,7 @@ node_modules/
 coverage/
 .DS_Store
 npm-debug.log*
+deploy/openhands/.env
 
 # Local workspace state
 workspace/.local/

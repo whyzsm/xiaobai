@@ -20,6 +20,30 @@ Core boundaries:
 - `loop-engineering/`: engine layer for runtimes, schemas, CLI, templates, and tests.
 - `workspace/`: operating space for loop specs, project knowledge, agents, connectors, memory, budgets, reports, and local mount templates.
 
+## OpenHands 分发运行 / OpenHands Distribution Runtime
+
+### 中文
+
+1. `deploy/openhands/` 是 OpenHands 分发和运行适配层；它不得复制或替代 `loop-engineering/` 的编排实现。
+2. OpenHands 容器中的稳定路径为：小白 `/projects/xiaobai`（读写）、小能 `/opt/xiaoneng`（只读）、Obsidian Vault `/memory/obsidian`（读写）。
+3. OpenHands 开始处理小白任务时，按以下顺序加载上下文：根 `AGENTS.md` -> `workspace/agents/xiaobai.orchestrator.agent.yaml` -> 命中的项目 `project.yaml` 与 `SKILL.md` -> `/opt/xiaoneng/xiaoneng-agent/SKILL.md` -> `/opt/xiaoneng/harness/runtime/manifest.yaml`。
+4. `workspace/projects/t-max/.loop/project.yaml` 继续作为 `t-max -> xiaoneng` 项目背景映射真源。OpenHands 适配层只建立容器内背景入口，不另建路由配置，也不调用要求七个业务仓齐全的本机 `npm run mount:tmax`。
+5. OpenHands runtime 必须在独立的 ignored 工作副本中运行，不覆盖开发者本机的 `workspace/workspace.local.yaml`、T-MAX 挂载或 Obsidian 绝对路径。
+6. 模型 Key、模型地址、OpenHands 会话密钥和个人 Vault 路径只能从未跟踪的 `deploy/openhands/.env` 或接收方环境读取；不得写入仓库、bundle、`versions.lock` 或文档示例值。
+7. 小能在第一阶段是版本锁定的只读背景。不得从小白分发脚本修改、提交或推送小能，也不得把七个 T-MAX 业务仓打进默认分发包。
+8. `deploy/openhands/package.sh` 只从干净且已提交的 Git 状态生成 bundle、校验和和 resolved `versions.lock`；输出只进入 ignored 的 `dist/`。
+
+### English
+
+1. `deploy/openhands/` is the OpenHands distribution and runtime adapter. It must not copy or replace orchestration implemented by `loop-engineering/`.
+2. Stable container paths are `/projects/xiaobai` for the writable Xiaobai workspace, `/opt/xiaoneng` for the read-only Xiaoneng background, and `/memory/obsidian` for the writable Obsidian vault.
+3. When OpenHands starts a Xiaobai task, load context in this order: root `AGENTS.md` -> `workspace/agents/xiaobai.orchestrator.agent.yaml` -> the matched project `project.yaml` and `SKILL.md` -> `/opt/xiaoneng/xiaoneng-agent/SKILL.md` -> `/opt/xiaoneng/harness/runtime/manifest.yaml`.
+4. `workspace/projects/t-max/.loop/project.yaml` remains the source of truth for the `t-max -> xiaoneng` background mapping. The OpenHands adapter only creates the container background entry; it must not introduce a second routing configuration or call the local `npm run mount:tmax` flow that requires all seven business repositories.
+5. Run OpenHands in a separate ignored workspace copy. Do not overwrite a developer's local `workspace/workspace.local.yaml`, T-MAX mounts, or Obsidian absolute paths.
+6. Model keys, model endpoints, OpenHands session secrets, and personal vault paths must come only from the untracked `deploy/openhands/.env` or the recipient environment. Never write them to the repository, bundles, `versions.lock`, or example values in documentation.
+7. In phase one, Xiaoneng is a version-locked read-only background. Xiaobai distribution scripts must not modify, commit, or push Xiaoneng, and the default package must not include the seven T-MAX business repositories.
+8. `deploy/openhands/package.sh` only packages clean, committed Git state into bundles, checksums, and a resolved `versions.lock`; all output belongs under ignored `dist/`.
+
 ## 语言与文档规则 / Language And Documentation Rules
 
 ### 中文

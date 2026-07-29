@@ -1,0 +1,11 @@
+# OpenHands/Xiaobai/Xiaoneng source lock. package.sh resolves SELF to the package commit.
+# OpenHands/小白/小能源码锁。package.sh 会把 SELF 解析为实际打包提交。
+OPENHANDS_VERSION=1.6.1
+OPENHANDS_IMAGE=ghcr.io/openhands/agent-canvas:1.6.1
+OPENHANDS_SOURCE_COMMIT=aaefde6e7b23c0347824b31869de6e9982fdc839
+XIAOBAI_BRANCH=OpenHands
+XIAOBAI_SOURCE_COMMIT=SELF
+XIAOBAI_COMMIT=SELF
+XIAONENG_BRANCH=xiaoneng2.0
+XIAONENG_SOURCE_COMMIT=ee4dc3fd5bf64b459b2e59abd7cbbb504a22adb4
+XIAONENG_COMMIT=ee4dc3fd5bf64b459b2e59abd7cbbb504a22adb4
