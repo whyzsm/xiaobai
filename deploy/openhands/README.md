@@ -67,6 +67,32 @@ xiaobai-openhands-<commit>/
 
 两个 Git bundle 都是无历史的分发快照。resolved `versions.lock` 同时记录来源仓提交和快照提交；小白现有 `workspace/memory/loops/**`、本机路径报告和个人 Obsidian Vault 不进入快照。
 
+### 打包为 macOS 应用
+
+已有 `.tar.gz` 分发包后，可以再封装成可双击的 macOS 应用：
+
+```bash
+./deploy/openhands/package-app.sh \
+  --package dist/xiaobai-openhands-<commit>.tar.gz
+```
+
+脚本在 ignored 的 `dist/` 下生成：
+
+```text
+小白 OpenHands.app
+xiaobai-openhands-<commit>-macOS.zip
+```
+
+应用提供“启动并打开 Canvas”“打开 Canvas”“配置模型”和“停止服务”四个操作。应用内只携带已经校验的无凭据分发包；首次运行时才在当前用户的以下目录中创建权限为 `600` 的模型配置和持久化 runtime：
+
+```text
+$HOME/Library/Application Support/Xiaobai OpenHands
+```
+
+应用的新配置默认使用宿主机端口 `8001`，与源码运行模式默认的 `8000` 分离。启动器会在创建容器前检查端口，并在重试时清理由应用自己的失败容器；它不会停止源码模式的 Compose 实例。
+
+接收方仍需安装 Docker Desktop。当前应用使用 ad-hoc 签名，没有 Apple Developer ID 签名和公证；其他 Mac 首次打开时可能需要在 Finder 中右键应用并选择“打开”。不要通过修改应用包来保存模型 Key，应该始终使用应用菜单中的“配置模型”。
+
 ### 启动与停止
 
 接收方解压后执行：
@@ -167,6 +193,32 @@ xiaobai-openhands-<commit>/
 A matching `.tar.gz` is created as well. Only committed state is packaged; any uncommitted change blocks packaging.
 
 Both Git bundles are history-free distribution snapshots. The resolved `versions.lock` records both source and snapshot commits. Existing Xiaobai `workspace/memory/loops/**`, machine-path reports, and personal Obsidian vault content are excluded from the snapshot.
+
+### Package as a macOS Application
+
+After producing the `.tar.gz` distribution, wrap it as a double-clickable macOS application:
+
+```bash
+./deploy/openhands/package-app.sh \
+  --package dist/xiaobai-openhands-<commit>.tar.gz
+```
+
+The script creates ignored outputs under `dist/`:
+
+```text
+小白 OpenHands.app
+xiaobai-openhands-<commit>-macOS.zip
+```
+
+The application provides four actions: Start and Open Canvas, Open Canvas, Configure Model, and Stop Service. It embeds only the verified credential-free distribution. On first launch, it creates the mode-`600` model configuration and persistent runtime under the current user's directory:
+
+```text
+$HOME/Library/Application Support/Xiaobai OpenHands
+```
+
+New application configurations default to host port `8001`, separate from the source runtime default of `8000`. Before creating a container, the launcher checks the port and cleans up only its own failed application container on retries; it never stops the source-mode Compose instance.
+
+Recipients still need Docker Desktop. The current application is ad-hoc signed, not signed and notarized with an Apple Developer ID. On another Mac, the first launch may require right-clicking the application in Finder and choosing Open. Never store model keys by modifying the application bundle; always use the Configure Model action.
 
 ### Start and Stop
 
