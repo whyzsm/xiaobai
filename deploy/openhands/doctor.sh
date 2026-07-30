@@ -208,7 +208,7 @@ scan_tracked_repository() {
   fi
 }
 
-if [ "$RUNTIME_INITIALIZED" -eq 0 ]; then
+if [ "${XIAOBAI_COMMIT:-SELF}" = 'SELF' ]; then
   scan_tracked_repository 'Xiaobai distribution scope' "$XIAOBAI_WORKSPACE_PATH" 'xiaobai-distribution'
 else
   scan_tracked_repository 'Xiaobai' "$XIAOBAI_WORKSPACE_PATH"
