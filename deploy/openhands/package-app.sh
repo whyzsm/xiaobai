@@ -37,9 +37,15 @@ if [ ! -f "$PACKAGE_ARCHIVE" ]; then
 fi
 
 PACKAGE_ARCHIVE="$(cd "$(dirname "$PACKAGE_ARCHIVE")" && pwd)/$(basename "$PACKAGE_ARCHIVE")"
+APP_ICON_SOURCE="$SCRIPT_DIR/macos/TinyBai.png"
+APP_ICON_NAME='TinyBai.icns'
 PACKAGE_NAME="$(/usr/bin/tar -tzf "$PACKAGE_ARCHIVE" | /usr/bin/awk -F/ 'NR == 1 { print $1 }')"
 if [[ ! "$PACKAGE_NAME" =~ ^xiaobai-openhands-[0-9a-f]{12}$ ]]; then
   printf 'unexpected package root: %s\n' "$PACKAGE_NAME" >&2
+  exit 1
+fi
+if [ ! -f "$APP_ICON_SOURCE" ]; then
+  printf 'missing app icon source: %s\n' "$APP_ICON_SOURCE" >&2
   exit 1
 fi
 if ! /usr/bin/tar -tzf "$PACKAGE_ARCHIVE" | /usr/bin/awk -v root="$PACKAGE_NAME/" '
@@ -127,6 +133,30 @@ compile_native_launcher() {
   chmod 755 "$output"
 }
 
+create_app_icon() {
+  local source_png="$1"
+  local output_icns="$2"
+  local iconset="$TEMP_ROOT/TinyBai.iconset"
+
+  if ! command -v sips >/dev/null 2>&1 || ! command -v iconutil >/dev/null 2>&1; then
+    printf 'sips and iconutil are required to build the macOS app icon.\n' >&2
+    exit 1
+  fi
+
+  mkdir -p "$iconset"
+  /usr/bin/sips -z 16 16 "$source_png" --out "$iconset/icon_16x16.png" >/dev/null
+  /usr/bin/sips -z 32 32 "$source_png" --out "$iconset/icon_16x16@2x.png" >/dev/null
+  /usr/bin/sips -z 32 32 "$source_png" --out "$iconset/icon_32x32.png" >/dev/null
+  /usr/bin/sips -z 64 64 "$source_png" --out "$iconset/icon_32x32@2x.png" >/dev/null
+  /usr/bin/sips -z 128 128 "$source_png" --out "$iconset/icon_128x128.png" >/dev/null
+  /usr/bin/sips -z 256 256 "$source_png" --out "$iconset/icon_128x128@2x.png" >/dev/null
+  /usr/bin/sips -z 256 256 "$source_png" --out "$iconset/icon_256x256.png" >/dev/null
+  /usr/bin/sips -z 512 512 "$source_png" --out "$iconset/icon_256x256@2x.png" >/dev/null
+  /usr/bin/sips -z 512 512 "$source_png" --out "$iconset/icon_512x512.png" >/dev/null
+  /usr/bin/sips -z 1024 1024 "$source_png" --out "$iconset/icon_512x512@2x.png" >/dev/null
+  /usr/bin/iconutil -c icns "$iconset" -o "$output_icns"
+}
+
 STAGED_APP="$TEMP_ROOT/小白 OpenHands.app"
 CONTENTS_ROOT="$STAGED_APP/Contents"
 MACOS_ROOT="$CONTENTS_ROOT/MacOS"
@@ -136,6 +166,7 @@ mkdir -p "$MACOS_ROOT" "$RESOURCE_ROOT"
 install -m 755 "$SCRIPT_DIR/macos/launcher.sh" "$MACOS_ROOT/XiaobaiOpenHandsLauncher"
 compile_native_launcher "$SCRIPT_DIR/macos/XiaobaiOpenHands.swift" "$MACOS_ROOT/XiaobaiOpenHands"
 install -m 644 "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_ROOT/Info.plist"
+create_app_icon "$APP_ICON_SOURCE" "$RESOURCE_ROOT/$APP_ICON_NAME"
 install -m 644 "$PACKAGE_ARCHIVE" "$RESOURCE_ROOT/package.tar.gz"
 printf '%s\n' "$PACKAGE_NAME" >"$RESOURCE_ROOT/package-name"
 /usr/bin/shasum -a 256 "$PACKAGE_ARCHIVE" | /usr/bin/awk '{ print $1 }' >"$RESOURCE_ROOT/package.sha256"

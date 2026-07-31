@@ -8,6 +8,8 @@
   <string>小白 OpenHands</string>
   <key>CFBundleExecutable</key>
   <string>XiaobaiOpenHands</string>
+  <key>CFBundleIconFile</key>
+  <string>TinyBai</string>
   <key>CFBundleIdentifier</key>
   <string>com.xiaobai.openhands</string>
   <key>CFBundleInfoDictionaryVersion</key>
