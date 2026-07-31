@@ -178,6 +178,7 @@ fi
 
 CONTROL_PLANE_PORT="${XIAOBAI_CONTROL_PLANE_PORT:-18002}"
 OPENHANDS_IMAGE="${OPENHANDS_IMAGE_REPOSITORY}:${ACTUAL_OPENHANDS_COMMIT:0:12}-cp${CONTROL_PLANE_PORT}"
+CONTROL_PLANE_IMAGE="xiaobai/control-plane:${ACTUAL_XIAOBAI_COMMIT:0:12}"
 if ! docker image inspect "$OPENHANDS_IMAGE" >/dev/null 2>&1; then
   printf 'Building customized OpenHands image: %s\n' "$OPENHANDS_IMAGE"
   docker build \
@@ -205,7 +206,7 @@ XIAOBAI_BACKGROUNDS_PATH=$XIAOBAI_BACKGROUNDS_PATH
 XIAOBAI_WORKSPACE_PATH=$XIAOBAI_WORKSPACE_PATH
 XIAONENG_WORKSPACE_PATH=$XIAONENG_WORKSPACE_PATH
 XIAOBAI_CONTROL_STATE_PATH=$XIAOBAI_CONTROL_STATE_PATH
-XIAOBAI_CONTROL_PLANE_IMAGE=xiaobai/control-plane:${ACTUAL_XIAOBAI_COMMIT:0:12}
+XIAOBAI_CONTROL_PLANE_IMAGE=$CONTROL_PLANE_IMAGE
 XIAOBAI_CONTROL_PLANE_PORT=$CONTROL_PLANE_PORT
 XIAOBAI_ALLOWED_ORIGINS=http://127.0.0.1:${OPENHANDS_PORT:-8000},http://localhost:${OPENHANDS_PORT:-8000}
 RUNTIME_UID=$(id -u)
@@ -240,7 +241,11 @@ EOF
 
 COMPOSE=(docker compose --env-file "$COMPOSE_ENV" -f "$SCRIPT_DIR/compose.yaml")
 "${COMPOSE[@]}" --profile init run --rm workspace-init
-"${COMPOSE[@]}" up -d --build xiaobai-control-plane agent-canvas
+if docker image inspect "$CONTROL_PLANE_IMAGE" >/dev/null 2>&1; then
+  "${COMPOSE[@]}" up -d xiaobai-control-plane agent-canvas
+else
+  "${COMPOSE[@]}" up -d --build xiaobai-control-plane agent-canvas
+fi
 
 STARTED=1
 printf 'OpenHands Agent Canvas started.\n'

@@ -179,6 +179,10 @@ OPENHANDS_SNAPSHOT="$SNAPSHOTS/openhands"
 create_snapshot_repository 'Xiaobai' "$XIAOBAI_ROOT" "$XIAOBAI_BRANCH" "$XIAOBAI_COMMIT_RESOLVED" "$XIAOBAI_SNAPSHOT"
 create_snapshot_repository 'Xiaoneng' "$XIAONENG_ROOT" "$XIAONENG_BRANCH" "$XIAONENG_COMMIT_RESOLVED" "$XIAONENG_SNAPSHOT"
 create_snapshot_repository 'OpenHands' "$OPENHANDS_ROOT" "$OPENHANDS_BRANCH" "$OPENHANDS_COMMIT_RESOLVED" "$OPENHANDS_SNAPSHOT"
+if [ ! -f "$XIAOBAI_SNAPSHOT/package-lock.json" ]; then
+  printf 'Xiaobai snapshot is missing package-lock.json; control-plane image builds require a committed lockfile\n' >&2
+  exit 1
+fi
 scan_repository 'Xiaobai snapshot' "$XIAOBAI_SNAPSHOT"
 scan_repository 'Xiaoneng snapshot' "$XIAONENG_SNAPSHOT"
 scan_repository 'OpenHands snapshot' "$OPENHANDS_SNAPSHOT" no
