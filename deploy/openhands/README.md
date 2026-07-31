@@ -102,7 +102,7 @@ xiaobai-openhands-<fingerprint>/
 xiaobai-openhands-<fingerprint>-macOS.zip
 ```
 
-应用提供“启动并打开 Canvas”“打开 Canvas”“配置模型”和“停止服务”四个操作。应用内只携带已经校验的无凭据分发包；首次运行时才在当前用户的以下目录中创建权限为 `600` 的模型配置和持久化 runtime：
+应用打开后会启动本机服务，并在独立的 macOS 窗口中显示 Canvas；不会默认跳转到 Chrome/Safari 的地址栏页面。应用菜单中提供“重新连接/启动”“配置模型”“在浏览器中打开”和“停止服务”四个操作，其中“在浏览器中打开”仅作为排障或偏好浏览器使用时的备用入口。应用内只携带已经校验的无凭据分发包；首次运行时才在当前用户的以下目录中创建权限为 `600` 的模型配置和持久化 runtime：
 
 ```text
 $HOME/Library/Application Support/Xiaobai OpenHands
@@ -110,7 +110,7 @@ $HOME/Library/Application Support/Xiaobai OpenHands
 
 应用的新配置默认使用 Canvas 端口 `8001` 和控制面端口 `18003`，与源码运行模式默认的 `8000` / `18002` 分离。启动器会在创建容器前检查两个端口，并在重试时清理由应用自己的失败容器；它不会停止源码模式的 Compose 实例。
 
-接收方仍需安装 Docker Desktop。当前应用使用 ad-hoc 签名，没有 Apple Developer ID 签名和公证；其他 Mac 首次打开时可能需要在 Finder 中右键应用并选择“打开”。不要通过修改应用包来保存模型 Key，应该始终使用应用菜单中的“配置模型”。
+接收方仍需安装 Docker Desktop。打包 `.app` 需要 macOS 与 Xcode Command Line Tools，因为脚本会编译一个轻量的原生 WebKit 窗口壳。当前应用使用 ad-hoc 签名，没有 Apple Developer ID 签名和公证；其他 Mac 首次打开时可能需要在 Finder 中右键应用并选择“打开”。不要通过修改应用包来保存模型 Key，应该始终使用应用菜单中的“配置模型”。
 
 ### 启动与停止
 
@@ -248,7 +248,7 @@ The script creates ignored outputs under `dist/`:
 xiaobai-openhands-<fingerprint>-macOS.zip
 ```
 
-The application provides four actions: Start and Open Canvas, Open Canvas, Configure Model, and Stop Service. It embeds only the verified credential-free distribution. On first launch, it creates the mode-`600` model configuration and persistent runtime under the current user's directory:
+The application starts the local service and shows Canvas inside an independent macOS window instead of opening the user's default browser. Its application menu keeps four actions: Reconnect/Start, Configure Model, Open in Browser, and Stop Service; Open in Browser is a fallback for troubleshooting or browser-preference workflows. It embeds only the verified credential-free distribution. On first launch, it creates the mode-`600` model configuration and persistent runtime under the current user's directory:
 
 ```text
 $HOME/Library/Application Support/Xiaobai OpenHands
@@ -256,7 +256,7 @@ $HOME/Library/Application Support/Xiaobai OpenHands
 
 New application configurations default to Canvas port `8001` and control-plane port `18003`, separate from the source defaults `8000` / `18002`. Before creating containers, the launcher checks both ports and cleans up only its own failed application containers on retries; it never stops the source-mode Compose instance.
 
-Recipients still need Docker Desktop. The current application is ad-hoc signed, not signed and notarized with an Apple Developer ID. On another Mac, the first launch may require right-clicking the application in Finder and choosing Open. Never store model keys by modifying the application bundle; always use the Configure Model action.
+Recipients still need Docker Desktop. Building the `.app` requires macOS and Xcode Command Line Tools because the wrapper script compiles a lightweight native WebKit window. The current application is ad-hoc signed, not signed and notarized with an Apple Developer ID. On another Mac, the first launch may require right-clicking the application in Finder and choosing Open. Never store model keys by modifying the application bundle; always use the Configure Model action.
 
 ### Start and Stop
 

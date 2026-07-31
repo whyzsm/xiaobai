@@ -199,6 +199,12 @@ configured_runtime_root() {
   ' _ "$CONFIG_FILE" 2>/dev/null || true
 }
 
+canvas_url() {
+  local port
+  port="$(configured_port)"
+  printf 'http://localhost:%s/canvas' "$port"
+}
+
 app_runtime_root() {
   local runtime_root
   runtime_root="$(configured_runtime_root)"
@@ -311,21 +317,27 @@ canvas_port_is_available() {
   fi
 }
 
+wait_for_canvas_url() {
+  local url="$1"
+  local attempt
+  for attempt in {1..60}; do
+    if /usr/bin/curl --fail --silent --output /dev/null "$url"; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 open_canvas() {
   local wait_for_service="${1:-no}"
-  local port
   local url
-  local attempt
-  port="$(configured_port)"
-  url="http://localhost:$port/canvas"
+  url="$(canvas_url)"
   if [ "$wait_for_service" = 'yes' ]; then
-    for attempt in {1..60}; do
-      if /usr/bin/curl --fail --silent --output /dev/null "$url"; then
-        /usr/bin/open "$url"
-        return 0
-      fi
-      sleep 1
-    done
+    if wait_for_canvas_url "$url"; then
+      /usr/bin/open "$url"
+      return 0
+    fi
     show_error "服务已经启动，但 Canvas 暂时不可访问：$url。请打开日志查看详情。"
     return 1
   fi
@@ -334,6 +346,44 @@ open_canvas() {
     return 1
   fi
   /usr/bin/open "$url"
+}
+
+start_service_for_window() {
+  local url
+  ensure_payload || return 1
+  ensure_config || return 1
+  if ! config_is_ready; then
+    open_config
+    return 1
+  fi
+  ensure_docker || return 1
+  url="$(canvas_url)"
+  if service_is_running; then
+    if wait_for_canvas_url "$url"; then
+      printf '%s\n' "$url"
+      return 0
+    fi
+    show_error "服务已经启动，但 Canvas 暂时不可访问：$url。请打开日志查看详情。"
+    return 1
+  fi
+  if service_exists; then
+    cleanup_failed_service || return 1
+  fi
+  canvas_port_is_available || return 1
+
+  log_event "Starting $PACKAGE_NAME for native window"
+  if ! COMPOSE_PROJECT_NAME="$APP_COMPOSE_PROJECT" "$RUN_SCRIPT" --env "$CONFIG_FILE" >>"$LOG_FILE" 2>&1; then
+    show_error '启动失败，请打开日志查看详情。模型 Key 不会写入日志。'
+    return 1
+  fi
+  if wait_for_canvas_url "$url"; then
+    show_notification '小白 OpenHands 已启动。'
+    log_event "Started $PACKAGE_NAME for native window"
+    printf '%s\n' "$url"
+    return 0
+  fi
+  show_error "服务已经启动，但 Canvas 暂时不可访问：$url。请打开日志查看详情。"
+  return 1
 }
 
 start_service() {
@@ -407,6 +457,12 @@ case "${1:-menu}" in
     ;;
   --open)
     ensure_payload && ensure_config && open_canvas 'no'
+    ;;
+  --canvas-url)
+    ensure_payload && ensure_config && canvas_url && printf '\n'
+    ;;
+  --start-window)
+    start_service_for_window
     ;;
   --configure)
     open_config

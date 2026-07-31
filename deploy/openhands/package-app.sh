@@ -79,13 +79,63 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+compile_native_launcher() {
+  local swift_source="$1"
+  local output="$2"
+  local native_arch
+  local arch
+  local arch_output
+  local compiled_outputs=()
+  local compiled_arches=()
+
+  if ! xcrun --find swiftc >/dev/null 2>&1; then
+    printf 'Swift compiler is required to build the native macOS window. Install Xcode Command Line Tools and retry.\n' >&2
+    exit 1
+  fi
+  native_arch="$(/usr/bin/uname -m)"
+
+  for arch in arm64 x86_64; do
+    arch_output="$TEMP_ROOT/XiaobaiOpenHands-$arch"
+    if xcrun swiftc \
+      -parse-as-library \
+      -target "$arch-apple-macos13.0" \
+      -o "$arch_output" \
+      "$swift_source" \
+      -framework Cocoa \
+      -framework WebKit \
+      2>"$TEMP_ROOT/swiftc-$arch.log"; then
+      compiled_outputs+=("$arch_output")
+      compiled_arches+=("$arch")
+    elif [ "$arch" = "$native_arch" ]; then
+      printf 'failed to compile native macOS launcher for %s:\n' "$arch" >&2
+      sed -n '1,160p' "$TEMP_ROOT/swiftc-$arch.log" >&2
+      exit 1
+    fi
+  done
+
+  if [ "${#compiled_outputs[@]}" -eq 0 ]; then
+    printf 'failed to compile native macOS launcher\n' >&2
+    exit 1
+  fi
+
+  if [ "${#compiled_outputs[@]}" -gt 1 ] && command -v lipo >/dev/null 2>&1; then
+    /usr/bin/lipo -create -output "$output" "${compiled_outputs[@]}"
+    printf 'native launcher: universal (%s)\n' "${compiled_arches[*]}"
+  else
+    cp "${compiled_outputs[0]}" "$output"
+    printf 'native launcher: %s\n' "${compiled_arches[0]}"
+  fi
+  chmod 755 "$output"
+}
+
 STAGED_APP="$TEMP_ROOT/小白 OpenHands.app"
 CONTENTS_ROOT="$STAGED_APP/Contents"
 MACOS_ROOT="$CONTENTS_ROOT/MacOS"
 RESOURCE_ROOT="$CONTENTS_ROOT/Resources"
 mkdir -p "$MACOS_ROOT" "$RESOURCE_ROOT"
 
-install -m 755 "$SCRIPT_DIR/macos/launcher.sh" "$MACOS_ROOT/XiaobaiOpenHands"
+install -m 755 "$SCRIPT_DIR/macos/launcher.sh" "$MACOS_ROOT/XiaobaiOpenHandsLauncher"
+compile_native_launcher "$SCRIPT_DIR/macos/XiaobaiOpenHands.swift" "$MACOS_ROOT/XiaobaiOpenHands"
 install -m 644 "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_ROOT/Info.plist"
 install -m 644 "$PACKAGE_ARCHIVE" "$RESOURCE_ROOT/package.tar.gz"
 printf '%s\n' "$PACKAGE_NAME" >"$RESOURCE_ROOT/package-name"
