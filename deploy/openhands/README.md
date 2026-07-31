@@ -98,14 +98,14 @@ xiaobai-openhands-<fingerprint>/
 脚本在 ignored 的 `dist/` 下生成：
 
 ```text
-小白 OpenHands.app
+tiny白.app
 xiaobai-openhands-<fingerprint>-macOS.zip
 ```
 
 应用打开后会启动本机服务，并在独立的 macOS 窗口中显示 Canvas；不会默认跳转到 Chrome/Safari 的地址栏页面。应用菜单中提供“重新连接/启动”“配置模型”“在浏览器中打开”和“停止服务”四个操作，其中“在浏览器中打开”仅作为排障或偏好浏览器使用时的备用入口。应用内只携带已经校验的无凭据分发包；首次运行时才在当前用户的以下目录中创建权限为 `600` 的模型配置和持久化 runtime：
 
 ```text
-$HOME/Library/Application Support/Xiaobai OpenHands
+$HOME/Library/Application Support/tiny白
 ```
 
 应用的新配置默认使用 Canvas 端口 `8001` 和控制面端口 `18003`，与源码运行模式默认的 `8000` / `18002` 分离。启动器会在创建容器前检查两个端口，并在重试时清理由应用自己的失败容器；它不会停止源码模式的 Compose 实例。
@@ -244,14 +244,14 @@ After producing the `.tar.gz` distribution, wrap it as a double-clickable macOS 
 The script creates ignored outputs under `dist/`:
 
 ```text
-小白 OpenHands.app
+tiny白.app
 xiaobai-openhands-<fingerprint>-macOS.zip
 ```
 
 The application starts the local service and shows Canvas inside an independent macOS window instead of opening the user's default browser. Its application menu keeps four actions: Reconnect/Start, Configure Model, Open in Browser, and Stop Service; Open in Browser is a fallback for troubleshooting or browser-preference workflows. It embeds only the verified credential-free distribution. On first launch, it creates the mode-`600` model configuration and persistent runtime under the current user's directory:
 
 ```text
-$HOME/Library/Application Support/Xiaobai OpenHands
+$HOME/Library/Application Support/tiny白
 ```
 
 New application configurations default to Canvas port `8001` and control-plane port `18003`, separate from the source defaults `8000` / `18002`. Before creating containers, the launcher checks both ports and cleans up only its own failed application containers on retries; it never stops the source-mode Compose instance.

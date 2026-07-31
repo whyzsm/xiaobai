@@ -2,7 +2,7 @@ import Cocoa
 import WebKit
 
 final class XiaobaiOpenHandsApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate {
-  private let appTitle = "小白 OpenHands"
+  private let appTitle = "tiny白"
   private var window: NSWindow!
   private var webView: WKWebView!
   private var loadingView: NSView!
@@ -32,7 +32,7 @@ final class XiaobaiOpenHandsApp: NSObject, NSApplicationDelegate, NSWindowDelega
     appMenu.addItem(menuItem("在浏览器中打开", action: #selector(openInBrowser), key: "b"))
     appMenu.addItem(menuItem("停止服务", action: #selector(stopService), key: "s"))
     appMenu.addItem(NSMenuItem.separator())
-    appMenu.addItem(menuItem("退出小白 OpenHands", action: #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
+    appMenu.addItem(menuItem("退出 tiny白", action: #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
 
     appMenuItem.submenu = appMenu
     mainMenu.addItem(appMenuItem)

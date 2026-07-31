@@ -5,17 +5,17 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>zh_CN</string>
   <key>CFBundleDisplayName</key>
-  <string>小白 OpenHands</string>
+  <string>tiny白</string>
   <key>CFBundleExecutable</key>
   <string>XiaobaiOpenHands</string>
   <key>CFBundleIconFile</key>
   <string>TinyBai</string>
   <key>CFBundleIdentifier</key>
-  <string>com.xiaobai.openhands</string>
+  <string>com.tinybai.openhands</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>小白 OpenHands</string>
+  <string>tiny白</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

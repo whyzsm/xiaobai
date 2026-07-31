@@ -3,7 +3,7 @@ set -uo pipefail
 
 umask 077
 
-APP_NAME='小白 OpenHands'
+APP_NAME='tiny白'
 APP_COMPOSE_PROJECT='xiaobai-openhands-app'
 APP_DEFAULT_PORT='8001'
 APP_DEFAULT_CONTROL_PLANE_PORT='18003'
@@ -13,7 +13,7 @@ RESOURCE_ROOT="$CONTENTS_ROOT/Resources"
 PACKAGE_ARCHIVE="$RESOURCE_ROOT/package.tar.gz"
 PACKAGE_NAME_FILE="$RESOURCE_ROOT/package-name"
 PACKAGE_CHECKSUM_FILE="$RESOURCE_ROOT/package.sha256"
-SUPPORT_ROOT="${XIAOBAI_APP_SUPPORT_ROOT:-$HOME/Library/Application Support/Xiaobai OpenHands}"
+SUPPORT_ROOT="${XIAOBAI_APP_SUPPORT_ROOT:-$HOME/Library/Application Support/tiny白}"
 PACKAGES_ROOT="$SUPPORT_ROOT/packages"
 CONFIG_ROOT="$SUPPORT_ROOT/config"
 CONFIG_FILE="$CONFIG_ROOT/.env"
@@ -35,7 +35,7 @@ log_event() {
 show_notification() {
   /usr/bin/osascript - "$1" <<'APPLESCRIPT' >/dev/null 2>&1 || true
 on run argv
-  display notification (item 1 of argv) with title "小白 OpenHands"
+  display notification (item 1 of argv) with title "tiny白"
 end run
 APPLESCRIPT
 }
@@ -43,7 +43,7 @@ APPLESCRIPT
 show_message() {
   /usr/bin/osascript - "$1" <<'APPLESCRIPT' >/dev/null 2>&1 || true
 on run argv
-  display dialog (item 1 of argv) with title "小白 OpenHands" buttons {"知道了"} default button "知道了" with icon note
+  display dialog (item 1 of argv) with title "tiny白" buttons {"知道了"} default button "知道了" with icon note
 end run
 APPLESCRIPT
 }
@@ -55,7 +55,7 @@ show_error() {
 on run argv
   set messageText to item 1 of argv
   set logPath to item 2 of argv
-  set answer to display dialog messageText with title "小白 OpenHands" buttons {"关闭", "打开日志"} default button "打开日志" cancel button "关闭" with icon stop
+  set answer to display dialog messageText with title "tiny白" buttons {"关闭", "打开日志"} default button "打开日志" cancel button "关闭" with icon stop
   if button returned of answer is "打开日志" then
     do shell script "/usr/bin/open -a TextEdit " & quoted form of logPath
   end if
@@ -75,7 +75,7 @@ fail_install() {
 
 ensure_payload() {
   if [ ! -f "$PACKAGE_ARCHIVE" ] || [ ! -f "$PACKAGE_NAME_FILE" ] || [ ! -f "$PACKAGE_CHECKSUM_FILE" ]; then
-    show_error '应用资源不完整，请重新获取小白 OpenHands 应用。'
+    show_error '应用资源不完整，请重新获取 tiny白 应用。'
     return 1
   fi
 
@@ -377,7 +377,7 @@ start_service_for_window() {
     return 1
   fi
   if wait_for_canvas_url "$url"; then
-    show_notification '小白 OpenHands 已启动。'
+    show_notification 'tiny白 已启动。'
     log_event "Started $PACKAGE_NAME for native window"
     printf '%s\n' "$url"
     return 0
@@ -409,7 +409,7 @@ start_service() {
     return 1
   fi
   if open_canvas 'yes'; then
-    show_notification '小白 OpenHands 已启动。'
+    show_notification 'tiny白 已启动。'
     log_event "Started $PACKAGE_NAME"
     return 0
   fi
@@ -421,7 +421,7 @@ stop_service() {
   ensure_config || return 1
   ensure_docker || return 1
   if ! service_exists; then
-    show_notification '小白 OpenHands 当前已停止。'
+    show_notification 'tiny白 当前已停止。'
     return 0
   fi
 
@@ -430,14 +430,14 @@ stop_service() {
     show_error '停止失败，请打开日志查看详情。运行数据和记忆没有被删除。'
     return 1
   fi
-  show_notification '小白 OpenHands 已停止，工作区和记忆已保留。'
+  show_notification 'tiny白 已停止，工作区和记忆已保留。'
   log_event "Stopped $PACKAGE_NAME"
 }
 
 choose_action() {
   /usr/bin/osascript <<'APPLESCRIPT' 2>/dev/null || true
 set actions to {"启动并打开 Canvas", "打开 Canvas", "配置模型", "停止服务"}
-set answer to choose from list actions with title "小白 OpenHands" with prompt "选择要执行的操作" default items {"启动并打开 Canvas"} OK button name "执行" cancel button name "退出"
+set answer to choose from list actions with title "tiny白" with prompt "选择要执行的操作" default items {"启动并打开 Canvas"} OK button name "执行" cancel button name "退出"
 if answer is false then return "退出"
 return item 1 of answer
 APPLESCRIPT

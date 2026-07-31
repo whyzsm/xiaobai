@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 XIAOBAI_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+APP_DISPLAY_NAME='tiny白'
 PACKAGE_ARCHIVE=''
 OUTPUT_ROOT="$XIAOBAI_ROOT/dist"
 
@@ -70,7 +71,7 @@ for required in \
 done
 
 OUTPUT_ROOT="$(mkdir -p "$OUTPUT_ROOT" && cd "$OUTPUT_ROOT" && pwd)"
-FINAL_APP="$OUTPUT_ROOT/小白 OpenHands.app"
+FINAL_APP="$OUTPUT_ROOT/$APP_DISPLAY_NAME.app"
 FINAL_ZIP="$OUTPUT_ROOT/${PACKAGE_NAME}-macOS.zip"
 if [ -e "$FINAL_APP" ] || [ -e "$FINAL_ZIP" ]; then
   printf 'application output already exists; move it before rebuilding:\n%s\n%s\n' "$FINAL_APP" "$FINAL_ZIP" >&2
@@ -157,7 +158,7 @@ create_app_icon() {
   /usr/bin/iconutil -c icns "$iconset" -o "$output_icns"
 }
 
-STAGED_APP="$TEMP_ROOT/小白 OpenHands.app"
+STAGED_APP="$TEMP_ROOT/$APP_DISPLAY_NAME.app"
 CONTENTS_ROOT="$STAGED_APP/Contents"
 MACOS_ROOT="$CONTENTS_ROOT/MacOS"
 RESOURCE_ROOT="$CONTENTS_ROOT/Resources"
@@ -171,8 +172,8 @@ install -m 644 "$PACKAGE_ARCHIVE" "$RESOURCE_ROOT/package.tar.gz"
 printf '%s\n' "$PACKAGE_NAME" >"$RESOURCE_ROOT/package-name"
 /usr/bin/shasum -a 256 "$PACKAGE_ARCHIVE" | /usr/bin/awk '{ print $1 }' >"$RESOURCE_ROOT/package.sha256"
 cat >"$RESOURCE_ROOT/NOTICE.txt" <<'NOTICE'
-小白 OpenHands 应用不包含模型 Key 或个人 Obsidian Vault。首次运行时，配置与运行数据保存在当前用户的 Library/Application Support/Xiaobai OpenHands 中。
-Xiaobai OpenHands does not contain model keys or a personal Obsidian vault. On first launch, configuration and runtime data are stored under the current user's Library/Application Support/Xiaobai OpenHands directory.
+tiny白 应用不包含模型 Key 或个人 Obsidian Vault。首次运行时，配置与运行数据保存在当前用户的 Library/Application Support/tiny白 中。
+tiny白 does not contain model keys or a personal Obsidian vault. On first launch, configuration and runtime data are stored under the current user's Library/Application Support/tiny白 directory.
 NOTICE
 
 /usr/bin/plutil -lint "$CONTENTS_ROOT/Info.plist" >/dev/null

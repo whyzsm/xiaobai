@@ -168,7 +168,7 @@ create_snapshot_repository() {
   git -C "$target_repo" add -A
   source_date="$(git -C "$source_repo" show -s --format=%aI "$source_commit")"
   GIT_AUTHOR_DATE="$source_date" GIT_COMMITTER_DATE="$source_date" git -C "$target_repo" \
-    -c user.name='Xiaobai OpenHands Packager' \
+    -c user.name='TinyBai Packager' \
     -c user.email='openhands-package@example.invalid' \
     commit -m "snapshot: $label $source_commit" >/dev/null
 }
