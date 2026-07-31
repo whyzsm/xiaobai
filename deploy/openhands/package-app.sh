@@ -97,7 +97,6 @@ compile_native_launcher() {
   for arch in arm64 x86_64; do
     arch_output="$TEMP_ROOT/XiaobaiOpenHands-$arch"
     if xcrun swiftc \
-      -parse-as-library \
       -target "$arch-apple-macos13.0" \
       -o "$arch_output" \
       "$swift_source" \

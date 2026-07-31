@@ -1,7 +1,6 @@
 import Cocoa
 import WebKit
 
-@main
 final class XiaobaiOpenHandsApp: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate {
   private let appTitle = "小白 OpenHands"
   private var window: NSWindow!
@@ -290,3 +289,8 @@ final class XiaobaiOpenHandsApp: NSObject, NSApplicationDelegate, NSWindowDelega
     decisionHandler(.allow)
   }
 }
+
+let application = NSApplication.shared
+let applicationDelegate = XiaobaiOpenHandsApp()
+application.delegate = applicationDelegate
+application.run()
