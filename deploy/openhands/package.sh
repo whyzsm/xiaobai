@@ -81,7 +81,7 @@ scan_repository() {
   local matches
 
   matches="$(git -C "$repository" grep -nI -E \
-    '(BEGIN (RSA|OPENSSH|EC|PGP) PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,})' \
+    '(BEGIN (RSA|OPENSSH|EC|PGP) PRIVATE KEY|(^|[^A-Za-z0-9_])(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}))' \
     -- . 2>/dev/null || true)"
   if [ -n "$matches" ]; then
     printf '%s contains a credential-like tracked value:\n%s\n' "$label" "$matches" >&2
