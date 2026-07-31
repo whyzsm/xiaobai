@@ -27,10 +27,15 @@ if [ ! -f "$LOCK_FILE" ]; then
 else
   # shellcheck disable=SC1090
   source "$LOCK_FILE"
-  case "${OPENHANDS_IMAGE:-}" in
-    ''|*:latest) fail 'OpenHands image is missing or uses latest' ;;
-    *) pass "OpenHands image is pinned: $OPENHANDS_IMAGE" ;;
+  case "${OPENHANDS_IMAGE_REPOSITORY:-}" in
+    '') fail 'customized OpenHands image repository is missing' ;;
+    *) pass "customized OpenHands image repository: $OPENHANDS_IMAGE_REPOSITORY" ;;
   esac
+  if [ "${OPENHANDS_VERSION:-}" = '1.7.1' ]; then
+    pass 'OpenHands baseline is pinned to 1.7.1'
+  else
+    fail "unexpected OpenHands baseline: ${OPENHANDS_VERSION:-unset}"
+  fi
 fi
 
 if [ -f "$ENV_FILE" ]; then
@@ -58,6 +63,8 @@ else
   warn "runtime has not been initialized: $COMPOSE_ENV"
   RUNTIME_INITIALIZED=0
   XIAOBAI_WORKSPACE_PATH="$BUNDLE_ROOT"
+  DEFAULT_OPENHANDS_SOURCE="$(cd "$BUNDLE_ROOT/.." 2>/dev/null && pwd)/openHands"
+  OPENHANDS_SOURCE_CHECKOUT="${OPENHANDS_SOURCE_PATH:-$DEFAULT_OPENHANDS_SOURCE}"
   DEFAULT_XIAONENG_SOURCE="$(cd "$BUNDLE_ROOT/.." 2>/dev/null && pwd)/xiaoneng"
   XIAONENG_WORKSPACE_PATH="${XIAONENG_SOURCE_PATH:-$DEFAULT_XIAONENG_SOURCE}"
   OBSIDIAN_VAULT_PATH="${OBSIDIAN_VAULT_PATH:-}"
@@ -72,14 +79,43 @@ else
 fi
 
 CONTAINER_ID=''
+CONTROL_PLANE_CONTAINER_ID=''
 if [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -f "$COMPOSE_ENV" ]; then
   CONTAINER_ID="$(docker compose --env-file "$COMPOSE_ENV" -f "$SCRIPT_DIR/compose.yaml" ps -q agent-canvas 2>/dev/null || true)"
+  CONTROL_PLANE_CONTAINER_ID="$(docker compose --env-file "$COMPOSE_ENV" -f "$SCRIPT_DIR/compose.yaml" ps -q xiaobai-control-plane 2>/dev/null || true)"
 fi
 
 if [ -f "$SCRIPT_DIR/compose.yaml" ] && grep -Eq '\$\{XIAONENG_WORKSPACE_PATH[^}]*\}:/opt/xiaoneng:ro' "$SCRIPT_DIR/compose.yaml"; then
   pass 'Xiaoneng is configured as a read-only container mount'
 else
   fail 'compose.yaml does not enforce /opt/xiaoneng:ro'
+fi
+
+if [ -f "$SCRIPT_DIR/compose.yaml" ] \
+  && grep -Eq '\$\{XIAOBAI_WORKSPACES_PATH[^}]*\}:/projects' "$SCRIPT_DIR/compose.yaml" \
+  && grep -Eq '\$\{XIAOBAI_BACKGROUNDS_PATH[^}]*\}:/backgrounds:ro' "$SCRIPT_DIR/compose.yaml" \
+  && grep -Eq '127\.0\.0\.1:\$\{XIAOBAI_CONTROL_PLANE_PORT' "$SCRIPT_DIR/compose.yaml"; then
+  pass 'managed workspaces, read-only backgrounds, and loopback control-plane port are configured'
+else
+  fail 'compose.yaml does not enforce the managed workspace/control-plane boundaries'
+fi
+
+if [ -f "$SCRIPT_DIR/run.sh" ] \
+  && grep -Eq 'VITE_XIAOBAI_RUNTIME_PATH_MODE=agent' "$SCRIPT_DIR/run.sh"; then
+  pass 'Canvas build uses container Xiaobai runtime paths'
+else
+  fail 'Canvas build does not force container Xiaobai runtime paths'
+fi
+
+if [ -d "$OPENHANDS_SOURCE_CHECKOUT/.git" ]; then
+  OPENHANDS_ACTUAL_COMMIT="$(git -C "$OPENHANDS_SOURCE_CHECKOUT" rev-parse HEAD 2>/dev/null || true)"
+  if [ "${OPENHANDS_COMMIT:-SELF}" = 'SELF' ] || [ "$OPENHANDS_ACTUAL_COMMIT" = "${OPENHANDS_COMMIT:-}" ]; then
+    pass "customized OpenHands version matches: $OPENHANDS_ACTUAL_COMMIT"
+  else
+    fail "customized OpenHands version mismatch: expected ${OPENHANDS_COMMIT:-unset}, got $OPENHANDS_ACTUAL_COMMIT"
+  fi
+else
+  fail "customized OpenHands source is missing: $OPENHANDS_SOURCE_CHECKOUT"
 fi
 
 if [ -d "$XIAOBAI_WORKSPACE_PATH/.git" ]; then
@@ -191,6 +227,8 @@ scan_tracked_repository() {
       ':(exclude)workspace/memory/loops/**' \
       ':(exclude)workspace/memory/xiaoneng-page-preflight-2026-07-22.md' \
       2>/dev/null || true)"
+  elif [ "$scope" = 'upstream-fixtures' ]; then
+    matches=''
   else
     matches="$(git -C "$repository" grep -nI -E '/Users/[A-Za-z0-9._-]+/' -- . 2>/dev/null || true)"
   fi
@@ -214,6 +252,7 @@ else
   scan_tracked_repository 'Xiaobai' "$XIAOBAI_WORKSPACE_PATH"
 fi
 scan_tracked_repository 'Xiaoneng' "$XIAONENG_WORKSPACE_PATH"
+scan_tracked_repository 'OpenHands' "$OPENHANDS_SOURCE_CHECKOUT" 'upstream-fixtures'
 
 if [ -f "$BUNDLE_ROOT/SHA256SUMS" ]; then
   if command -v shasum >/dev/null 2>&1; then
@@ -239,8 +278,22 @@ if [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -f "$COMPOSE_ENV" ]; then
     else
       fail 'running container can write to /opt/xiaoneng'
     fi
+    if docker compose --env-file "$COMPOSE_ENV" -f "$SCRIPT_DIR/compose.yaml" exec -T agent-canvas test ! -w /backgrounds \
+      && docker compose --env-file "$COMPOSE_ENV" -f "$SCRIPT_DIR/compose.yaml" exec -T agent-canvas test -w /projects; then
+      pass 'running Canvas confirms workspaces are writable and backgrounds are read-only'
+    else
+      fail 'running Canvas violates managed workspace/background access policy'
+    fi
   else
     warn 'Agent Canvas is not running; live read-only verification was skipped'
+  fi
+  if [ -n "$CONTROL_PLANE_CONTAINER_ID" ] && command -v curl >/dev/null 2>&1 \
+    && curl --fail --silent "http://127.0.0.1:${XIAOBAI_CONTROL_PLANE_PORT:-18002}/health" >/dev/null; then
+    pass 'Xiaobai control plane is healthy on the loopback interface'
+  elif [ -n "$CONTROL_PLANE_CONTAINER_ID" ]; then
+    fail 'Xiaobai control-plane container is running but its health endpoint failed'
+  else
+    warn 'Xiaobai control plane is not running; live health verification was skipped'
   fi
 fi
 

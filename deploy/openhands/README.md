@@ -4,14 +4,30 @@
 
 ### 目标
 
-这个目录把小白、小能和 Obsidian 记忆接入固定版本的 OpenHands Agent Canvas。它不修改 OpenHands 源码，不合并小白和小能仓库，也不包含七个 T-MAX 业务代码仓。
+这个目录把小白控制面、小能背景和 Obsidian 记忆接入基于 OpenHands `v1.7.1` 的可视化开发工具。OpenHands 保持为独立薄分支，只增加工作区页面和集成层；小白与小能仍是独立仓库，默认包不包含七个 T-MAX 业务代码仓。
+
+创建流程：
+
+```mermaid
+flowchart LR
+  UI["OpenHands 工作区向导"] --> PF["小白控制面预检"]
+  PF --> WR["创建或导入工作区"]
+  PF --> BG["固定只读背景"]
+  WR --> REG["注册 OpenHands Workspace"]
+  BG --> CTX["生成小白路由上下文"]
+  REG --> CHAT["启动 OpenHands 会话"]
+  CTX --> CHAT
+```
 
 运行边界：
 
-- 小白：`/projects/xiaobai`，读写，使用独立 runtime Git 工作副本。
-- 小能：`/opt/xiaoneng`，只读，固定为 `versions.lock` 中的提交。
+- 小白编排器：`/projects/xiaobai`，读写，使用独立 runtime Git 工作副本。
+- 托管工作区：宿主机 `runtime/workspaces/`，容器内 `/projects/`，读写。
+- 项目背景：宿主机 `runtime/backgrounds/`，容器内 `/backgrounds/`，Agent 只读。
+- 小能：同时暴露为 `/backgrounds/xiaoneng` 与兼容路径 `/opt/xiaoneng`，固定为 `versions.lock` 中的提交。
+- 控制面状态：`runtime/state/control-plane/`，不挂载给 Agent。
 - Obsidian：`/memory/obsidian`，读写，保存接收方自己的持久记忆。
-- OpenHands 状态：`/home/openhands/.openhands`，持久化到 runtime 私有目录。
+- OpenHands 状态：`/home/openhands/.openhands`，持久化到 `runtime/state/openhands/`。
 
 ### 前置条件
 
@@ -20,7 +36,7 @@
 - Git。
 - 可访问已配置模型的网络和 API Key。
 
-源代码仓不要求宿主机安装 Node.js；工作区初始化在固定的 OpenHands 容器中执行。
+源代码仓不要求宿主机安装 Node.js；控制面编译和工作区初始化都在 Docker 中执行。首次启动会从固定提交构建定制 Canvas 与控制面镜像，后续启动复用按提交号标记的镜像。
 
 ### 配置
 
@@ -48,24 +64,27 @@ LLM_MODEL=provider/model
 小白 `OpenHands` 和小能 `xiaoneng2.0` 必须都处于干净、已提交状态：
 
 ```bash
-./deploy/openhands/package.sh --xiaoneng /path/to/xiaoneng
+./deploy/openhands/package.sh \
+  --openhands /path/to/openHands \
+  --xiaoneng /path/to/xiaoneng
 ```
 
 脚本在 ignored 的 `dist/` 下生成：
 
 ```text
-xiaobai-openhands-<commit>/
+xiaobai-openhands-<fingerprint>/
 ├── artifacts/
 │   ├── xiaobai.bundle
-│   └── xiaoneng.bundle
+│   ├── xiaoneng.bundle
+│   └── openhands.bundle
 ├── deploy/openhands/
 ├── SHA256SUMS
 └── runtime/                 # 首次启动时创建
 ```
 
-同时生成同名 `.tar.gz`。包中只包含已提交状态；任何未提交改动都会阻断打包。
+同时生成同名 `.tar.gz`。指纹由 OpenHands、小白、小能三个提交共同计算；包中只包含已提交状态，任何未提交改动都会阻断打包。
 
-两个 Git bundle 都是无历史的分发快照。resolved `versions.lock` 同时记录来源仓提交和快照提交；小白现有 `workspace/memory/loops/**`、本机路径报告和个人 Obsidian Vault 不进入快照。
+三个 Git bundle 都是无历史的分发快照。resolved `versions.lock` 同时记录 OpenHands、小白、小能的来源提交和快照提交；小白现有 `workspace/memory/loops/**`、本机路径报告和个人 Obsidian Vault 不进入快照。
 
 ### 打包为 macOS 应用
 
@@ -73,14 +92,14 @@ xiaobai-openhands-<commit>/
 
 ```bash
 ./deploy/openhands/package-app.sh \
-  --package dist/xiaobai-openhands-<commit>.tar.gz
+  --package dist/xiaobai-openhands-<fingerprint>.tar.gz
 ```
 
 脚本在 ignored 的 `dist/` 下生成：
 
 ```text
 小白 OpenHands.app
-xiaobai-openhands-<commit>-macOS.zip
+xiaobai-openhands-<fingerprint>-macOS.zip
 ```
 
 应用提供“启动并打开 Canvas”“打开 Canvas”“配置模型”和“停止服务”四个操作。应用内只携带已经校验的无凭据分发包；首次运行时才在当前用户的以下目录中创建权限为 `600` 的模型配置和持久化 runtime：
@@ -89,7 +108,7 @@ xiaobai-openhands-<commit>-macOS.zip
 $HOME/Library/Application Support/Xiaobai OpenHands
 ```
 
-应用的新配置默认使用宿主机端口 `8001`，与源码运行模式默认的 `8000` 分离。启动器会在创建容器前检查端口，并在重试时清理由应用自己的失败容器；它不会停止源码模式的 Compose 实例。
+应用的新配置默认使用 Canvas 端口 `8001` 和控制面端口 `18003`，与源码运行模式默认的 `8000` / `18002` 分离。启动器会在创建容器前检查两个端口，并在重试时清理由应用自己的失败容器；它不会停止源码模式的 Compose 实例。
 
 接收方仍需安装 Docker Desktop。当前应用使用 ad-hoc 签名，没有 Apple Developer ID 签名和公证；其他 Mac 首次打开时可能需要在 Finder 中右键应用并选择“打开”。不要通过修改应用包来保存模型 Key，应该始终使用应用菜单中的“配置模型”。
 
@@ -102,7 +121,7 @@ cp deploy/openhands/.env.example deploy/openhands/.env
 ./deploy/openhands/run.sh
 ```
 
-访问：`http://localhost:8000/canvas`。
+访问：`http://localhost:8000/canvas`。浏览器使用仅绑定到本机的控制面：`http://127.0.0.1:18002`。
 
 停止但保留工作区、OpenHands 状态和 Obsidian 记忆：
 
@@ -116,7 +135,7 @@ cp deploy/openhands/.env.example deploy/openhands/.env
 ./deploy/openhands/doctor.sh
 ```
 
-体检覆盖固定镜像、Git 版本、三类挂载、容器记忆路径、`t-max -> xiaoneng` 路由、凭据/个人路径扫描、包校验和和运行时只读验证。
+体检覆盖定制 Canvas 版本、控制面健康状态、Git 版本、工作区读写与背景只读挂载、容器记忆路径、`t-max -> xiaoneng` 路由、凭据/个人路径扫描、包校验和和运行时权限验证。
 
 同一个 Obsidian 项目目录只允许一个 OpenHands 写入实例。`run.sh` 使用 `.xiaobai-writer.lock` 阻止并发写入；正常停止会释放锁，记忆文件不会删除。
 
@@ -124,21 +143,37 @@ cp deploy/openhands/.env.example deploy/openhands/.env
 
 - 更新小白：在 `OpenHands` 分支完成并提交，再重新打包。
 - 更新小能：先在小能仓提交并验证，再更新 `versions.lock` 的 `XIAONENG_COMMIT`。
-- 更新 OpenHands：只在验证兼容后同时更新 `OPENHANDS_VERSION`、`OPENHANDS_IMAGE` 和 `OPENHANDS_SOURCE_COMMIT`。
+- 更新 OpenHands：在独立薄分支完成兼容验证，再同时更新 `OPENHANDS_VERSION`、Agent Server/Automation 版本锁和源码提交。
 - 默认包不携带个人 Vault、模型密钥、SSH 配置、本机软链接或七个 T-MAX 业务仓。
 
 ## English
 
 ### Purpose
 
-This directory connects Xiaobai, Xiaoneng, and Obsidian memory to a pinned OpenHands Agent Canvas release. It does not modify OpenHands source, merge the Xiaobai and Xiaoneng repositories, or include the seven T-MAX business repositories.
+This directory connects the Xiaobai control plane, Xiaoneng background, and Obsidian memory to a visual development tool based on OpenHands `v1.7.1`. OpenHands remains an independent thin fork containing only the workspace UI and integration layer. Xiaobai and Xiaoneng remain separate repositories, and the default package excludes the seven T-MAX business repositories.
+
+Creation flow:
+
+```mermaid
+flowchart LR
+  UI["OpenHands workspace wizard"] --> PF["Xiaobai control-plane preflight"]
+  PF --> WR["Create or import workspace"]
+  PF --> BG["Pin read-only background"]
+  WR --> REG["Register OpenHands Workspace"]
+  BG --> CTX["Build Xiaobai route context"]
+  REG --> CHAT["Launch OpenHands conversation"]
+  CTX --> CHAT
+```
 
 Runtime boundaries:
 
-- Xiaobai: `/projects/xiaobai`, writable, using an isolated runtime Git checkout.
-- Xiaoneng: `/opt/xiaoneng`, read-only, pinned to the commit in `versions.lock`.
+- Xiaobai orchestrator: `/projects/xiaobai`, writable, using an isolated runtime Git checkout.
+- Managed workspaces: host `runtime/workspaces/`, container `/projects/`, writable.
+- Project backgrounds: host `runtime/backgrounds/`, container `/backgrounds/`, read-only to agents.
+- Xiaoneng: exposed at `/backgrounds/xiaoneng` and the compatibility path `/opt/xiaoneng`, pinned to `versions.lock`.
+- Control-plane state: `runtime/state/control-plane/`, never mounted into the agent runtime.
 - Obsidian: `/memory/obsidian`, writable, storing the recipient's persistent memory.
-- OpenHands state: `/home/openhands/.openhands`, persisted in a private runtime directory.
+- OpenHands state: `/home/openhands/.openhands`, persisted under `runtime/state/openhands/`.
 
 ### Prerequisites
 
@@ -147,7 +182,7 @@ Runtime boundaries:
 - Git.
 - Network access and an API key for the selected model.
 
-The host does not need Node.js. Workspace initialization runs inside the pinned OpenHands container.
+The host does not need Node.js. Control-plane compilation and workspace initialization run in Docker. The first start builds customized Canvas and control-plane images from pinned commits; later starts reuse commit-tagged images.
 
 ### Configuration
 
@@ -175,24 +210,27 @@ When `OBSIDIAN_VAULT_PATH` is empty, the launcher creates an isolated empty vaul
 Both Xiaobai `OpenHands` and Xiaoneng `xiaoneng2.0` must be clean and committed:
 
 ```bash
-./deploy/openhands/package.sh --xiaoneng /path/to/xiaoneng
+./deploy/openhands/package.sh \
+  --openhands /path/to/openHands \
+  --xiaoneng /path/to/xiaoneng
 ```
 
 The script creates an ignored `dist/` output containing:
 
 ```text
-xiaobai-openhands-<commit>/
+xiaobai-openhands-<fingerprint>/
 ├── artifacts/
 │   ├── xiaobai.bundle
-│   └── xiaoneng.bundle
+│   ├── xiaoneng.bundle
+│   └── openhands.bundle
 ├── deploy/openhands/
 ├── SHA256SUMS
 └── runtime/                 # created on first start
 ```
 
-A matching `.tar.gz` is created as well. Only committed state is packaged; any uncommitted change blocks packaging.
+A matching `.tar.gz` is created as well. Its fingerprint is derived from the OpenHands, Xiaobai, and Xiaoneng commits. Only committed state is packaged; any uncommitted change blocks packaging.
 
-Both Git bundles are history-free distribution snapshots. The resolved `versions.lock` records both source and snapshot commits. Existing Xiaobai `workspace/memory/loops/**`, machine-path reports, and personal Obsidian vault content are excluded from the snapshot.
+All three Git bundles are history-free distribution snapshots. The resolved `versions.lock` records source and snapshot commits for OpenHands, Xiaobai, and Xiaoneng. Existing Xiaobai `workspace/memory/loops/**`, machine-path reports, and personal Obsidian vault content are excluded.
 
 ### Package as a macOS Application
 
@@ -200,14 +238,14 @@ After producing the `.tar.gz` distribution, wrap it as a double-clickable macOS 
 
 ```bash
 ./deploy/openhands/package-app.sh \
-  --package dist/xiaobai-openhands-<commit>.tar.gz
+  --package dist/xiaobai-openhands-<fingerprint>.tar.gz
 ```
 
 The script creates ignored outputs under `dist/`:
 
 ```text
 小白 OpenHands.app
-xiaobai-openhands-<commit>-macOS.zip
+xiaobai-openhands-<fingerprint>-macOS.zip
 ```
 
 The application provides four actions: Start and Open Canvas, Open Canvas, Configure Model, and Stop Service. It embeds only the verified credential-free distribution. On first launch, it creates the mode-`600` model configuration and persistent runtime under the current user's directory:
@@ -216,7 +254,7 @@ The application provides four actions: Start and Open Canvas, Open Canvas, Confi
 $HOME/Library/Application Support/Xiaobai OpenHands
 ```
 
-New application configurations default to host port `8001`, separate from the source runtime default of `8000`. Before creating a container, the launcher checks the port and cleans up only its own failed application container on retries; it never stops the source-mode Compose instance.
+New application configurations default to Canvas port `8001` and control-plane port `18003`, separate from the source defaults `8000` / `18002`. Before creating containers, the launcher checks both ports and cleans up only its own failed application containers on retries; it never stops the source-mode Compose instance.
 
 Recipients still need Docker Desktop. The current application is ad-hoc signed, not signed and notarized with an Apple Developer ID. On another Mac, the first launch may require right-clicking the application in Finder and choosing Open. Never store model keys by modifying the application bundle; always use the Configure Model action.
 
@@ -229,7 +267,7 @@ cp deploy/openhands/.env.example deploy/openhands/.env
 ./deploy/openhands/run.sh
 ```
 
-Open `http://localhost:8000/canvas`.
+Open `http://localhost:8000/canvas`. The browser uses the loopback-only control plane at `http://127.0.0.1:18002`.
 
 Stop while preserving workspaces, OpenHands state, and Obsidian memory:
 
@@ -243,7 +281,7 @@ Stop while preserving workspaces, OpenHands state, and Obsidian memory:
 ./deploy/openhands/doctor.sh
 ```
 
-The doctor checks the pinned image, Git versions, all three mounts, container-only memory paths, `t-max -> xiaoneng` routing, credential and personal-path scans, package checksums, and live read-only enforcement.
+The doctor checks the customized Canvas version, control-plane health, Git versions, writable workspace and read-only background mounts, container-only memory paths, `t-max -> xiaoneng` routing, credential and personal-path scans, package checksums, and live access enforcement.
 
 Only one OpenHands writer may use an Obsidian project directory at a time. `run.sh` creates `.xiaobai-writer.lock` to prevent concurrent writes. A normal stop releases the lock without deleting memory.
 
@@ -251,5 +289,5 @@ Only one OpenHands writer may use an Obsidian project directory at a time. `run.
 
 - Update Xiaobai on the `OpenHands` branch, commit it, and package again.
 - Update Xiaoneng in its own repository, verify the commit, then update `XIAONENG_COMMIT` in `versions.lock`.
-- Update OpenHands only after compatibility verification, changing `OPENHANDS_VERSION`, `OPENHANDS_IMAGE`, and `OPENHANDS_SOURCE_COMMIT` together.
+- Update OpenHands on the independent thin fork, complete compatibility verification, then update `OPENHANDS_VERSION`, Agent Server/Automation locks, and source commit together.
 - The default package excludes personal vaults, model keys, SSH configuration, machine symlinks, and the seven T-MAX business repositories.

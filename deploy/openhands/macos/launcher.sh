@@ -6,6 +6,7 @@ umask 077
 APP_NAME='小白 OpenHands'
 APP_COMPOSE_PROJECT='xiaobai-openhands-app'
 APP_DEFAULT_PORT='8001'
+APP_DEFAULT_CONTROL_PLANE_PORT='18003'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTENTS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESOURCE_ROOT="$CONTENTS_ROOT/Resources"
@@ -16,7 +17,7 @@ SUPPORT_ROOT="${XIAOBAI_APP_SUPPORT_ROOT:-$HOME/Library/Application Support/Xiao
 PACKAGES_ROOT="$SUPPORT_ROOT/packages"
 CONFIG_ROOT="$SUPPORT_ROOT/config"
 CONFIG_FILE="$CONFIG_ROOT/.env"
-CONFIG_MIGRATION_MARKER="$CONFIG_ROOT/.launcher-defaults-v2"
+CONFIG_MIGRATION_MARKER="$CONFIG_ROOT/.launcher-defaults-v3"
 LOG_ROOT="$SUPPORT_ROOT/logs"
 LOG_FILE="$LOG_ROOT/launcher.log"
 
@@ -146,9 +147,14 @@ ensure_config() {
 
   if [ ! -f "$CONFIG_MIGRATION_MARKER" ]; then
     /usr/bin/sed -i '' -E "s/^OPENHANDS_PORT=8000$/OPENHANDS_PORT=$APP_DEFAULT_PORT/" "$CONFIG_FILE"
+    if /usr/bin/grep -q '^XIAOBAI_CONTROL_PLANE_PORT=' "$CONFIG_FILE"; then
+      /usr/bin/sed -i '' -E "s/^XIAOBAI_CONTROL_PLANE_PORT=18002$/XIAOBAI_CONTROL_PLANE_PORT=$APP_DEFAULT_CONTROL_PLANE_PORT/" "$CONFIG_FILE"
+    else
+      printf '\nXIAOBAI_CONTROL_PLANE_PORT=%s\n' "$APP_DEFAULT_CONTROL_PLANE_PORT" >>"$CONFIG_FILE"
+    fi
     touch "$CONFIG_MIGRATION_MARKER"
     chmod 600 "$CONFIG_MIGRATION_MARKER"
-    log_event "Migrated application default port to $APP_DEFAULT_PORT"
+    log_event "Migrated application default ports to Canvas $APP_DEFAULT_PORT and control plane $APP_DEFAULT_CONTROL_PLANE_PORT"
   fi
   chmod 600 "$CONFIG_FILE"
 }
@@ -170,6 +176,19 @@ configured_port() {
     printf '%s' "$port"
   else
     printf '8000'
+  fi
+}
+
+configured_control_plane_port() {
+  local port
+  port="$(/bin/bash -c '
+    source "$1" >/dev/null 2>&1 || exit 1
+    printf "%s" "${XIAOBAI_CONTROL_PLANE_PORT:-18002}"
+  ' _ "$CONFIG_FILE" 2>/dev/null || printf '18002')"
+  if [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ]; then
+    printf '%s' "$port"
+  else
+    printf '18002'
   fi
 }
 
@@ -279,9 +298,15 @@ stop_app_service() {
 
 canvas_port_is_available() {
   local port
+  local control_plane_port
   port="$(configured_port)"
+  control_plane_port="$(configured_control_plane_port)"
   if /usr/bin/nc -z 127.0.0.1 "$port" >/dev/null 2>&1; then
     show_error "端口 $port 已被其他服务占用。请打开“配置模型”，把 OPENHANDS_PORT 改为其他空闲端口后重试。"
+    return 1
+  fi
+  if /usr/bin/nc -z 127.0.0.1 "$control_plane_port" >/dev/null 2>&1; then
+    show_error "端口 $control_plane_port 已被其他服务占用。请打开“配置模型”，把 XIAOBAI_CONTROL_PLANE_PORT 改为其他空闲端口后重试。"
     return 1
   fi
 }

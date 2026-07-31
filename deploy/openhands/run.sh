@@ -64,12 +64,21 @@ elif [ -d "$BUNDLE_ROOT/artifacts" ]; then
 else
   RUNTIME_ROOT="$BUNDLE_ROOT/dist/openhands-runtime"
 fi
-mkdir -p "$RUNTIME_ROOT/projects" "$RUNTIME_ROOT/backgrounds" "$RUNTIME_ROOT/openhands-state"
+mkdir -p \
+  "$RUNTIME_ROOT/workspaces" \
+  "$RUNTIME_ROOT/backgrounds" \
+  "$RUNTIME_ROOT/sources" \
+  "$RUNTIME_ROOT/state/openhands" \
+  "$RUNTIME_ROOT/state/control-plane"
 RUNTIME_ROOT="$(cd "$RUNTIME_ROOT" && pwd)"
 
-XIAOBAI_WORKSPACE_PATH="$RUNTIME_ROOT/projects/xiaobai"
+XIAOBAI_WORKSPACES_PATH="$RUNTIME_ROOT/workspaces"
+XIAOBAI_BACKGROUNDS_PATH="$RUNTIME_ROOT/backgrounds"
+XIAOBAI_WORKSPACE_PATH="$XIAOBAI_WORKSPACES_PATH/xiaobai"
 XIAONENG_WORKSPACE_PATH="$RUNTIME_ROOT/backgrounds/xiaoneng"
-OPENHANDS_STATE_PATH="$RUNTIME_ROOT/openhands-state"
+OPENHANDS_SOURCE_CHECKOUT="$RUNTIME_ROOT/sources/openhands"
+OPENHANDS_STATE_PATH="$RUNTIME_ROOT/state/openhands"
+XIAOBAI_CONTROL_STATE_PATH="$RUNTIME_ROOT/state/control-plane"
 
 if [ -z "${OBSIDIAN_VAULT_PATH:-}" ]; then
   OBSIDIAN_VAULT_PATH="$RUNTIME_ROOT/obsidian-vault"
@@ -108,7 +117,28 @@ prepare_repository() {
 XIAOBAI_SOURCE_PATH="$BUNDLE_ROOT"
 DEFAULT_XIAONENG_SOURCE="$(cd "$BUNDLE_ROOT/.." 2>/dev/null && pwd)/xiaoneng"
 XIAONENG_SOURCE_PATH="${XIAONENG_SOURCE_PATH:-$DEFAULT_XIAONENG_SOURCE}"
+DEFAULT_OPENHANDS_SOURCE="$(cd "$BUNDLE_ROOT/.." 2>/dev/null && pwd)/openHands"
+OPENHANDS_SOURCE_PATH="${OPENHANDS_SOURCE_PATH:-$DEFAULT_OPENHANDS_SOURCE}"
 
+if [ ! -d "$BUNDLE_ROOT/artifacts" ]; then
+  if [ ! -d "$OPENHANDS_SOURCE_PATH/.git" ]; then
+    printf 'customized OpenHands source is missing: %s\n' "$OPENHANDS_SOURCE_PATH" >&2
+    exit 1
+  fi
+  OPENHANDS_DIRTY="$(git -C "$OPENHANDS_SOURCE_PATH" status --porcelain=v1 -uall)"
+  if [ -n "$OPENHANDS_DIRTY" ]; then
+    printf 'customized OpenHands source has uncommitted changes:\n%s\n' "$OPENHANDS_DIRTY" >&2
+    printf 'commit the visual workspace implementation before starting the distributable runtime\n' >&2
+    exit 1
+  fi
+fi
+
+prepare_repository \
+  'OpenHands' \
+  "$OPENHANDS_SOURCE_CHECKOUT" \
+  "$BUNDLE_ROOT/artifacts/openhands.bundle" \
+  "$OPENHANDS_SOURCE_PATH" \
+  "$OPENHANDS_BRANCH"
 prepare_repository \
   'Xiaobai' \
   "$XIAOBAI_WORKSPACE_PATH" \
@@ -122,12 +152,23 @@ prepare_repository \
   "$XIAONENG_SOURCE_PATH" \
   "$XIAONENG_BRANCH"
 
-if [ "$XIAOBAI_COMMIT" != 'SELF' ]; then
-  ACTUAL_XIAOBAI_COMMIT="$(git -C "$XIAOBAI_WORKSPACE_PATH" rev-parse HEAD)"
-  if [ "$ACTUAL_XIAOBAI_COMMIT" != "$XIAOBAI_COMMIT" ]; then
-    printf 'Xiaobai version mismatch: expected %s, got %s\n' "$XIAOBAI_COMMIT" "$ACTUAL_XIAOBAI_COMMIT" >&2
-    exit 1
-  fi
+ACTUAL_OPENHANDS_COMMIT="$(git -C "$OPENHANDS_SOURCE_CHECKOUT" rev-parse HEAD)"
+EXPECTED_OPENHANDS_COMMIT="$OPENHANDS_COMMIT"
+if [ "$EXPECTED_OPENHANDS_COMMIT" = 'SELF' ]; then
+  EXPECTED_OPENHANDS_COMMIT="$(git -C "$OPENHANDS_SOURCE_PATH" rev-parse HEAD)"
+fi
+if [ "$ACTUAL_OPENHANDS_COMMIT" != "$EXPECTED_OPENHANDS_COMMIT" ]; then
+  printf 'OpenHands version mismatch: expected %s, got %s\n' "$EXPECTED_OPENHANDS_COMMIT" "$ACTUAL_OPENHANDS_COMMIT" >&2
+  exit 1
+fi
+ACTUAL_XIAOBAI_COMMIT="$(git -C "$XIAOBAI_WORKSPACE_PATH" rev-parse HEAD)"
+EXPECTED_XIAOBAI_COMMIT="$XIAOBAI_COMMIT"
+if [ "$EXPECTED_XIAOBAI_COMMIT" = 'SELF' ]; then
+  EXPECTED_XIAOBAI_COMMIT="$(git -C "$XIAOBAI_SOURCE_PATH" rev-parse HEAD)"
+fi
+if [ "$ACTUAL_XIAOBAI_COMMIT" != "$EXPECTED_XIAOBAI_COMMIT" ]; then
+  printf 'Xiaobai version mismatch: expected %s, got %s\n' "$EXPECTED_XIAOBAI_COMMIT" "$ACTUAL_XIAOBAI_COMMIT" >&2
+  exit 1
 fi
 ACTUAL_XIAONENG_COMMIT="$(git -C "$XIAONENG_WORKSPACE_PATH" rev-parse HEAD)"
 if [ "$ACTUAL_XIAONENG_COMMIT" != "$XIAONENG_COMMIT" ]; then
@@ -135,13 +176,40 @@ if [ "$ACTUAL_XIAONENG_COMMIT" != "$XIAONENG_COMMIT" ]; then
   exit 1
 fi
 
+CONTROL_PLANE_PORT="${XIAOBAI_CONTROL_PLANE_PORT:-18002}"
+OPENHANDS_IMAGE="${OPENHANDS_IMAGE_REPOSITORY}:${ACTUAL_OPENHANDS_COMMIT:0:12}-cp${CONTROL_PLANE_PORT}"
+if ! docker image inspect "$OPENHANDS_IMAGE" >/dev/null 2>&1; then
+  printf 'Building customized OpenHands image: %s\n' "$OPENHANDS_IMAGE"
+  docker build \
+    -f "$OPENHANDS_SOURCE_CHECKOUT/docker/Dockerfile" \
+    --build-arg "AGENT_SERVER_IMAGE=$OPENHANDS_AGENT_SERVER_IMAGE" \
+    --build-arg "AUTOMATION_VERSION=$OPENHANDS_AUTOMATION_VERSION" \
+    --build-arg "AGENT_CANVAS_VERSION=$OPENHANDS_VERSION" \
+    --build-arg "OPENHANDS_BUILD_GIT_SHA=$ACTUAL_OPENHANDS_COMMIT" \
+    --build-arg "OPENHANDS_BUILD_GIT_REF=$OPENHANDS_BRANCH" \
+    --build-arg "VITE_BASE_PATH=$OPENHANDS_CANVAS_BASE_PATH" \
+    --build-arg "VITE_XIAOBAI_CONTROL_PLANE_URL=http://127.0.0.1:$CONTROL_PLANE_PORT" \
+    --build-arg "VITE_XIAOBAI_RUNTIME_PATH_MODE=agent" \
+    -t "$OPENHANDS_IMAGE" \
+    "$OPENHANDS_SOURCE_CHECKOUT"
+fi
+
 COMPOSE_ENV="$RUNTIME_ROOT/compose.env"
 cat >"$COMPOSE_ENV" <<EOF
 OPENHANDS_IMAGE=$OPENHANDS_IMAGE
 OPENHANDS_PORT=${OPENHANDS_PORT:-8000}
 OPENHANDS_STATE_PATH=$OPENHANDS_STATE_PATH
+OPENHANDS_SOURCE_CHECKOUT=$OPENHANDS_SOURCE_CHECKOUT
+XIAOBAI_WORKSPACES_PATH=$XIAOBAI_WORKSPACES_PATH
+XIAOBAI_BACKGROUNDS_PATH=$XIAOBAI_BACKGROUNDS_PATH
 XIAOBAI_WORKSPACE_PATH=$XIAOBAI_WORKSPACE_PATH
 XIAONENG_WORKSPACE_PATH=$XIAONENG_WORKSPACE_PATH
+XIAOBAI_CONTROL_STATE_PATH=$XIAOBAI_CONTROL_STATE_PATH
+XIAOBAI_CONTROL_PLANE_IMAGE=xiaobai/control-plane:${ACTUAL_XIAOBAI_COMMIT:0:12}
+XIAOBAI_CONTROL_PLANE_PORT=$CONTROL_PLANE_PORT
+XIAOBAI_ALLOWED_ORIGINS=http://127.0.0.1:${OPENHANDS_PORT:-8000},http://localhost:${OPENHANDS_PORT:-8000}
+RUNTIME_UID=$(id -u)
+RUNTIME_GID=$(id -g)
 OBSIDIAN_VAULT_PATH=$OBSIDIAN_VAULT_PATH
 EOF
 
@@ -172,10 +240,11 @@ EOF
 
 COMPOSE=(docker compose --env-file "$COMPOSE_ENV" -f "$SCRIPT_DIR/compose.yaml")
 "${COMPOSE[@]}" --profile init run --rm workspace-init
-"${COMPOSE[@]}" up -d agent-canvas
+"${COMPOSE[@]}" up -d --build xiaobai-control-plane agent-canvas
 
 STARTED=1
 printf 'OpenHands Agent Canvas started.\n'
 printf 'UI: http://localhost:%s/canvas\n' "${OPENHANDS_PORT:-8000}"
+printf 'Control plane: http://127.0.0.1:%s\n' "$CONTROL_PLANE_PORT"
 printf 'Runtime: %s\n' "$RUNTIME_ROOT"
 printf 'Memory: %s\n' "$MEMORY_PROJECT_ROOT"

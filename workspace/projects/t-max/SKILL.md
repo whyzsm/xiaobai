@@ -21,12 +21,13 @@
 - `operateSupport`: `../../.local/t-max/mounts/repos/operateSupport`
 - `dcm`: `../../.local/t-max/mounts/repos/dcm`
 - `scan`: `../../.local/t-max/mounts/repos/scan`
+- `emt`: `../../.local/t-max/mounts/repos/emt`
 
 ## 规则
 
 1. 小白解析目标仓挂载路径，并在修改任何 T-MAX 目标仓前读取 `workspace/.local/t-max/mounts/background/xiaoneng`；小能只提供业务背景和执行规则，不创建、解析或维护另一套 T-MAX 挂载。
 2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
-3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用小能业务背景指导。
+3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan、emt 中一致应用小能业务背景指导。
 4. 如果挂载缺失或失效，由小白工程运行 `npm run mount:tmax` 刷新挂载，不把挂载生命周期下放给小能。
 5. 仓库特定业务修改必须通过 `workspace/.local/t-max/mounts/repos/` 下选中的入口落到目标仓真实 worktree；允许修改目标仓源码，但不得把软链接、`local.paths.yaml` 或其它挂载基础设施当作业务交付内容修改或提交。
 6. 修改前检查目标仓库自己的 `git status` 和当前分支；不要假设所有 T-MAX 仓库使用相同默认分支，也不要混入或覆盖已有改动。
@@ -63,12 +64,13 @@ Persist the T-MAX project background in this loop workspace and bind the Xiaonen
 - `operateSupport`: `../../.local/t-max/mounts/repos/operateSupport`
 - `dcm`: `../../.local/t-max/mounts/repos/dcm`
 - `scan`: `../../.local/t-max/mounts/repos/scan`
+- `emt`: `../../.local/t-max/mounts/repos/emt`
 
 ## Rules
 
 1. Xiaobai resolves the target repository mount and loads `workspace/.local/t-max/mounts/background/xiaoneng` before modifying any T-MAX target repository. Xiaoneng provides business context and execution rules only; it does not create, resolve, or maintain a second T-MAX mount tree.
 2. Treat the repositories as separate git worktrees even though they share the same project background.
-3. Apply the Xiaoneng business background consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, and scan.
+3. Apply the Xiaoneng business background consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, scan, and emt.
 4. If a mount is missing or broken, refresh it from the Xiaobai engineering repository with `npm run mount:tmax`; do not delegate mount lifecycle management to Xiaoneng.
 5. Apply repository-specific business changes through the selected entry under `workspace/.local/t-max/mounts/repos/` so they land in the target repository's real worktree. Editing target source is allowed, but symlinks, `local.paths.yaml`, and other mount infrastructure must not be changed or committed as business deliverables.
 6. Check the target repository's own `git status` and current branch before editing. Do not assume all T-MAX repositories use the same default branch, and do not mix in or overwrite existing changes.

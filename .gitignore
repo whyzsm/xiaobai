@@ -4,6 +4,7 @@ bin-release/
 [Oo]bj/
 [Bb]in/
 dist/
+.xiaobai-data/
 node_modules/
 coverage/
 .DS_Store

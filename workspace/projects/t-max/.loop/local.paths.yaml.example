@@ -10,3 +10,4 @@ repositories:
   operateSupport: /absolute/path/to/T-MAX/operateSupport
   dcm: /absolute/path/to/T-MAX/dcm
   scan: /absolute/path/to/T-MAX/scan
+  emt: /absolute/path/to/emt-ui

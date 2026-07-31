@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 XIAOBAI_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOCK_FILE="$SCRIPT_DIR/versions.lock"
 XIAONENG_ROOT="${XIAONENG_SOURCE_PATH:-$(cd "$XIAOBAI_ROOT/.." && pwd)/xiaoneng}"
+OPENHANDS_ROOT="${OPENHANDS_SOURCE_PATH:-$(cd "$XIAOBAI_ROOT/.." && pwd)/openHands}"
 OUTPUT_ROOT="$XIAOBAI_ROOT/dist"
 
 while [ "$#" -gt 0 ]; do
@@ -13,12 +14,16 @@ while [ "$#" -gt 0 ]; do
       XIAONENG_ROOT="${2:?missing path after --xiaoneng}"
       shift 2
       ;;
+    --openhands)
+      OPENHANDS_ROOT="${2:?missing path after --openhands}"
+      shift 2
+      ;;
     --output)
       OUTPUT_ROOT="${2:?missing path after --output}"
       shift 2
       ;;
     --help)
-      printf 'usage: %s [--xiaoneng /path/to/xiaoneng] [--output /path/to/dist]\n' "$0"
+      printf 'usage: %s [--openhands /path/to/openHands] [--xiaoneng /path/to/xiaoneng] [--output /path/to/dist]\n' "$0"
       exit 0
       ;;
     *)
@@ -72,6 +77,7 @@ require_clean_repository() {
 scan_repository() {
   local label="$1"
   local repository="$2"
+  local scan_personal_paths="${3:-yes}"
   local matches
 
   matches="$(git -C "$repository" grep -nI -E \
@@ -82,10 +88,12 @@ scan_repository() {
     exit 1
   fi
 
-  matches="$(git -C "$repository" grep -nI -E '/Users/[A-Za-z0-9._-]+/' -- . 2>/dev/null || true)"
-  if [ -n "$matches" ]; then
-    printf '%s contains a tracked personal macOS path:\n%s\n' "$label" "$matches" >&2
-    exit 1
+  if [ "$scan_personal_paths" = 'yes' ]; then
+    matches="$(git -C "$repository" grep -nI -E '/Users/[A-Za-z0-9._-]+/' -- . 2>/dev/null || true)"
+    if [ -n "$matches" ]; then
+      printf '%s contains a tracked personal macOS path:\n%s\n' "$label" "$matches" >&2
+      exit 1
+    fi
   fi
 
   matches="$(git -C "$repository" ls-files | grep -E '(^|/)\.ssh/' || true)"
@@ -97,15 +105,26 @@ scan_repository() {
 
 require_clean_repository 'Xiaobai' "$XIAOBAI_ROOT" "$XIAOBAI_BRANCH"
 require_clean_repository 'Xiaoneng' "$XIAONENG_ROOT" "$XIAONENG_BRANCH"
+require_clean_repository 'OpenHands' "$OPENHANDS_ROOT" "$OPENHANDS_BRANCH"
 
 XIAOBAI_COMMIT_RESOLVED="$(git -C "$XIAOBAI_ROOT" rev-parse HEAD)"
 XIAONENG_COMMIT_RESOLVED="$(git -C "$XIAONENG_ROOT" rev-parse HEAD)"
+OPENHANDS_COMMIT_RESOLVED="$(git -C "$OPENHANDS_ROOT" rev-parse HEAD)"
 if [ "$XIAONENG_COMMIT_RESOLVED" != "$XIAONENG_SOURCE_COMMIT" ]; then
   printf 'Xiaoneng source lock is stale: expected %s, got %s\n' "$XIAONENG_SOURCE_COMMIT" "$XIAONENG_COMMIT_RESOLVED" >&2
   exit 1
 fi
+if [ "$OPENHANDS_SOURCE_COMMIT" != 'SELF' ] && [ "$OPENHANDS_COMMIT_RESOLVED" != "$OPENHANDS_SOURCE_COMMIT" ]; then
+  printf 'OpenHands source lock is stale: expected %s, got %s\n' "$OPENHANDS_SOURCE_COMMIT" "$OPENHANDS_COMMIT_RESOLVED" >&2
+  exit 1
+fi
 
-PACKAGE_NAME="xiaobai-openhands-${XIAOBAI_COMMIT_RESOLVED:0:12}"
+PACKAGE_FINGERPRINT="$(printf '%s\n%s\n%s\n' \
+  "$OPENHANDS_COMMIT_RESOLVED" \
+  "$XIAOBAI_COMMIT_RESOLVED" \
+  "$XIAONENG_COMMIT_RESOLVED" \
+  | git hash-object --stdin)"
+PACKAGE_NAME="xiaobai-openhands-${PACKAGE_FINGERPRINT:0:12}"
 OUTPUT_ROOT="$(mkdir -p "$OUTPUT_ROOT" && cd "$OUTPUT_ROOT" && pwd)"
 FINAL_DIR="$OUTPUT_ROOT/$PACKAGE_NAME"
 FINAL_ARCHIVE="$OUTPUT_ROOT/$PACKAGE_NAME.tar.gz"
@@ -156,24 +175,35 @@ create_snapshot_repository() {
 
 XIAOBAI_SNAPSHOT="$SNAPSHOTS/xiaobai"
 XIAONENG_SNAPSHOT="$SNAPSHOTS/xiaoneng"
+OPENHANDS_SNAPSHOT="$SNAPSHOTS/openhands"
 create_snapshot_repository 'Xiaobai' "$XIAOBAI_ROOT" "$XIAOBAI_BRANCH" "$XIAOBAI_COMMIT_RESOLVED" "$XIAOBAI_SNAPSHOT"
 create_snapshot_repository 'Xiaoneng' "$XIAONENG_ROOT" "$XIAONENG_BRANCH" "$XIAONENG_COMMIT_RESOLVED" "$XIAONENG_SNAPSHOT"
+create_snapshot_repository 'OpenHands' "$OPENHANDS_ROOT" "$OPENHANDS_BRANCH" "$OPENHANDS_COMMIT_RESOLVED" "$OPENHANDS_SNAPSHOT"
 scan_repository 'Xiaobai snapshot' "$XIAOBAI_SNAPSHOT"
 scan_repository 'Xiaoneng snapshot' "$XIAONENG_SNAPSHOT"
+scan_repository 'OpenHands snapshot' "$OPENHANDS_SNAPSHOT" no
 
 XIAOBAI_SNAPSHOT_COMMIT="$(git -C "$XIAOBAI_SNAPSHOT" rev-parse HEAD)"
 XIAONENG_SNAPSHOT_COMMIT="$(git -C "$XIAONENG_SNAPSHOT" rev-parse HEAD)"
+OPENHANDS_SNAPSHOT_COMMIT="$(git -C "$OPENHANDS_SNAPSHOT" rev-parse HEAD)"
 git -C "$XIAOBAI_SNAPSHOT" bundle create "$STAGING/artifacts/xiaobai.bundle" "$XIAOBAI_BRANCH"
 git -C "$XIAONENG_SNAPSHOT" bundle create "$STAGING/artifacts/xiaoneng.bundle" "$XIAONENG_BRANCH"
+git -C "$OPENHANDS_SNAPSHOT" bundle create "$STAGING/artifacts/openhands.bundle" "$OPENHANDS_BRANCH"
 git bundle verify "$STAGING/artifacts/xiaobai.bundle" >/dev/null
 git bundle verify "$STAGING/artifacts/xiaoneng.bundle" >/dev/null
+git bundle verify "$STAGING/artifacts/openhands.bundle" >/dev/null
 
 cat >"$STAGING/deploy/openhands/versions.lock" <<EOF
 # Resolved by deploy/openhands/package.sh. Contains no credentials or machine paths.
 # 由 deploy/openhands/package.sh 解析，不包含凭据或本机路径。
 OPENHANDS_VERSION=$OPENHANDS_VERSION
-OPENHANDS_IMAGE=$OPENHANDS_IMAGE
-OPENHANDS_SOURCE_COMMIT=$OPENHANDS_SOURCE_COMMIT
+OPENHANDS_BRANCH=$OPENHANDS_BRANCH
+OPENHANDS_IMAGE_REPOSITORY=$OPENHANDS_IMAGE_REPOSITORY
+OPENHANDS_SOURCE_COMMIT=$OPENHANDS_COMMIT_RESOLVED
+OPENHANDS_COMMIT=$OPENHANDS_SNAPSHOT_COMMIT
+OPENHANDS_AGENT_SERVER_IMAGE=$OPENHANDS_AGENT_SERVER_IMAGE
+OPENHANDS_AUTOMATION_VERSION=$OPENHANDS_AUTOMATION_VERSION
+OPENHANDS_CANVAS_BASE_PATH=$OPENHANDS_CANVAS_BASE_PATH
 XIAOBAI_BRANCH=$XIAOBAI_BRANCH
 XIAOBAI_SOURCE_COMMIT=$XIAOBAI_COMMIT_RESOLVED
 XIAOBAI_COMMIT=$XIAOBAI_SNAPSHOT_COMMIT
@@ -198,3 +228,5 @@ printf 'xiaobai-source: %s (%s)\n' "$XIAOBAI_COMMIT_RESOLVED" "$XIAOBAI_BRANCH"
 printf 'xiaobai-snapshot: %s\n' "$XIAOBAI_SNAPSHOT_COMMIT"
 printf 'xiaoneng-source: %s (%s)\n' "$XIAONENG_COMMIT_RESOLVED" "$XIAONENG_BRANCH"
 printf 'xiaoneng-snapshot: %s\n' "$XIAONENG_SNAPSHOT_COMMIT"
+printf 'openhands-source: %s (%s)\n' "$OPENHANDS_COMMIT_RESOLVED" "$OPENHANDS_BRANCH"
+printf 'openhands-snapshot: %s\n' "$OPENHANDS_SNAPSHOT_COMMIT"

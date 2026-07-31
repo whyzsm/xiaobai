@@ -2,7 +2,8 @@ name: xiaobai-openhands
 
 x-workspace-volumes: &workspace-volumes
   - ${OPENHANDS_STATE_PATH:?OPENHANDS_STATE_PATH is required}:/home/openhands/.openhands
-  - ${XIAOBAI_WORKSPACE_PATH:?XIAOBAI_WORKSPACE_PATH is required}:/projects/xiaobai
+  - ${XIAOBAI_WORKSPACES_PATH:?XIAOBAI_WORKSPACES_PATH is required}:/projects
+  - ${XIAOBAI_BACKGROUNDS_PATH:?XIAOBAI_BACKGROUNDS_PATH is required}:/backgrounds:ro
   - ${XIAONENG_WORKSPACE_PATH:?XIAONENG_WORKSPACE_PATH is required}:/opt/xiaoneng:ro
   - ${OBSIDIAN_VAULT_PATH:?OBSIDIAN_VAULT_PATH is required}:/memory/obsidian
 
@@ -21,6 +22,32 @@ services:
       MEMORY_PROJECT_ID: xbaiProjectCode
     volumes: *workspace-volumes
 
+  xiaobai-control-plane:
+    image: ${XIAOBAI_CONTROL_PLANE_IMAGE:?XIAOBAI_CONTROL_PLANE_IMAGE is required}
+    build:
+      context: ${XIAOBAI_WORKSPACE_PATH:?XIAOBAI_WORKSPACE_PATH is required}
+      dockerfile: deploy/openhands/Dockerfile.control-plane
+    restart: unless-stopped
+    user: "${RUNTIME_UID:?RUNTIME_UID is required}:${RUNTIME_GID:?RUNTIME_GID is required}"
+    environment:
+      XIAOBAI_CONTROL_PLANE_HOST: 0.0.0.0
+      XIAOBAI_CONTROL_PLANE_PORT: 18002
+      XIAOBAI_DATA_ROOT: /data
+      XIAONENG_SOURCE_PATH: /source/xiaoneng
+      XIAOBAI_ALLOWED_ORIGINS: ${XIAOBAI_ALLOWED_ORIGINS:?XIAOBAI_ALLOWED_ORIGINS is required}
+    ports:
+      - "127.0.0.1:${XIAOBAI_CONTROL_PLANE_PORT:-18002}:18002"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:18002/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - ${XIAOBAI_WORKSPACES_PATH}:/data/workspaces
+      - ${XIAOBAI_BACKGROUNDS_PATH}:/data/backgrounds
+      - ${XIAOBAI_CONTROL_STATE_PATH:?XIAOBAI_CONTROL_STATE_PATH is required}:/data/state
+      - ${XIAONENG_WORKSPACE_PATH}:/source/xiaoneng:ro
+
   agent-canvas:
     image: ${OPENHANDS_IMAGE:?OPENHANDS_IMAGE is required}
     restart: unless-stopped
@@ -36,6 +63,9 @@ services:
       XIAOBAI_WORKSPACE_ROOT: /projects/xiaobai
       XIAONENG_ROOT: /opt/xiaoneng
       OBSIDIAN_VAULT_ROOT: /memory/obsidian
+    depends_on:
+      xiaobai-control-plane:
+        condition: service_healthy
     ports:
       - "${OPENHANDS_PORT:-8000}:8000"
     volumes: *workspace-volumes

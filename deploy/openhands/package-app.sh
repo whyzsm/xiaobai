@@ -53,6 +53,7 @@ for required in \
   "$PACKAGE_NAME/SHA256SUMS" \
   "$PACKAGE_NAME/artifacts/xiaobai.bundle" \
   "$PACKAGE_NAME/artifacts/xiaoneng.bundle" \
+  "$PACKAGE_NAME/artifacts/openhands.bundle" \
   "$PACKAGE_NAME/deploy/openhands/run.sh" \
   "$PACKAGE_NAME/deploy/openhands/stop.sh" \
   "$PACKAGE_NAME/deploy/openhands/.env.example"; do

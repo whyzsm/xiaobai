@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xiaobai.local/schemas/workspace.json",
+  "title": "Xiaobai managed workspace",
+  "type": "object",
+  "required": ["name", "slug", "source", "background"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$" },
+    "defaultBranch": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "source": {
+      "oneOf": [
+        { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "empty" } } },
+        { "type": "object", "required": ["type", "repositoryUrl"], "additionalProperties": false, "properties": { "type": { "const": "git" }, "repositoryUrl": { "type": "string", "minLength": 1, "maxLength": 2048 }, "branch": { "type": "string", "minLength": 1, "maxLength": 255 } } },
+        { "type": "object", "required": ["type", "path"], "additionalProperties": false, "properties": { "type": { "const": "existing" }, "path": { "type": "string", "minLength": 1, "maxLength": 4096 } } }
+      ]
+    },
+    "background": {
+      "oneOf": [
+        { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "enum": ["none", "xiaoneng"] } } },
+        { "type": "object", "required": ["type", "name", "repositoryUrl"], "additionalProperties": false, "properties": { "type": { "const": "git" }, "name": { "type": "string", "minLength": 1, "maxLength": 120 }, "repositoryUrl": { "type": "string", "minLength": 1, "maxLength": 2048 }, "ref": { "type": "string", "minLength": 1, "maxLength": 255 } } },
+        { "type": "object", "required": ["type", "name", "path"], "additionalProperties": false, "properties": { "type": { "const": "existing" }, "name": { "type": "string", "minLength": 1, "maxLength": 120 }, "path": { "type": "string", "minLength": 1, "maxLength": 4096 } } }
+      ]
+    }
+  }
+}

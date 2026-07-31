@@ -46,3 +46,8 @@ repositories:
     localPathKey: scan
     mount: ../../.local/t-max/mounts/repos/scan
     remote: http://10.10.103.4/T-MAX/max-scan-ui
+  - id: emt
+    name: emt
+    localPathKey: emt
+    mount: ../../.local/t-max/mounts/repos/emt
+    remote: http://git.ane56-ins.com/customer/emt-ui

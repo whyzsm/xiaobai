@@ -1,0 +1,22 @@
+FROM node:20-bookworm-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.json ./
+RUN npm ci
+
+COPY loop-engineering ./loop-engineering
+RUN npm run build \
+  && npm prune --omit=dev
+
+ENV XIAOBAI_CONTROL_PLANE_HOST=0.0.0.0
+ENV XIAOBAI_CONTROL_PLANE_PORT=18002
+ENV XIAOBAI_DATA_ROOT=/data
+
+EXPOSE 18002
+
+CMD ["node", "dist/loop-engineering/packages/control-plane/src/server.js"]
