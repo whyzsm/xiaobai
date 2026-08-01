@@ -21,6 +21,10 @@ workspace/projects/*/.loop/local.paths.yaml
 # AI assistant local working memory (not project code — keep out of remotes)
 .workbuddy/
 
+# Local runtime data & deploy artifacts (agent state, .env, generated output — keep out of remotes)
+.xiaobai-data/
+deploy/
+
 # Executables
 *.swf
 *.air
