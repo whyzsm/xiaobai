@@ -1,0 +1,47 @@
+{
+  "nodes": [
+    {
+      "id": "document:workspace/memory/loops/morning-triage/decisions.md",
+      "type": "document",
+      "name": "decisions.md",
+      "filePath": "workspace/memory/loops/morning-triage/decisions.md",
+      "summary": "作为 morning-triage Loop 的决策记录页，当前尚未记录任何决策。",
+      "tags": ["documentation", "memory", "decision-log", "morning-triage"],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workspace/memory/loops/morning-triage/inbox.md",
+      "type": "document",
+      "name": "inbox.md",
+      "filePath": "workspace/memory/loops/morning-triage/inbox.md",
+      "summary": "保存 morning-triage Loop 等待人工决策的事项，当前没有待处理决策。",
+      "tags": ["documentation", "memory", "human-inbox", "morning-triage"],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workspace/memory/loops/morning-triage/state.md",
+      "type": "document",
+      "name": "state.md",
+      "filePath": "workspace/memory/loops/morning-triage/state.md",
+      "summary": "记录 morning-triage Loop 的当前焦点、最近模拟运行、三个开放发现和后续真实执行缺口。",
+      "tags": ["documentation", "memory", "runtime-state", "morning-triage", "simulation"],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "document:workspace/memory/loops/morning-triage/state.md",
+      "target": "document:workspace/memory/loops/morning-triage/decisions.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/memory/loops/morning-triage/state.md",
+      "target": "document:workspace/memory/loops/morning-triage/inbox.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}

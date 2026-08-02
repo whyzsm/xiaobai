@@ -1,0 +1,72 @@
+{
+  "nodes": [
+    {
+      "id": "document:loop-engineering/docs/architecture.md",
+      "type": "document",
+      "name": "architecture.md",
+      "filePath": "loop-engineering/docs/architecture.md",
+      "summary": "概述 Loop Engineering 以职责边界拆分引擎与 workspace 的核心架构、标准 Loop 合约及生成评审分离、只读 dry-run、磁盘记忆和人工门禁等安全默认值。",
+      "tags": ["documentation", "architecture", "responsibility-boundary", "safety-defaults"],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:loop-engineering/docs/frontend-platform-standards.md",
+      "type": "document",
+      "name": "frontend-platform-standards.md",
+      "filePath": "loop-engineering/docs/frontend-platform-standards.md",
+      "summary": "定义平台级前端目录、命名、类型、框架、样式、可访问性、性能、安全、Agent 交付与验收规则，允许项目 Skill 收窄但不得削弱安全和可验证性。",
+      "tags": ["documentation", "frontend-standards", "accessibility", "engineering-governance"],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:loop-engineering/docs/obsidian-memory-architecture.md",
+      "type": "document",
+      "name": "obsidian-memory-architecture.md",
+      "filePath": "loop-engineering/docs/obsidian-memory-architecture.md",
+      "summary": "定义 Obsidian 持久记忆的目录协议、L0-L5 分层、frontmatter 与机器索引、离线检索、上下文装配、案例晋升、预览优先写入和恢复策略。",
+      "tags": ["documentation", "obsidian-memory", "knowledge-index", "safety-design"],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:loop-engineering/docs/obsidian-memory-migration.md",
+      "type": "document",
+      "name": "obsidian-memory-migration.md",
+      "filePath": "loop-engineering/docs/obsidian-memory-migration.md",
+      "summary": "提供把 workspace/memory 迁移到 Obsidian 项目目录的配置、复制、建索引、校验、回滚、人工编辑与恢复步骤。",
+      "tags": ["documentation", "migration-guide", "obsidian-memory", "recovery"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:loop-engineering/docs/product-requirement-platform-standards.md",
+      "type": "document",
+      "name": "product-requirement-platform-standards.md",
+      "filePath": "loop-engineering/docs/product-requirement-platform-standards.md",
+      "summary": "定义需求澄清、伪需求识别、最小 PRD、用户故事、优先级、指标、风险、Sprint、发布说明和 Agent 交付的可验证平台规则。",
+      "tags": ["documentation", "product-requirements", "prd", "acceptance-criteria"],
+      "complexity": "complex"
+    }
+  ],
+  "edges": [
+    {
+      "source": "document:loop-engineering/docs/frontend-platform-standards.md",
+      "target": "document:loop-engineering/docs/product-requirement-platform-standards.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:loop-engineering/docs/obsidian-memory-architecture.md",
+      "target": "document:loop-engineering/docs/obsidian-memory-migration.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:loop-engineering/docs/obsidian-memory-architecture.md",
+      "target": "document:docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}

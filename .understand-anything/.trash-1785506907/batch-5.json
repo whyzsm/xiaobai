@@ -1,0 +1,70 @@
+{
+  "nodes": [
+    {
+      "id": "config:loop-engineering/templates/evaluator.agent.yaml",
+      "type": "config",
+      "name": "evaluator.agent.yaml",
+      "filePath": "loop-engineering/templates/evaluator.agent.yaml",
+      "summary": "提供持怀疑立场的独立 Evaluator 模板，要求直接检查 diff、测试与项目 Skill，并仅在证据充分时接受变更。",
+      "tags": ["configuration", "agent-template", "independent-review", "verification"],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:loop-engineering/templates/fix-bug.loop.yaml",
+      "type": "config",
+      "name": "fix-bug.loop.yaml",
+      "filePath": "loop-engineering/templates/fix-bug.loop.yaml",
+      "summary": "提供手动修复失败测试的 Loop 模板，从 CI 与 Memory 发现问题，为每项 finding 规划隔离 worktree，并要求独立测试评审和合并前人工确认。",
+      "tags": ["configuration", "loop-template", "bug-fix", "human-gate"],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:loop-engineering/templates/project.SKILL.md",
+      "type": "document",
+      "name": "project.SKILL.md",
+      "filePath": "loop-engineering/templates/project.SKILL.md",
+      "summary": "提供项目级 Skill 的最小模板，要求最小改动、保护公共契约、运行相关测试，并把敏感或破坏性操作升级到人工 inbox。",
+      "tags": ["documentation", "skill-template", "project-policy", "safety"],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:loop-engineering/templates/triage.loop.yaml",
+      "type": "config",
+      "name": "triage.loop.yaml",
+      "filePath": "loop-engineering/templates/triage.loop.yaml",
+      "summary": "提供每日晨间分诊 Loop 模板，从 CI、Issue、Commit 与 Memory 发现任务，规划隔离交付、独立评审、报告持久化、预算和合并人工门禁。",
+      "tags": ["configuration", "loop-template", "task-triage", "scheduled-workflow"],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "config:loop-engineering/templates/fix-bug.loop.yaml",
+      "target": "config:loop-engineering/templates/evaluator.agent.yaml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:loop-engineering/templates/triage.loop.yaml",
+      "target": "config:loop-engineering/templates/evaluator.agent.yaml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:loop-engineering/templates/evaluator.agent.yaml",
+      "target": "document:loop-engineering/templates/project.SKILL.md",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:loop-engineering/templates/fix-bug.loop.yaml",
+      "target": "config:loop-engineering/templates/triage.loop.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "nodes": [
+    {
+      "id": "document:docs/plans/2026-06-28-frontend-delivery-loop-v2.md",
+      "type": "document",
+      "name": "2026-06-28-frontend-delivery-loop-v2.md",
+      "filePath": "docs/plans/2026-06-28-frontend-delivery-loop-v2.md",
+      "summary": "规划把前端交付 Loop 从门禁编码式 v1 升级为显式 workflow.stages 阶段流，覆盖 Schema、引用校验、运行计划与语雀连接器 API 结构，并保留 v1 兼容。",
+      "tags": ["documentation", "implementation-plan", "frontend-delivery", "workflow-schema"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:docs/plans/2026-06-28-frontend-delivery-loop.md",
+      "type": "document",
+      "name": "2026-06-28-frontend-delivery-loop.md",
+      "filePath": "docs/plans/2026-06-28-frontend-delivery-loop.md",
+      "summary": "规划 v1 前端交付 Loop 的配置、项目 Skill、多 Loop 测试和设计门禁，使本地、对话或语雀需求在动态挂载仓中推进到 PR 就绪。",
+      "tags": ["documentation", "implementation-plan", "frontend-delivery", "design-gate"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "type": "document",
+      "name": "2026-06-28-obsidian-memory-implementation.md",
+      "filePath": "docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "summary": "以 TDD 清单规划并记录 Obsidian Memory 从协议、Schema、CLI、索引、检索、上下文、捕获晋升到端到端验收的完整实现，所有任务已标记完成。",
+      "tags": ["documentation", "implementation-plan", "obsidian-memory", "tdd"],
+      "complexity": "complex"
+    }
+  ],
+  "edges": [
+    {
+      "source": "document:docs/plans/2026-06-28-frontend-delivery-loop-v2.md",
+      "target": "document:docs/plans/2026-06-28-frontend-delivery-loop.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:docs/plans/2026-06-28-frontend-delivery-loop-v2.md",
+      "target": "config:loop-engineering/schemas/loop.schema.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:docs/plans/2026-06-28-frontend-delivery-loop-v2.md",
+      "target": "config:loop-engineering/schemas/connector.schema.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:docs/plans/2026-06-28-frontend-delivery-loop.md",
+      "target": "config:workspace/loops/frontend-delivery.loop.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "target": "document:loop-engineering/docs/obsidian-memory-architecture.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "target": "config:loop-engineering/schemas/memory-index.schema.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "target": "config:loop-engineering/schemas/memory-note.schema.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}

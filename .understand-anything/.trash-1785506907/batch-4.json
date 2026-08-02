@@ -1,0 +1,104 @@
+{
+  "nodes": [
+    {
+      "id": "config:loop-engineering/schemas/agent.schema.json",
+      "type": "config",
+      "name": "agent.schema.json",
+      "filePath": "loop-engineering/schemas/agent.schema.json",
+      "summary": "约束 Agent 配置必须声明身份、角色、指令和模型偏好，并可选限制工具白名单；未知顶层字段被拒绝。",
+      "tags": ["configuration", "json-schema", "agent-spec", "validation"],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:loop-engineering/schemas/budget.schema.json",
+      "type": "config",
+      "name": "budget.schema.json",
+      "filePath": "loop-engineering/schemas/budget.schema.json",
+      "summary": "约束运行级与日级 token、成本、重试、并发和时长上限，以及预算超限后的动作、inbox 持久化和可选通知。",
+      "tags": ["configuration", "json-schema", "budget-control", "validation"],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:loop-engineering/schemas/connector.schema.json",
+      "type": "config",
+      "name": "connector.schema.json",
+      "filePath": "loop-engineering/schemas/connector.schema.json",
+      "summary": "约束 Connector 的能力、写权限、单次调用限额，并支持开放 config、认证环境变量引用和 mock 数据结构。",
+      "tags": ["configuration", "json-schema", "connector-spec", "permissions"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:loop-engineering/schemas/harness.schema.json",
+      "type": "config",
+      "name": "harness.schema.json",
+      "filePath": "loop-engineering/schemas/harness.schema.json",
+      "summary": "约束单次 Agent Harness 的工具允许/拒绝列表、上下文加载与字符预算、完成条件、失败策略和必需输出字段。",
+      "tags": ["configuration", "json-schema", "harness-spec", "execution-policy"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:loop-engineering/schemas/loop.schema.json",
+      "type": "config",
+      "name": "loop.schema.json",
+      "filePath": "loop-engineering/schemas/loop.schema.json",
+      "summary": "定义 Loop 的调度、发现、编排、handoff、生成、独立验证、持久化、预算、人工门禁及可选 workflow.stages 完整契约，并严格拒绝未声明字段。",
+      "tags": ["configuration", "json-schema", "loop-spec", "workflow-schema"],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:loop-engineering/schemas/memory-index.schema.json",
+      "type": "config",
+      "name": "memory-index.schema.json",
+      "filePath": "loop-engineering/schemas/memory-index.schema.json",
+      "summary": "定义 Obsidian Memory 机器索引的根路径、项目、笔记、案例、模式、标签、链接和警告结构，并约束可审计的笔记元数据与内容哈希。",
+      "tags": ["configuration", "json-schema", "memory-index", "knowledge-retrieval"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:loop-engineering/schemas/memory-note.schema.json",
+      "type": "config",
+      "name": "memory-note.schema.json",
+      "filePath": "loop-engineering/schemas/memory-note.schema.json",
+      "summary": "定义 Memory Markdown frontmatter 的标题、状态、类型、置信度和来源字段，同时允许人工笔记携带额外元数据。",
+      "tags": ["configuration", "json-schema", "memory-note", "frontmatter"],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "config:loop-engineering/schemas/loop.schema.json",
+      "target": "config:loop-engineering/schemas/agent.schema.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:loop-engineering/schemas/loop.schema.json",
+      "target": "config:loop-engineering/schemas/harness.schema.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:loop-engineering/schemas/loop.schema.json",
+      "target": "config:loop-engineering/schemas/connector.schema.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:loop-engineering/schemas/loop.schema.json",
+      "target": "config:loop-engineering/schemas/budget.schema.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:loop-engineering/schemas/memory-index.schema.json",
+      "target": "config:loop-engineering/schemas/memory-note.schema.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# .understandignore - patterns excluded from knowledge-graph analysis
+# Syntax follows .gitignore conventions.
+
+# Built-in exclusions already cover node_modules, .git, dist, build,
+# coverage, lock files, generated assets, and editor metadata.
+
+# Machine-local mounts and paths must never enter the repository graph.
+workspace/.local/
+workspace/workspace.local.yaml
+workspace/projects/*/.loop/local.paths.yaml
+
+# Generated or tool-local state is not part of the maintained architecture.
+workspace/reports/simulations/
+.workbuddy/
+.understand-anything/
+
+# Keep source, schemas, tests, docs, examples, and scripts in scope.
+# Uncomment only if a narrower graph is explicitly desired.
+# loop-engineering/tests/
+# loop-engineering/docs/
+# docs/
+# data/

@@ -1,0 +1,148 @@
+{
+  "nodes": [
+    {
+      "id": "document:AGENTS.md",
+      "type": "document",
+      "name": "AGENTS.md",
+      "filePath": "AGENTS.md",
+      "summary": "定义 Loop Engineering 仓库的中英双语协作规范、引擎与 workspace 边界、本机状态隔离、Memory 配置和人工确认门禁。它是仓库内 agent 行为与提交安全的最高级维护规则。",
+      "tags": ["documentation", "repository-governance", "safety-policy", "bilingual"],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "说明 Loop Engineering 确定性骨架的目标、运行链路、目录职责、CLI 命令、前端交付与 Obsidian Memory 工作流，并明确当前不调用真实 LLM 或创建 PR。",
+      "tags": ["documentation", "entry-point", "architecture", "operations"],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:SKILL.md",
+      "type": "document",
+      "name": "SKILL.md",
+      "filePath": "SKILL.md",
+      "summary": "规定仓级代码实现阶段的加载顺序、四项实现原则、验证门禁和交付说明，约束 generator、harness 与人工协作保持简洁、精准和可验证。",
+      "tags": ["documentation", "implementation-guideline", "agent-policy", "verification"],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "声明 Node.js 20 以上的私有 TypeScript 工程、Loop CLI 入口、构建测试与 dry-run 脚本，以及 AJV、YAML 和 TypeScript 依赖。",
+      "tags": ["configuration", "npm", "build-system", "cli"],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:tsconfig.json",
+      "type": "config",
+      "name": "tsconfig.json",
+      "filePath": "tsconfig.json",
+      "summary": "配置 Loop Engineering TypeScript 源码以严格模式编译为 ES2022 CommonJS，并把产物写入 dist 目录。",
+      "tags": ["configuration", "typescript", "build-system", "strict-mode"],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workbuddy-expert-skill-guide.md",
+      "type": "document",
+      "name": "workbuddy-expert-skill-guide.md",
+      "filePath": "workbuddy-expert-skill-guide.md",
+      "summary": "系统整理 WorkBuddy 专家包与 Skill 的结构、创建、校验、注册、协作、头像和存储规则，并强调其与仓内 YAML Loop/Agent 机制相互独立。",
+      "tags": ["documentation", "expert-package", "skill-authoring", "workbuddy"],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:专家团使用与模型说明.md",
+      "type": "document",
+      "name": "专家团使用与模型说明.md",
+      "filePath": "专家团使用与模型说明.md",
+      "summary": "说明 loop-review-team 专家团的成员分工、完整评审流程和模型继承限制，并解释专家团与四个独立专家之间的保留关系。",
+      "tags": ["documentation", "expert-team", "model-routing", "review-workflow"],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:专家评审团-项目评审报告.md",
+      "type": "document",
+      "name": "专家评审团-项目评审报告.md",
+      "filePath": "专家评审团-项目评审报告.md",
+      "summary": "汇总四角色对 Loop Engineering 骨架的 Agent 工作流、系统架构与风险评审，识别纸面门禁、双方言漂移、过度拆分和文档漂移，并给出优先级行动项。",
+      "tags": ["documentation", "architecture-review", "risk-assessment", "agent-governance"],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "document:AGENTS.md",
+      "target": "document:README.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "document:SKILL.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:package.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:tsconfig.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "document:SKILL.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:package.json",
+      "target": "config:tsconfig.json",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "document:workbuddy-expert-skill-guide.md",
+      "target": "document:专家团使用与模型说明.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:专家团使用与模型说明.md",
+      "target": "document:专家评审团-项目评审报告.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:专家评审团-项目评审报告.md",
+      "target": "document:README.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:专家评审团-项目评审报告.md",
+      "target": "document:AGENTS.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}
