@@ -28,6 +28,7 @@ context:
     - dynamic-mounted-repositories
     - frontend-master-design
     - repository-design-supplements
+    - xiaobai-delegation-plan
     - previous-memory
   maxCharacters: 24000
 completion:
@@ -42,6 +43,7 @@ completion:
     - code_changed_after_design_approval
     - tests_attempted
     - ui_smoke_attempted
+    - delegation_envelope_planned_when_applicable
     - pr_ready_summary_written
 failure:
   onRequirementIncomplete: persist-to-inbox
@@ -61,5 +63,6 @@ output:
     - changedFiles
     - testResult
     - uiQaResult
+    - delegationPlan
     - pullRequestPlan
     - riskAndRollback

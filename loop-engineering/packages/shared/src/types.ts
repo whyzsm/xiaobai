@@ -20,6 +20,7 @@ export interface LoopSpec {
   orchestrator?: {
     agent: string;
   };
+  delegation?: LoopDelegationSpec;
   handoff: {
     strategy: string;
     project: string;
@@ -66,6 +67,42 @@ export interface LoopWorkflowStage {
   requiredChecks?: string[];
   requiredBefore?: string[];
   outputs?: string[];
+}
+
+export type DelegationActivation = 'shadow' | 'active';
+
+export type DelegationExecutionType = 'unspecified' | 'local' | 'delegated';
+
+export type DelegationExecutionMode =
+  | 'MicroPatch'
+  | 'QuickPatch'
+  | 'TemplateAlign'
+  | 'PageScaffold'
+  | 'PageImplementation'
+  | 'ApiIntegration'
+  | 'TestAcceptance'
+  | 'DesignOnly'
+  | 'RetroOnly'
+  | 'FullWorkflow';
+
+export interface LoopDelegationSpec {
+  executionType: 'delegated';
+  activation: DelegationActivation;
+  providerRef: string;
+  project: string;
+  defaultMode: DelegationExecutionMode;
+  excludedModes: DelegationExecutionMode[];
+  envelope: {
+    artifact: string;
+    schema: string;
+    wraps: string;
+  };
+  performanceBudget: {
+    implementationReadyMetric: string;
+    releaseReadyMetric: string;
+    humanWaitMetric: string;
+    maxP50OverheadPercent: number;
+  };
 }
 
 export interface DiscoverySource {
@@ -305,6 +342,42 @@ export interface OrchestratorPlan {
   };
 }
 
+export interface DelegationTaskPlan {
+  taskId: string;
+  mode: DelegationExecutionMode;
+  providerRef: string;
+  activation: DelegationActivation;
+  envelopeArtifact: string;
+  envelopeSchema: string;
+  wraps: string;
+  xiaobaiOwns: string[];
+  xiaonengOwns: string[];
+}
+
+export interface DelegationPlan {
+  execution: {
+    type: DelegationExecutionType;
+    activation: DelegationActivation;
+    defaultMode: DelegationExecutionMode;
+  };
+  providerRef: string;
+  project: {
+    id: string;
+    backgroundId?: string;
+    repositoryId?: string;
+  };
+  eligible: boolean;
+  reason: string;
+  excludedModes: DelegationExecutionMode[];
+  tasks: DelegationTaskPlan[];
+  metrics: {
+    implementationReady: string;
+    releaseReady: string;
+    humanWait: string;
+    maxP50OverheadPercent: number;
+  };
+}
+
 export interface WorkflowStagePlan {
   id: string;
   kind: string;
@@ -355,6 +428,7 @@ export interface RuntimePlan {
   };
   humanGate: HumanGatePlan;
   workflow?: WorkflowPlan;
+  delegation?: DelegationPlan;
   memoryContext?: {
     indexPath: string;
     included: Array<{

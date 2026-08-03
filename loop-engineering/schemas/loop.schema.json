@@ -61,6 +61,58 @@
         "agent": { "type": "string", "minLength": 1 }
       }
     },
+    "delegation": {
+      "type": "object",
+      "required": [
+        "executionType",
+        "activation",
+        "providerRef",
+        "project",
+        "defaultMode",
+        "excludedModes",
+        "envelope",
+        "performanceBudget"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "executionType": { "const": "delegated" },
+        "activation": { "enum": ["shadow", "active"] },
+        "providerRef": { "type": "string", "minLength": 1 },
+        "project": { "type": "string", "minLength": 1 },
+        "defaultMode": { "$ref": "#/$defs/delegationExecutionMode" },
+        "excludedModes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/delegationExecutionMode" }
+        },
+        "envelope": {
+          "type": "object",
+          "required": ["artifact", "schema", "wraps"],
+          "additionalProperties": false,
+          "properties": {
+            "artifact": { "type": "string", "minLength": 1 },
+            "schema": { "type": "string", "minLength": 1 },
+            "wraps": { "type": "string", "minLength": 1 }
+          }
+        },
+        "performanceBudget": {
+          "type": "object",
+          "required": [
+            "implementationReadyMetric",
+            "releaseReadyMetric",
+            "humanWaitMetric",
+            "maxP50OverheadPercent"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "implementationReadyMetric": { "type": "string", "minLength": 1 },
+            "releaseReadyMetric": { "type": "string", "minLength": 1 },
+            "humanWaitMetric": { "type": "string", "minLength": 1 },
+            "maxP50OverheadPercent": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
     "handoff": {
       "type": "object",
       "required": ["strategy", "project", "worktreeRoot", "branchTemplate"],
@@ -152,6 +204,20 @@
     }
   },
   "$defs": {
+    "delegationExecutionMode": {
+      "enum": [
+        "MicroPatch",
+        "QuickPatch",
+        "TemplateAlign",
+        "PageScaffold",
+        "PageImplementation",
+        "ApiIntegration",
+        "TestAcceptance",
+        "DesignOnly",
+        "RetroOnly",
+        "FullWorkflow"
+      ]
+    },
     "workflowStage": {
       "type": "object",
       "required": ["id", "kind"],

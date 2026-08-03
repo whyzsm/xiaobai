@@ -4,8 +4,23 @@ import { readdir } from 'node:fs/promises';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson } from '../packages/shared/src/fs';
+import type { DelegationExecutionMode, DelegationExecutionType } from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
+
+const delegationExecutionTypes = new Set(['local', 'delegated']);
+const delegationExecutionModes = new Set([
+  'MicroPatch',
+  'QuickPatch',
+  'TemplateAlign',
+  'PageScaffold',
+  'PageImplementation',
+  'ApiIntegration',
+  'TestAcceptance',
+  'DesignOnly',
+  'RetroOnly',
+  'FullWorkflow'
+]);
 
 interface CliOptions {
   command: string;
@@ -16,6 +31,8 @@ interface CliOptions {
   targetRepository?: string;
   targetCwd?: string;
   targetRemote?: string;
+  executionType?: DelegationExecutionType;
+  executionMode?: DelegationExecutionMode;
   rest: string[];
 }
 
@@ -75,7 +92,9 @@ async function main(argv: string[]): Promise<void> {
       targetProject: options.targetProject,
       targetRepository: options.targetRepository,
       targetCwd: options.targetCwd,
-      targetRemote: options.targetRemote
+      targetRemote: options.targetRemote,
+      executionType: options.executionType,
+      executionMode: options.executionMode
     });
     if (options.json) {
       process.stdout.write(formatJson(plan));
@@ -152,6 +171,20 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--target-remote') {
       options.targetRemote = requireValue(rest, index, arg);
       index += 1;
+    } else if (arg === '--execution-type') {
+      const value = requireValue(rest, index, arg);
+      if (!delegationExecutionTypes.has(value)) {
+        throw new Error(`Invalid value for ${arg}: ${value}`);
+      }
+      options.executionType = value as DelegationExecutionType;
+      index += 1;
+    } else if (arg === '--execution-mode') {
+      const value = requireValue(rest, index, arg);
+      if (!delegationExecutionModes.has(value)) {
+        throw new Error(`Invalid value for ${arg}: ${value}`);
+      }
+      options.executionMode = value as DelegationExecutionMode;
+      index += 1;
     } else if (arg === '--json') {
       options.json = true;
     } else {
@@ -204,6 +237,14 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
       process.stdout.write(`- ${stage.id} [${stage.kind}, ${stage.gate}, ${stage.status}]\n`);
     }
   }
+  if (plan.delegation) {
+    process.stdout.write(
+      `Delegation: ${plan.delegation.execution.activation} ${plan.delegation.providerRef}, execution: ${plan.delegation.execution.type}, eligible: ${plan.delegation.eligible}, tasks: ${plan.delegation.tasks.length}\n`
+    );
+    process.stdout.write(
+      `Delegation mode: ${plan.delegation.execution.defaultMode}, excluded: ${plan.delegation.excludedModes.join(', ')}\n`
+    );
+  }
   process.stdout.write(`Memory writes: ${plan.persistence.plannedWrites.join(', ')}\n`);
 }
 
@@ -226,7 +267,7 @@ function printSimulation(result: Awaited<ReturnType<SimulationRuntime['simulate'
 function printHelp(): void {
   process.stdout.write(`Usage:
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
-  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
+  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--execution-type local|delegated] [--execution-mode mode] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
 `);

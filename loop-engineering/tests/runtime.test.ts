@@ -79,6 +79,16 @@ test('frontend delivery loop gates design approval before implementation', async
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
+  assert.equal(plan.delegation?.eligible, false);
+  assert.equal(plan.delegation?.execution.type, 'unspecified');
+  assert.equal(plan.delegation?.execution.activation, 'shadow');
+  assert.equal(plan.delegation?.execution.defaultMode, 'PageImplementation');
+  assert.equal(plan.delegation?.providerRef, 'background:xiaoneng');
+  assert.equal(plan.delegation?.project.id, 't-max');
+  assert.equal(plan.delegation?.project.backgroundId, 'xiaoneng');
+  assert.equal(plan.delegation?.project.repositoryId, 'operateBusiness');
+  assert.deepEqual(plan.delegation?.tasks, []);
+  assert.deepEqual(plan.delegation?.excludedModes, ['MicroPatch']);
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
     true
@@ -111,11 +121,71 @@ test('frontend delivery loop gates design approval before implementation', async
     plan.generatorRuns.every((run) =>
       run.expectedOutput.includes('masterDesignPath') &&
       run.expectedOutput.includes('repositoryDesignPaths') &&
+      run.expectedOutput.includes('delegationPlan') &&
       run.expectedOutput.includes('humanDesignApproval') &&
       run.expectedOutput.includes('pullRequestPlan')
     ),
     true
   );
+});
+
+test('frontend delivery delegates to Xiaoneng only when explicitly requested', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetRepository: 'operateBusiness',
+    executionType: 'delegated',
+    executionMode: 'PageImplementation',
+    now: new Date('2026-06-28T00:00:00.000Z')
+  });
+
+  assert.equal(plan.delegation?.eligible, true);
+  assert.equal(plan.delegation?.execution.type, 'delegated');
+  assert.equal(plan.delegation?.execution.activation, 'shadow');
+  assert.equal(plan.delegation?.execution.defaultMode, 'PageImplementation');
+  assert.equal(plan.delegation?.providerRef, 'background:xiaoneng');
+  assert.equal(plan.delegation?.project.id, 't-max');
+  assert.equal(plan.delegation?.project.backgroundId, 'xiaoneng');
+  assert.equal(plan.delegation?.project.repositoryId, 'operateBusiness');
+  assert.equal(plan.delegation?.tasks.length, plan.handoff.length);
+  assert.equal(plan.delegation?.tasks.every((task) => task.mode === 'PageImplementation'), true);
+  assert.equal(plan.delegation?.tasks.every((task) => task.wraps === 'task-context-lock'), true);
+  assert.equal(
+    plan.delegation?.tasks.every((task) => task.xiaobaiOwns.includes('tmax-mount-resolution')),
+    true
+  );
+  assert.equal(
+    plan.delegation?.tasks.every((task) => task.xiaonengOwns.includes('release-gate')),
+    true
+  );
+});
+
+test('frontend delivery does not delegate MicroPatch mode to Xiaoneng background', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-delegation-micro-patch-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
+  await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+
+  const loopPath = await findLoopSpec(tempWorkspace, 'frontend-delivery');
+  const loopYaml = await readText(loopPath);
+  await writeFile(loopPath, loopYaml.replace('defaultMode: PageImplementation', 'defaultMode: MicroPatch'), 'utf8');
+
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot: tempWorkspace,
+    loopPath,
+    targetRepository: 'operateBusiness',
+    executionType: 'delegated',
+    executionMode: 'MicroPatch',
+    now: new Date('2026-06-28T00:00:00.000Z')
+  });
+
+  assert.equal(plan.delegation?.execution.type, 'delegated');
+  assert.equal(plan.delegation?.execution.defaultMode, 'MicroPatch');
+  assert.equal(plan.delegation?.providerRef, 'background:xiaoneng');
+  assert.equal(plan.delegation?.project.id, 't-max');
+  assert.equal(plan.delegation?.eligible, false);
+  assert.deepEqual(plan.delegation?.tasks, []);
 });
 
 test('frontend delivery exposes explicit workflow stages and yuque api shape', async () => {
@@ -188,6 +258,7 @@ test('frontend delivery routes harmony repository to harmony background', async 
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'harmony-wardrobe-context');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
+  assert.equal(plan.delegation, undefined);
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'harmony-wardrobe'), true);
   assert.equal(plan.context.skillPath, 'projects/harmony-wardrobe/SKILL.md');
 });
@@ -272,8 +343,28 @@ test('dry-run text output prints workflow stages', async () => {
   assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
   assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
+  assert.match(stdout, /Delegation: shadow background:xiaoneng, execution: unspecified, eligible: false, tasks: 0/);
+  assert.match(stdout, /Delegation mode: PageImplementation, excluded: MicroPatch/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
+});
+
+test('dry-run text output enables Xiaoneng delegation only with explicit flag', async () => {
+  const { stdout } = await execFileAsync('node', [
+    'dist/loop-engineering/cli/loop.js',
+    'dry-run',
+    '--loop',
+    'frontend-delivery',
+    '--target-repository',
+    'operateBusiness',
+    '--execution-type',
+    'delegated',
+    '--execution-mode',
+    'PageImplementation'
+  ]);
+
+  assert.match(stdout, /Delegation: shadow background:xiaoneng, execution: delegated, eligible: true, tasks: 2/);
+  assert.match(stdout, /Delegation mode: PageImplementation, excluded: MicroPatch/);
 });
 
 test('dry-run output shows loop work count from run log', async () => {
@@ -355,6 +446,9 @@ test('frontend delivery skills document dynamic repositories and design gates', 
   assert.match(skill, /human-design-approval/);
   assert.match(skill, /不得进入编码/);
   assert.match(skill, /must not enter implementation/);
+  assert.match(skill, /小能委托边界/);
+  assert.match(skill, /Xiaoneng Delegation Boundary/);
+  assert.match(skill, /xiaobai-delegation-envelope/);
 });
 
 test('harmony wardrobe project background is mounted as a standalone repository', async () => {

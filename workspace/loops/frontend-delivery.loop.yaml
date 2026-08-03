@@ -19,6 +19,23 @@ discovery:
       path: memory/loops/frontend-delivery/state.md
 orchestrator:
   agent: xiaobai.orchestrator.agent.yaml
+delegation:
+  executionType: delegated
+  activation: shadow
+  providerRef: background:xiaoneng
+  project: t-max
+  defaultMode: PageImplementation
+  excludedModes:
+    - MicroPatch
+  envelope:
+    artifact: xiaobai-delegation-envelope
+    schema: harness/contracts/runtime/xiaobai-delegation-envelope.schema.json
+    wraps: task-context-lock
+  performanceBudget:
+    implementationReadyMetric: implementationReady
+    releaseReadyMetric: releaseReady
+    humanWaitMetric: humanWait
+    maxP50OverheadPercent: 20
 handoff:
   strategy: one-worktree-per-target-repository
   project: t-max

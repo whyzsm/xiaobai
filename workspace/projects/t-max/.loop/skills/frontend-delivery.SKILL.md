@@ -42,6 +42,12 @@ V2 使用显式 `workflow.stages[]` 表达阶段顺序：
 - `pr-readiness` 表示 PR 材料就绪，不等于已经创建、推送或合并 PR。
 - 不要从 planned stage 推断已经创建分支、调用语雀、写目标仓或创建 PR。
 
+## 小能委托边界
+
+当 `execution.type=delegated`、`providerRef=background:xiaoneng`、`project.id=t-max` 且执行档位不是 `MicroPatch` 时，小白只生成 `xiaobai-delegation-envelope` 并保留项目识别、T-MAX 挂载、worktree、预算、人工授权、提交推送协调和 Obsidian Memory 的所有权；小能继续使用自己的 manifest、state-machine、页面门禁、Mango releaseGate 与复盘候选机制。
+
+`MicroPatch` 保持小白快路径，不进入小能委托；非 T-MAX 项目、HarmonyOS 项目、morning-triage 或没有 `background:xiaoneng` 的项目保持原行为。委托信封只包装任务上下文，不替换小能现有 `task-context-lock`。
+
 ## 设计方案必须包含
 
 - 页面布局
@@ -96,6 +102,12 @@ V2 uses explicit `workflow.stages[]` to express stage order:
 - V2 adds Yuque API configuration shape, not real API execution.
 - `pr-readiness` means PR material readiness, not a created, pushed, or merged PR.
 - Do not infer branch creation, Yuque fetch, target repository writes, or PR creation from a planned stage.
+
+## Xiaoneng Delegation Boundary
+
+When `execution.type=delegated`, `providerRef=background:xiaoneng`, `project.id=t-max`, and the execution mode is not `MicroPatch`, Xiaobai only creates the `xiaobai-delegation-envelope` and keeps ownership of project identification, T-MAX mounts, worktrees, budget, human authorization, git ship coordination, and Obsidian Memory. Xiaoneng continues to use its own manifest, state-machine, page gates, Mango releaseGate, and retrospective candidate flow.
+
+`MicroPatch` stays on the Xiaobai fast path and does not enter Xiaoneng delegation. Non-T-MAX projects, HarmonyOS projects, morning-triage, and projects without `background:xiaoneng` keep their existing behavior. The delegation envelope wraps task context only; it does not replace Xiaoneng's existing `task-context-lock`.
 
 ## Required Design Content
 

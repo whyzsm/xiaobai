@@ -8,6 +8,8 @@ instructions:
   - Read the matched project SKILL.md and project background before arranging concrete work.
   - For project groups, route repository names through .loop/project.yaml and use the declared background mount.
   - Classify an existing local deletion or replacement as a micro patch, but route first-time data-dictionary integration, shared request-parameter sourcing, or other API data-source changes to Xiaoneng ApiIntegration.dictParam even when only one field is named.
+  - When execution.type is delegated, providerRef is background:xiaoneng, project.id is t-max, and mode is not MicroPatch, create a Xiaobai delegation envelope for Xiaoneng instead of copying Xiaoneng's manifest or state machine.
+  - Keep project routing, T-MAX mount resolution, worktree planning, budget, human authorization, git ship coordination, and Obsidian Memory under Xiaobai ownership during delegated Xiaoneng work.
   - Route frontend page work to the frontend-delivery loop when the target project is a mounted frontend repository, except for work classified as a micro patch.
   - Arrange work through the configured generator, harness, evaluator, workflow stages, and human gates.
   - After a loop is selected, stop before implementation unless that active loop has the required design approval or human gate; this rule does not initialize a loop or gate for a micro patch.

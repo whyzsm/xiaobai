@@ -12,6 +12,9 @@ import { Scheduler } from '../../scheduler/src/scheduler';
 import { readYamlFile } from '../../shared/src/fs';
 import {
   AgentSpec,
+  DelegationExecutionMode,
+  DelegationExecutionType,
+  DelegationPlan,
   LoopSpec,
   OrchestratorPlan,
   ProjectRoutePlan,
@@ -35,6 +38,8 @@ export interface RuntimeOptions {
   targetRepository?: string;
   targetCwd?: string;
   targetRemote?: string;
+  executionType?: DelegationExecutionType;
+  executionMode?: DelegationExecutionMode;
 }
 
 export class LoopRuntime {
@@ -120,6 +125,7 @@ export class LoopRuntime {
       },
       humanGate: humanGate.plan(),
       workflow: buildWorkflowPlan(loop),
+      delegation: buildDelegationPlan(loop, projectRoute, worktrees, options.executionType, options.executionMode),
       memoryContext
     };
   }
@@ -260,6 +266,89 @@ function buildWorkflowPlan(loop: LoopSpec): WorkflowPlan | undefined {
       requiredBefore: stage.requiredBefore ?? [],
       outputs: stage.outputs ?? []
     }))
+  };
+}
+
+function buildDelegationPlan(
+  loop: LoopSpec,
+  projectRoute: ResolvedProjectRoute,
+  worktrees: RuntimePlan['handoff'],
+  requestedExecutionType: DelegationExecutionType = 'unspecified',
+  executionMode?: DelegationExecutionMode
+): DelegationPlan | undefined {
+  const spec = loop.delegation;
+  if (!spec) {
+    return undefined;
+  }
+
+  const backgroundId = projectRoute.project.background?.id;
+  const expectedProviderRef = backgroundId ? `background:${backgroundId}` : undefined;
+  const executionType = requestedExecutionType;
+  const selectedMode = executionMode ?? spec.defaultMode;
+  if (projectRoute.project.id !== spec.project) {
+    return undefined;
+  }
+
+  const eligible =
+    executionType === 'delegated' &&
+    spec.executionType === 'delegated' &&
+    projectRoute.project.id === spec.project &&
+    spec.providerRef === expectedProviderRef &&
+    !spec.excludedModes.includes(selectedMode);
+
+  return {
+    execution: {
+      type: executionType,
+      activation: spec.activation,
+      defaultMode: selectedMode
+    },
+    providerRef: spec.providerRef,
+    project: {
+      id: projectRoute.project.id,
+      backgroundId,
+      repositoryId: projectRoute.repository?.id
+    },
+    eligible,
+    reason: eligible
+      ? 'execution.type=delegated, providerRef matches project background, project.id matches, and mode is not excluded'
+      : 'delegation is passive unless execution.type is explicitly delegated and the resolved project, provider, and mode are allowed',
+    excludedModes: spec.excludedModes,
+    tasks: eligible
+      ? worktrees.map((worktree) => ({
+          taskId: worktree.taskId,
+          mode: selectedMode,
+          providerRef: spec.providerRef,
+          activation: spec.activation,
+          envelopeArtifact: spec.envelope.artifact,
+          envelopeSchema: spec.envelope.schema,
+          wraps: spec.envelope.wraps,
+          xiaobaiOwns: [
+            'project-routing',
+            'tmax-mount-resolution',
+            'worktree',
+            'budget',
+            'human-authorization',
+            'git-ship-coordination',
+            'obsidian-memory'
+          ],
+          xiaonengOwns: [
+            'execution-mode-routing',
+            'component-preflight',
+            'page-structure',
+            'implementation',
+            'api-integration',
+            'backtracking',
+            'release-gate',
+            'retro-candidates'
+          ]
+        }))
+      : [],
+    metrics: {
+      implementationReady: spec.performanceBudget.implementationReadyMetric,
+      releaseReady: spec.performanceBudget.releaseReadyMetric,
+      humanWait: spec.performanceBudget.humanWaitMetric,
+      maxP50OverheadPercent: spec.performanceBudget.maxP50OverheadPercent
+    }
   };
 }
 
