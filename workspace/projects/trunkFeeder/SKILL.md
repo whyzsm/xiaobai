@@ -24,6 +24,7 @@
 6. 不要提交 `.loop/local.paths.yaml`、`workspace/.local/` 软链接或外部仓库内容。
 7. 涉及接口数据来源、跨页契约、依赖升级、构建入口、发布配置或破坏性文件操作时，先停在人工确认。
 8. 小改快路径只做用户点名的最小改动，验证优先使用 `rg` 回查、`git diff --check` 和目标文件级 lint 或语法检查。
+9. `trunkFeeder-ui` 默认已有用户启动的开发服务。Agent 禁止执行 `npm run start`、`yarn start`、`umi dev`、`npm run build`、`yarn build` 等启动或编译命令；只允许修改代码和执行静态检查，页面验证必须使用用户当前已经启动的地址。若确需停止、重启或执行构建，必须先获得用户明确授权。
 
 ## English
 
@@ -49,3 +50,4 @@ Persist the `trunkFeeder` project context in this loop workspace and bind it to 
 6. Do not commit `.loop/local.paths.yaml`, `workspace/.local/` symlinks, or external repository contents.
 7. Stop for human confirmation before changing API data sources, cross-page contracts, dependencies, build entries, release configuration, or destructive file operations.
 8. The micro patch fast path applies only the smallest user-named change, with verification focused on `rg` rechecks, `git diff --check`, and target-file lint or syntax checks.
+9. `trunkFeeder-ui` is assumed to have a development service already started by the user. The Agent must not run `npm run start`, `yarn start`, `umi dev`, `npm run build`, or `yarn build`, or equivalent startup/build commands. It may only modify code and run static checks; page verification must use the address currently started by the user. Stopping, restarting, or running a build requires explicit user authorization first.
