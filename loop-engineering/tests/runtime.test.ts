@@ -192,6 +192,23 @@ test('frontend delivery routes harmony repository to harmony background', async 
   assert.equal(plan.context.skillPath, 'projects/harmony-wardrobe/SKILL.md');
 });
 
+test('frontend delivery routes trunkFeeder-ui repository to trunkFeeder background', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetRepository: 'trunkFeeder-ui',
+    now: new Date('2026-06-28T00:00:00.000Z')
+  });
+
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 'trunkFeeder');
+  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'trunkFeeder');
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'trunkFeeder-ui');
+  assert.equal(plan.handoff.every((handoff) => handoff.project === 'trunkFeeder'), true);
+  assert.equal(plan.context.skillPath, 'projects/trunkFeeder/SKILL.md');
+});
+
 test('frontend delivery routes target remote to harmony background', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const plan = await new LoopRuntime().dryRun({
@@ -390,6 +407,43 @@ test('harmony wardrobe project background is mounted as a standalone repository'
   const readme = await readText(path.join(projectRoot, 'README.md'));
   assert.match(readme, /个人衣橱柜管理 app/);
   assert.match(readme, /workspace\/\.local\/harmony-wardrobe\/mounts\/repos\/harmonyWardrobe/);
+});
+
+test('trunkFeeder project background mounts skill folder and trunkFeeder-ui repository', async () => {
+  const projectRoot = path.join(workspaceRoot, 'projects', 'trunkFeeder');
+  const project = await readYamlFile<{
+    kind: string;
+    id: string;
+    background: { id: string; name: string; localPathKey: string; mount: string };
+    repositories: Array<{ id: string; localPathKey: string; mount: string; remote: string }>;
+  }>(path.join(projectRoot, '.loop', 'project.yaml'));
+
+  assert.equal(project.kind, 'ProjectGroup');
+  assert.equal(project.id, 'trunkFeeder');
+  assert.equal(project.background.id, 'trunkFeeder');
+  assert.equal(project.background.name, 'trunkFeeder');
+  assert.equal(project.background.localPathKey, 'trunkFeeder');
+  assert.equal(project.repositories.length, 1);
+  assert.equal(project.repositories[0].id, 'trunkFeeder-ui');
+  assert.equal(project.repositories[0].localPathKey, 'trunkFeeder-ui');
+  assert.equal(project.repositories[0].remote, 'http://git.ane56-ins.com/T-MAX/trunkFeeder-ui');
+  assert.match(project.background.mount, /mounts\/background\/trunkFeeder$/);
+  assert.match(project.repositories[0].mount, /mounts\/repos\/trunkFeeder-ui$/);
+
+  const packageJson = await readYamlFile<{ scripts: Record<string, string> }>(path.join(repoRoot, 'package.json'));
+  assert.equal(packageJson.scripts['mount:trunkFeeder'], 'node workspace/projects/trunkFeeder/scripts/mount-local.mjs');
+
+  const localPathsExample = await readText(path.join(projectRoot, '.loop', 'local.paths.yaml.example'));
+  assert.match(localPathsExample, /trunkFeeder-ui\/skill/);
+  assert.match(localPathsExample, /trunkFeeder-ui/);
+
+  const skill = await readText(path.join(projectRoot, 'SKILL.md'));
+  assert.match(skill, /项目背景名称：`trunkFeeder`/);
+  assert.match(skill, /mount:trunkFeeder/);
+
+  const readme = await readText(path.join(projectRoot, 'README.md'));
+  assert.match(readme, /trunkFeeder-ui\/skill/);
+  assert.match(readme, /workspace\/\.local\/trunkFeeder\/mounts\/repos\/trunkFeeder-ui/);
 });
 
 test('simulation writes report, memory, and knowledge artifacts', async () => {
