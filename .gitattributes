@@ -1,0 +1,65 @@
+# Technical tags / 技术标签
+# - typescript: Loop runtime, CLI, packages, and tests.
+# - nodejs-npm: Node.js scripts, package metadata, and npm workflows.
+# - yaml-config: loop, agent, connector, budget, harness, and workspace configs.
+# - json-schema: runtime schemas, package metadata, and generated indexes.
+# - markdown-docs: README, AGENTS, SKILL, docs, plans, and project knowledge.
+# - memory-jsonl: append-only memory, metrics, findings, and run logs.
+# - knowledge-graph: Understand-generated code graph and intermediate artifacts.
+# - github-linguist: repository language statistics and generated/vendored boundaries.
+
+# Capability tags / 能力标签
+# - agent-orchestration: xiaobai orchestrator, agents, harnesses, and loop workflows.
+# - loop-runtime: reusable loop execution runtime and CLI entrypoints.
+# - memory-management: memory capture, indexing, search, context loading, and audit checkpoints.
+# - connector-integration: GitHub, Jira, Slack, Yuque, and requirement input connectors.
+# - budget-governance: budget guardrails, cost controls, and workflow budget configs.
+# - evaluator-gates: independent evaluator agents, frontend review, and delivery gates.
+# - simulation-dry-run: dry-run, simulation runtime, and report outputs.
+# - project-registry: workspace project metadata, project skills, and local mount templates.
+# - worktree-management: branch/worktree operation support for target repositories.
+# - code-understanding: generated knowledge graph, code architecture analysis, and onboarding support.
+
+# Text normalization / 文本换行归一
+* text=auto eol=lf
+*.ts text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf linguist-documentation
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Source code / 源码
+loop-engineering/**/*.ts linguist-language=TypeScript
+loop-engineering/tests/**/*.ts linguist-language=TypeScript
+workspace/projects/**/scripts/*.mjs linguist-language=JavaScript
+
+# Config and schema / 配置与 schema
+loop-engineering/schemas/*.json linguist-language=JSON
+workspace/**/*.yaml linguist-language=YAML
+workspace/**/*.yml linguist-language=YAML
+
+# Documentation / 文档
+README.md linguist-documentation
+AGENTS.md linguist-documentation
+SKILL.md linguist-documentation
+docs/** linguist-documentation
+loop-engineering/docs/** linguist-documentation
+workspace/projects/**/*.md linguist-documentation
+data/cases/**/*.md linguist-documentation
+data/index/**/*.md linguist-documentation
+
+# Generated, local, and vendored content / 生成物、本机状态与第三方依赖
+dist/** linguist-generated=true
+coverage/** linguist-generated=true
+node_modules/** linguist-vendored=true
+package-lock.json linguist-generated=true
+.understand-anything/** linguist-generated=true
+.workbuddy/** linguist-generated=true
+workspace/.local/** linguist-generated=true
+workspace/reports/simulations/** linguist-generated=true
+workspace/memory/**/*.jsonl linguist-generated=true
+data/index/*.json linguist-generated=true
