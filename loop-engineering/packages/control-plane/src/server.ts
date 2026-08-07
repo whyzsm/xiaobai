@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import { AnySchema, ErrorObject } from 'ajv';
@@ -18,13 +19,17 @@ export function startControlPlaneServer(options: {
   dataRoot?: string;
   xiaonengSourcePath?: string;
   allowedOrigins?: string[];
+  runtimePathMode?: 'agent' | 'host';
+  apiKey?: string;
 } = {}) {
   const port = options.port ?? readPort(process.env.XIAOBAI_CONTROL_PLANE_PORT);
   const host = options.host ?? readHost(process.env.XIAOBAI_CONTROL_PLANE_HOST);
   const dataRoot = path.resolve(options.dataRoot ?? process.env.XIAOBAI_DATA_ROOT ?? '.xiaobai-data');
   const xiaonengSourcePath = options.xiaonengSourcePath ?? process.env.XIAONENG_SOURCE_PATH;
   const allowedOrigins = options.allowedOrigins ?? readAllowedOrigins(process.env.XIAOBAI_ALLOWED_ORIGINS);
-  const controlPlane = new WorkspaceControlPlane({ dataRoot, xiaonengSourcePath });
+  const runtimePathMode = options.runtimePathMode ?? readRuntimePathMode(process.env.XIAOBAI_RUNTIME_PATH_MODE);
+  const apiKey = options.apiKey ?? process.env.XIAOBAI_CONTROL_PLANE_API_KEY;
+  const controlPlane = new WorkspaceControlPlane({ dataRoot, xiaonengSourcePath, runtimePathMode });
 
   const server = createServer(async (request, response) => {
     try {
@@ -39,11 +44,16 @@ export function startControlPlaneServer(options: {
         sendJson(response, 200, { status: 'ok' });
         return;
       }
+      if (apiKey && !hasValidApiKey(request, apiKey)) {
+        sendJson(response, 401, { error: 'unauthorized' });
+        return;
+      }
       if (request.method === 'GET' && request.url === '/config') {
         sendJson(response, 200, {
           dataRoot: controlPlane.dataRoot,
           projectsAgentRoot: controlPlane.projectsAgentRoot,
-          backgroundsAgentRoot: controlPlane.backgroundsAgentRoot
+          backgroundsAgentRoot: controlPlane.backgroundsAgentRoot,
+          runtimePathMode: controlPlane.runtimePathMode
         });
         return;
       }
@@ -138,7 +148,7 @@ function applyCors(request: IncomingMessage, response: ServerResponse, allowedOr
     response.setHeader('Access-Control-Allow-Origin', origin);
     response.setHeader('Vary', 'Origin');
   }
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-TinyX-Control-Key');
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   return true;
 }
@@ -159,6 +169,18 @@ function readHost(value: string | undefined): '127.0.0.1' | '0.0.0.0' {
 
 function readAllowedOrigins(value: string | undefined): string[] {
   return value ? value.split(',').map((origin) => origin.trim()).filter(Boolean) : DEFAULT_ALLOWED_ORIGINS;
+}
+
+function readRuntimePathMode(value: string | undefined): 'agent' | 'host' {
+  return value === 'host' ? 'host' : 'agent';
+}
+
+function hasValidApiKey(request: IncomingMessage, expected: string): boolean {
+  const received = request.headers['x-tinyx-control-key'];
+  if (typeof received !== 'string') return false;
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(received);
+  return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 if (require.main === module) {

@@ -171,6 +171,72 @@ test('maps nested existing directories to their mounted agent paths', async () =
   assert.equal(workspace.background?.agentPath, '/backgrounds/shared/docs');
 });
 
+test('host mode accepts selected external directories and returns their real paths', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xiaobai-control-plane-'));
+  const workspacePath = path.join(root, 'selected', 'workspace');
+  const backgroundPath = path.join(root, 'selected', 'background');
+  await createGitRepository(workspacePath);
+  await createGitRepository(backgroundPath);
+  const controlPlane = new WorkspaceControlPlane({
+    dataRoot: path.join(root, 'data'),
+    runtimePathMode: 'host'
+  });
+
+  const workspace = await controlPlane.createWorkspace({
+    name: 'Host workspace',
+    slug: 'host-workspace',
+    source: { type: 'existing', path: workspacePath },
+    background: { type: 'existing', name: 'Host background', path: backgroundPath }
+  });
+
+  assert.equal(workspace.hostPath, await realpath(workspacePath));
+  assert.equal(workspace.agentPath, await realpath(workspacePath));
+  assert.equal(workspace.background?.hostPath, await realpath(backgroundPath));
+  assert.equal(workspace.background?.agentPath, await realpath(backgroundPath));
+});
+
+test('host mode uses a Xiaoneng snapshot directly without Git metadata', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xiaobai-control-plane-'));
+  const xiaonengSnapshot = path.join(root, 'bundled', 'xiaoneng');
+  await mkdir(xiaonengSnapshot, { recursive: true });
+  await writeFile(path.join(xiaonengSnapshot, 'README.md'), '# Snapshot\n', 'utf8');
+  const controlPlane = new WorkspaceControlPlane({
+    dataRoot: path.join(root, 'data'),
+    xiaonengSourcePath: xiaonengSnapshot,
+    runtimePathMode: 'host'
+  });
+
+  const workspace = await controlPlane.createWorkspace({
+    name: 'Snapshot workspace',
+    slug: 'snapshot-workspace',
+    source: { type: 'empty' },
+    background: { type: 'xiaoneng' }
+  });
+
+  assert.equal(workspace.background?.hostPath, await realpath(xiaonengSnapshot));
+  assert.equal(workspace.background?.agentPath, await realpath(xiaonengSnapshot));
+  assert.equal(workspace.background?.resolvedCommit, null);
+  await assert.rejects(stat(path.join(root, 'data', 'backgrounds', 'xiaoneng')));
+});
+
+test('host mode still rejects relative existing paths', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xiaobai-control-plane-'));
+  const controlPlane = new WorkspaceControlPlane({
+    dataRoot: path.join(root, 'data'),
+    runtimePathMode: 'host'
+  });
+
+  const result = await controlPlane.preflight({
+    name: 'Relative workspace',
+    slug: 'relative-workspace',
+    source: { type: 'existing', path: 'relative/workspace' },
+    background: { type: 'none' }
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === 'path_not_absolute'), true);
+});
+
 test('normalizes existing paths before preflight and creation', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'xiaobai-control-plane-'));
   const dataRoot = path.join(root, 'data');
@@ -233,4 +299,34 @@ test('HTTP API rejects requests that do not match the workspace schema', async (
 
   assert.equal(response.status, 400);
   assert.equal((await response.json() as { error: string }).error, 'invalid_request');
+});
+
+test('HTTP API protects workspace operations when a control-plane key is configured', async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'xiaobai-control-plane-'));
+  const server = startControlPlaneServer({
+    port: 0,
+    dataRoot: path.join(root, 'data'),
+    allowedOrigins: [],
+    runtimePathMode: 'host',
+    apiKey: 'tinyx-test-key'
+  });
+  context.after(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+        server.closeAllConnections();
+      })
+  );
+  await once(server, 'listening');
+  const address = server.address() as AddressInfo;
+  const url = `http://127.0.0.1:${address.port}/workspaces`;
+
+  const unauthorized = await fetch(url);
+  const authorized = await fetch(url, {
+    headers: { 'X-TinyX-Control-Key': 'tinyx-test-key' }
+  });
+
+  assert.equal(unauthorized.status, 401);
+  assert.equal(authorized.status, 200);
+  assert.deepEqual((await authorized.json() as { workspaces: unknown[] }).workspaces, []);
 });

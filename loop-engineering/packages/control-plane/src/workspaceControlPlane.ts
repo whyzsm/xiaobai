@@ -36,6 +36,7 @@ interface WorkspaceControlPlaneOptions {
   xiaonengSourcePath?: string;
   projectsAgentRoot?: string;
   backgroundsAgentRoot?: string;
+  runtimePathMode?: 'agent' | 'host';
 }
 
 export class WorkspaceControlPlaneValidationError extends Error {
@@ -53,6 +54,7 @@ export class WorkspaceControlPlane {
   readonly stateRoot: string;
   readonly projectsAgentRoot: string;
   readonly backgroundsAgentRoot: string;
+  readonly runtimePathMode: 'agent' | 'host';
   private readonly stateFile: string;
   private readonly xiaonengSourcePath?: string;
   private creationQueue: Promise<unknown> = Promise.resolve();
@@ -68,6 +70,7 @@ export class WorkspaceControlPlane {
       : undefined;
     this.projectsAgentRoot = options.projectsAgentRoot ?? '/projects';
     this.backgroundsAgentRoot = options.backgroundsAgentRoot ?? '/backgrounds';
+    this.runtimePathMode = options.runtimePathMode ?? 'agent';
   }
 
   async listWorkspaces(): Promise<ManagedWorkspace[]> {
@@ -134,7 +137,7 @@ export class WorkspaceControlPlane {
         id: normalized.slug,
         name: normalized.name,
         hostPath,
-        agentPath: await toAgentPath(this.workspacesRoot, hostPath, this.projectsAgentRoot),
+        agentPath: await this.toRuntimePath(this.workspacesRoot, hostPath, this.projectsAgentRoot),
         defaultBranch: normalized.defaultBranch,
         source: redactSource(normalized.source),
         remote,
@@ -209,6 +212,11 @@ export class WorkspaceControlPlane {
       return this.describeBackground(source.name, path.basename(hostPath), hostPath, source);
     }
 
+    if (source.type === 'xiaoneng' && this.runtimePathMode === 'host') {
+      const hostPath = await realpath(this.xiaonengSourcePath as string);
+      return this.describeBackground('Xiaoneng', 'xiaoneng', hostPath, source);
+    }
+
     const id = source.type === 'xiaoneng' ? 'xiaoneng' : `${workspaceSlug}-background`;
     const name = source.type === 'xiaoneng' ? 'Xiaoneng' : source.name.trim();
     const target = path.join(this.backgroundsRoot, id);
@@ -253,7 +261,7 @@ export class WorkspaceControlPlane {
       id,
       name,
       hostPath,
-      agentPath: await toAgentPath(this.backgroundsRoot, hostPath, this.backgroundsAgentRoot),
+      agentPath: await this.toRuntimePath(this.backgroundsRoot, hostPath, this.backgroundsAgentRoot),
       source,
       resolvedCommit: await readGitValue(hostPath, ['rev-parse', 'HEAD']),
       access: 'read-only'
@@ -268,7 +276,13 @@ export class WorkspaceControlPlane {
       }
     }
     if (source.type === 'existing') {
-      await validateExistingDirectory(source.path, this.workspacesRoot, 'source.path', issues);
+      await validateExistingDirectory(
+        source.path,
+        this.workspacesRoot,
+        'source.path',
+        issues,
+        this.runtimePathMode === 'host'
+      );
     }
   }
 
@@ -276,7 +290,10 @@ export class WorkspaceControlPlane {
     if (source.type === 'xiaoneng') {
       if (!this.xiaonengSourcePath || !(await isDirectory(this.xiaonengSourcePath))) {
         issues.push(issue('background', 'xiaoneng_unavailable', 'The configured Xiaoneng source is unavailable.'));
-      } else if (!(await readGitValue(this.xiaonengSourcePath, ['rev-parse', 'HEAD']))) {
+      } else if (
+        this.runtimePathMode !== 'host' &&
+        !(await readGitValue(this.xiaonengSourcePath, ['rev-parse', 'HEAD']))
+      ) {
         issues.push(issue('background', 'xiaoneng_not_git', 'The configured Xiaoneng source is not a Git repository.'));
       }
     }
@@ -293,8 +310,20 @@ export class WorkspaceControlPlane {
       if (!source.name.trim()) {
         issues.push(issue('background.name', 'name_required', 'Background name is required.'));
       }
-      await validateExistingDirectory(source.path, this.backgroundsRoot, 'background.path', issues);
+      await validateExistingDirectory(
+        source.path,
+        this.backgroundsRoot,
+        'background.path',
+        issues,
+        this.runtimePathMode === 'host'
+      );
     }
+  }
+
+  private async toRuntimePath(managedRoot: string, hostPath: string, agentRoot: string): Promise<string> {
+    return this.runtimePathMode === 'host'
+      ? realpath(hostPath)
+      : toAgentPath(managedRoot, hostPath, agentRoot);
   }
 
   private async ensureRoots(): Promise<void> {
@@ -435,9 +464,20 @@ async function validateExistingDirectory(
   value: string,
   root: string,
   field: string,
-  issues: PreflightIssue[]
+  issues: PreflightIssue[],
+  allowExternalPath = false
 ): Promise<void> {
   const candidate = path.resolve(value);
+  if (allowExternalPath) {
+    if (!path.isAbsolute(value)) {
+      issues.push(issue(field, 'path_not_absolute', 'Path must be an absolute path selected on this machine.'));
+      return;
+    }
+    if (!(await isDirectory(candidate))) {
+      issues.push(issue(field, 'path_not_found', 'The selected directory does not exist.'));
+    }
+    return;
+  }
   if (!containsPath(root, candidate) || candidate === path.resolve(root)) {
     issues.push(issue(field, 'path_outside_managed_root', 'Path must be inside the configured managed root.'));
     return;
