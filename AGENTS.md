@@ -54,6 +54,62 @@ Core boundaries:
 5. Do not translate only headings while leaving the body monolingual, and do not split Chinese and English into two documents that are hard to compare.
 6. Config files, code comments, and test names do not have to be bilingual. If a comment explains business constraints or agent rules, prefer bilingual wording.
 
+## 执行证据、安全与环境感知 / Execution Evidence, Safety, And Environment Awareness
+
+### 中文
+
+#### 反幻觉规则
+
+1. 绝不在未实际读取文件的情况下声称已读取。
+2. 绝不在未验证的情况下描述文件内容。
+3. 绝不在没有执行证据的情况下报告任务完成。
+4. 绝不在未实际调用的情况下假设工具输出。
+5. 读取文件前先验证文件存在，例如运行 `ls -la path/to/file` 或等价命令。
+6. 交付结论时展示或摘要实际命令输出作为证据。
+7. 不确定时必须承认不确定，先说“我需要先确认...”而不是猜测。
+
+#### 环境感知
+
+1. 会话开始时识别当前执行上下文，例如本地开发、云开发、容器或远程运行环境。
+2. 会话开始时识别当前可用工具、权限、网络和文件系统边界。
+3. 在会话期间缓存工具可用性状态；如果工具、权限或上下文发生变化，重新确认后再行动。
+
+#### 不可逆操作协议
+
+执行创建、删除或批量操作之前：
+
+1. 向用户展示完整的操作列表。
+2. 清楚标记哪些操作不可逆。
+3. 要求用户明确确认：“确认执行以上操作？(yes/no)”。
+4. 对于超过 5 项的批量操作，分批执行，并在批次之间进行中间确认。
+
+### English
+
+#### Anti-Hallucination Rules
+
+1. Never claim to have read a file without actually reading it.
+2. Never describe file contents without verification.
+3. Never report task completion without execution evidence.
+4. Never assume tool output without an actual tool invocation.
+5. Verify that a file exists before reading it, for example by running `ls -la path/to/file` or an equivalent command.
+6. Show or summarize actual command output as evidence when delivering conclusions.
+7. Admit uncertainty when facts are unclear; say "I need to confirm first..." instead of guessing.
+
+#### Environment Awareness
+
+1. Identify the current execution context at session start, such as local development, cloud development, container, or remote runtime.
+2. Identify available tools, permissions, network access, and filesystem boundaries at session start.
+3. Cache tool availability for the session; if tools, permissions, or context change, reconfirm before acting.
+
+#### Irreversible Operation Protocol
+
+Before executing create, delete, or batch operations:
+
+1. Display the complete operation list to the user.
+2. Clearly mark which operations are irreversible.
+3. Require explicit user confirmation: "Confirm executing the operations above? (yes/no)".
+4. For batch operations with more than 5 items, execute in batches with intermediate confirmations between batches.
+
 ## 本机状态与提交边界 / Local State And Commit Boundary
 
 ### 中文
@@ -259,6 +315,36 @@ After changing runtime code, schemas, memory behavior, workspace configuration, 
 npm run validate
 npm test
 ```
+
+## 0.1 可见元素减法约束（强制） / 0.1 Visible Element Subtraction Constraints (Mandatory)
+
+### 中文
+
+新增任何可见元素前，必须回答“它帮助用户完成哪一步”；移除后不影响识别、决策、操作或防错的元素，不得加入。
+
+1. 标题只出现一次：同一业务对象名称在一个视图内最多保留一个可见标题。左侧导航已经建立当前项目或迭代上下文时，主工作面不再重复面包屑、项目名、编码和解释性副标题。面包屑只用于真实的跨层返回，不作装饰。
+2. 禁止默认套模板：不得默认复制“小标题 + 说明文 + 卡片 + 按钮”。页面结构由当前任务决定，不由组件模板决定。
+3. 文案服务任务：只保留对象事实、操作结果、风险与防错信息；删除介绍页面用途、向评审解释功能或重复界面可见信息的文案。
+4. 一个动作一个入口：同一视图内每个业务动作只保留一个主入口，并统一命名。除响应式常驻操作或已验证的高频流程外，不在顶栏、内容区和空状态重复放置同一动作。
+5. 空状态给下一步：有可执行动作时直接说明下一步；没有动作时陈述业务结果。不得只写“暂无数据”，也不得在零条数据时渲染空表头和表格骨架。
+6. 装饰默认不成立：卡片、圆角底块、阴影、渐变、图标、标签和分隔线均需承担分组、状态或操作语义；仅为“看起来完整”而添加时必须删除。
+7. 强调有上限：一个视图只突出当前对象、当前任务和唯一主操作。辅助信息主动降级，禁止所有区块使用相同视觉重量。
+8. 选中表达不叠加：常规导航、树节点和列表禁止使用左侧或右侧色条、内嵌阴影或完整描边表达选中；同一连续导航分支只允许最深层当前节点使用选中浅色，父级上下文仅用文字或图标强调。选中底色与侧边指示线同时出现属于设计阻断项。
+9. 业务对象必须产品化：页面围绕对象生命周期和用户决策组织，而不是围绕字段表单组织。例如“项目成员”应表达访问范围、角色、状态和邀请生命周期，而不是一个 `members` 表单。
+
+### English
+
+Before adding any visible element, answer "Which user step does this help complete?" Do not add elements that can be removed without affecting recognition, decision-making, action, or error prevention.
+
+1. Titles appear only once: keep at most one visible title for the same business object in a view. When the left navigation already establishes the current project or iteration context, the main workspace must not repeat breadcrumbs, project names, codes, or explanatory subtitles. Breadcrumbs are only for real cross-level navigation, not decoration.
+2. Do not apply templates by default: do not default to copying "subtitle + description + card + button". Page structure is determined by the current task, not by a component template.
+3. Copy serves the task: keep only object facts, operation results, risks, and error-prevention information; remove copy that introduces the page purpose, explains functionality to reviewers, or repeats visible interface information.
+4. One action, one entry point: within the same view, keep one primary entry point for each business action and use one consistent name. Except for responsive persistent actions or verified high-frequency flows, do not repeat the same action in the top bar, content area, and empty state.
+5. Empty states provide the next step: when an executable action exists, state the next step directly; when no action exists, state the business result. Do not only write "No data", and do not render empty table headers or table skeletons when there are zero records.
+6. Decoration is not assumed: cards, rounded background blocks, shadows, gradients, icons, tags, and dividers must carry grouping, status, or action semantics; remove anything added only to make the page "look complete".
+7. Emphasis has a limit: one view may emphasize only the current object, current task, and single primary action. Downgrade auxiliary information deliberately, and do not give every section the same visual weight.
+8. Selection states must not stack: regular navigation, tree nodes, and lists must not use left or right color bars, inset shadows, or full outlines to express selection. In one continuous navigation branch, only the deepest current node may use a selected light background; parent context should be emphasized only with text or icons. Showing selected background and side indicator line at the same time is a design blocker.
+9. Business objects must be productized: organize pages around object lifecycle and user decisions, not around field forms. For example, "Project members" should express access scope, roles, status, and invitation lifecycle, not a `members` form.
 
 ## 工程约束 / Engineering Constraints
 
