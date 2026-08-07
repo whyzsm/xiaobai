@@ -271,7 +271,7 @@ test('dry-run text output prints workflow stages', async () => {
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
   assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
+  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 8/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
 });
