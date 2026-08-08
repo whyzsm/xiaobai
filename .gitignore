@@ -24,6 +24,7 @@ workspace/projects/*/.loop/local.paths.yaml
 # Local runtime data & deploy artifacts (agent state, .env, generated output — keep out of remotes)
 .xiaobai-data/
 deploy/
+.trellis/
 
 # Executables
 *.swf

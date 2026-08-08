@@ -316,6 +316,28 @@ npm run validate
 npm test
 ```
 
+## 小白评价工程体系 / Xiaobai Evaluation Engineering System
+
+### 中文
+
+评价小白时，必须把小白视为 Loop Engineering 工程系统，而不是单个 prompt、单个 agent 回复或一次最终文字输出。评价入口必须覆盖 `loop-engineering/` 引擎、`workspace/` 运行空间、loop spec、orchestrator、generator、harness、evaluator、human gate、memory、报告和 Git 交付闭环。
+
+评价报告必须引用 `loop-engineering/docs/xiaobai-evaluation-engineering-system.md`，并至少说明：目标与路由是否明确、上下文是否来自真源、workflow 节点是否有输入输出和责任方、evaluator 与 human gate 是否真实生效、验证与远端交付是否有执行证据、失败是否能定位到具体节点。
+
+评价报告必须包含 workflow 节点停留时间。每个节点至少记录或明确标记 `enteredAt`、`firstActionAt`、`exitedAt`、`durationMs`、`activeMs`、`waitingMs`、`waitingReason`、`status` 和 `evidence`。如果当前运行没有采集节点时间，不得估算或编造，必须把该节点标为 `unmeasured`，并将“缺少节点停留时间采集”列为工程可观测性问题。
+
+节点停留时间要区分主动执行耗时与等待耗时。等待用户确认、工具运行、外部接口、缺少上下文、权限门禁和错误阻塞必须分别归因；不得把人工等待简单归咎为 agent 执行慢。
+
+### English
+
+When evaluating Xiaobai, treat it as a Loop Engineering system, not as a single prompt, one agent reply, or one final text output. The evaluation surface must cover the `loop-engineering/` engine, the `workspace/` operating space, loop specs, orchestrator, generator, harness, evaluator, human gates, memory, reports, and Git delivery closure.
+
+Evaluation reports must reference `loop-engineering/docs/xiaobai-evaluation-engineering-system.md` and at least state whether the target and route are clear, whether context comes from sources of truth, whether workflow stages have inputs, outputs, and owners, whether evaluator and human gates are actually effective, whether validation and remote delivery have execution evidence, and whether failures can be traced to specific stages.
+
+Evaluation reports must include workflow stage dwell time. Each stage must record, or explicitly mark, `enteredAt`, `firstActionAt`, `exitedAt`, `durationMs`, `activeMs`, `waitingMs`, `waitingReason`, `status`, and `evidence`. If the current run did not collect stage timing, do not estimate or fabricate it; mark that stage as `unmeasured` and list "missing stage dwell-time collection" as an engineering observability issue.
+
+Stage dwell time must separate active execution time from waiting time. Waiting for user confirmation, tool execution, external APIs, missing context, permission gates, and error blockers must be attributed separately; do not collapse human waiting into "the agent was slow."
+
 ## 0.1 可见元素减法约束（强制） / 0.1 Visible Element Subtraction Constraints (Mandatory)
 
 ### 中文
@@ -358,6 +380,7 @@ Before adding any visible element, answer "Which user step does this help comple
 6. 新增或评审前端工程能力时，遵守 `loop-engineering/docs/frontend-platform-standards.md`。
 7. 进入代码实现阶段时，先遵守根目录 `SKILL.md`，再叠加项目级 `workspace/projects/<project>/SKILL.md`。
 8. 新增、澄清或评审产品需求时，遵守 `loop-engineering/docs/product-requirement-platform-standards.md`。
+9. 评价小白自身能力时，遵守 `loop-engineering/docs/xiaobai-evaluation-engineering-system.md`，并把节点停留时间作为必填评价维度。
 
 ### English
 
@@ -369,3 +392,4 @@ Before adding any visible element, answer "Which user step does this help comple
 6. When adding or reviewing frontend engineering capabilities, follow `loop-engineering/docs/frontend-platform-standards.md`.
 7. During code implementation phases, follow the root `SKILL.md` first, then layer on the project-level `workspace/projects/<project>/SKILL.md`.
 8. When adding, clarifying, or reviewing product requirements, follow `loop-engineering/docs/product-requirement-platform-standards.md`.
+9. When evaluating Xiaobai's own capability, follow `loop-engineering/docs/xiaobai-evaluation-engineering-system.md` and treat stage dwell time as a required evaluation dimension.
