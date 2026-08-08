@@ -15,6 +15,7 @@
     "simulate": "npm run loop -- simulate --loop morning-triage",
     "memory:checkpoint": "npm run loop -- memory checkpoint --project xbaiProjectCode --loop morning-triage",
     "memory:audit-today": "npm run loop -- memory audit-today --project xbaiProjectCode",
+    "dashboard:xiaobai": "node workspace/monitoring/scripts/start-dashboard.mjs",
     "mount:tmax": "node workspace/projects/t-max/scripts/mount-local.mjs",
     "mount:trunkFeeder": "node workspace/projects/trunkFeeder/scripts/mount-local.mjs",
     "mount:harmony-wardrobe": "node workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
