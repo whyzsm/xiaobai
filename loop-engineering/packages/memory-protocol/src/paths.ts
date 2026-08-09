@@ -8,7 +8,9 @@ const DEFAULT_PROJECT_ROOT = '10-项目记忆';
 export function resolveMemoryProtocolPaths(options: MemoryProtocolPathOptions): MemoryProtocolPaths {
   const workspaceRoot = path.resolve(options.workspaceRoot);
   const vaultRoot = path.resolve(options.vaultRoot ?? workspaceRoot);
-  const learningRoot = path.join(vaultRoot, options.learningRootName ?? DEFAULT_LEARNING_ROOT);
+  const learningRootName = options.learningRootName ?? DEFAULT_LEARNING_ROOT;
+  assertVaultRootOutsideLearningRoot(vaultRoot, learningRootName);
+  const learningRoot = path.join(vaultRoot, learningRootName);
   const globalIndexRoot = path.join(learningRoot, options.globalIndexRootName ?? DEFAULT_GLOBAL_INDEX_ROOT);
   const allProjectsRoot = path.join(learningRoot, options.projectRootName ?? DEFAULT_PROJECT_ROOT);
   const projectRoot = path.join(allProjectsRoot, options.projectId);
@@ -26,6 +28,18 @@ export function resolveMemoryProtocolPaths(options: MemoryProtocolPathOptions): 
     reportsRoot: path.join(projectRoot, 'reports'),
     indexPath: path.join(globalIndexRoot, 'memory-index.json')
   };
+}
+
+function assertVaultRootOutsideLearningRoot(vaultRoot: string, learningRootName: string): void {
+  const firstLearningSegment = learningRootName.split(/[\\/]+/).find(Boolean);
+  if (!firstLearningSegment) return;
+
+  const vaultSegments = path.resolve(vaultRoot).split(path.sep).filter(Boolean);
+  if (vaultSegments.includes(firstLearningSegment)) {
+    throw new Error(
+      `Obsidian vault root must point above the learning root; received ${vaultRoot} with learning root ${learningRootName}`
+    );
+  }
 }
 
 export function resolveSafeWritePath(allowedRoot: string, targetPath: string): string {

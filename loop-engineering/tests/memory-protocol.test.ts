@@ -54,6 +54,26 @@ test('memory path resolution supports nested learning roots', async () => {
   assert.equal(paths.projectRoot, path.join(vaultRoot, '88-学习', 'xiaobai', '10-项目记忆', 'demo'));
 });
 
+test('memory path resolution rejects vault roots inside the learning tree', () => {
+  const workspaceRoot = path.join(tmpdir(), 'memory-protocol-invalid-workspace');
+  const invalidVaultRoots = [
+    path.join(tmpdir(), '知识库', '88-学习'),
+    path.join(tmpdir(), '知识库', '88-学习', 'xiaobai', '10-项目记忆')
+  ];
+
+  for (const vaultRoot of invalidVaultRoots) {
+    assert.throws(
+      () => resolveMemoryProtocolPaths({
+        workspaceRoot,
+        vaultRoot,
+        learningRootName: '88-学习/xiaobai',
+        projectId: 'demo'
+      }),
+      /vault root must point above the learning root/i
+    );
+  }
+});
+
 test('frontmatter parser tolerates missing and malformed frontmatter and normalizes tags', () => {
   const missing = parseFrontmatter('# Title\n\nBody');
   assert.deepEqual(missing.data, {});
