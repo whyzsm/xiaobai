@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
-    <title>小白 Agent Ops</title>
+    <title>小白智能体运维</title>
     <style>
       :root {
         --page: #f3f5f5;
@@ -838,18 +838,18 @@
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">白</div>
           <div>
-            <h1>小白 Agent Ops</h1>
-            <p>Loop Engineering 运行监控</p>
+            <h1>小白智能体运维</h1>
+            <p>循环工程运行监控</p>
           </div>
         </div>
         <nav class="nav" aria-label="页面导航">
           <a class="is-active" href="#overview"><span>总览</span><span class="nav-index">01</span></a>
           <a href="#workflow"><span>工作流</span><span class="nav-index">02</span></a>
-          <a href="#agents"><span>Agent 与 Harness</span><span class="nav-index">03</span></a>
+          <a href="#agents"><span>智能体与执行框架</span><span class="nav-index">03</span></a>
           <a href="#projects"><span>路由与项目</span><span class="nav-index">04</span></a>
           <a href="#timing"><span>节点计时</span><span class="nav-index">05</span></a>
           <a href="#evaluation"><span>评价与门禁</span><span class="nav-index">06</span></a>
-          <a href="#memory"><span>Memory</span><span class="nav-index">07</span></a>
+          <a href="#memory"><span>记忆</span><span class="nav-index">07</span></a>
           <a href="#graph"><span>知识图谱</span><span class="nav-index">08</span></a>
           <a href="#operations"><span>运维命令</span><span class="nav-index">09</span></a>
         </nav>
@@ -858,7 +858,7 @@
             <span class="health-dot" id="health-dot"></span>
             <span id="rail-health">正在读取快照</span>
           </div>
-          <div>真源：workspace、Git、Memory、Understand Anything</div>
+          <div>真源：工作空间、Git、记忆、知识图谱</div>
         </div>
       </aside>
 
@@ -892,7 +892,7 @@
               <div class="summary-grid">
                 <div class="panel">
                   <div class="panel-heading">
-                    <h3>Loop 路由</h3>
+                    <h3>工作流路由</h3>
                     <span class="status info" id="loop-route-count">0</span>
                   </div>
                   <div class="panel-body">
@@ -918,14 +918,14 @@
                   <p class="section-fact" id="workflow-fact">--</p>
                 </div>
               </div>
-              <div class="segmented" id="loop-selector" aria-label="选择 Loop"></div>
+              <div class="segmented" id="loop-selector" aria-label="选择工作流"></div>
               <div id="workflow-content"></div>
             </section>
 
             <section class="section" id="agents">
               <div class="section-heading">
                 <div>
-                  <h2>Agent 与 Harness</h2>
+                  <h2>智能体与执行框架</h2>
                   <p class="section-fact" id="agent-fact">--</p>
                 </div>
               </div>
@@ -976,9 +976,9 @@
                   <h2>节点停留时间</h2>
                   <p class="section-fact" id="timing-fact">--</p>
                 </div>
-                <span class="status unmeasured" id="timing-status">unmeasured</span>
+                <span class="status unmeasured" id="timing-status">未采集</span>
               </div>
-              <div class="segmented" id="timing-loop-selector" aria-label="选择计时 Loop"></div>
+              <div class="segmented" id="timing-loop-selector" aria-label="选择计时工作流"></div>
               <div id="timing-content"></div>
             </section>
 
@@ -992,7 +992,7 @@
               <div class="metric-grid" id="evaluation-metrics"></div>
               <div class="summary-grid">
                 <div class="panel">
-                  <div class="panel-heading"><h3>Loop 门禁</h3></div>
+                  <div class="panel-heading"><h3>工作流门禁</h3></div>
                   <div class="panel-body">
                     <ul class="fact-list" id="gate-list"></ul>
                   </div>
@@ -1012,7 +1012,7 @@
             <section class="section" id="memory">
               <div class="section-heading">
                 <div>
-                  <h2>Memory</h2>
+                  <h2>记忆</h2>
                   <p class="section-fact" id="memory-fact">--</p>
                 </div>
                 <span class="status" id="memory-status">--</span>
@@ -1022,11 +1022,11 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Loop</th>
+                      <th>工作流</th>
                       <th>状态</th>
-                      <th class="numeric">Runs</th>
-                      <th class="numeric">Findings</th>
-                      <th class="numeric">Metrics</th>
+                      <th class="numeric">运行记录</th>
+                      <th class="numeric">问题发现</th>
+                      <th class="numeric">运行指标</th>
                       <th>最近运行</th>
                       <th>运行结果</th>
                     </tr>
@@ -1114,12 +1114,69 @@
         }
 
         function formatDuration(value) {
-          if (value === null || value === undefined || value === '') return 'unmeasured';
-          if (!Number.isFinite(Number(value))) return 'unmeasured';
+          if (value === null || value === undefined || value === '') return '未采集';
+          if (!Number.isFinite(Number(value))) return '未采集';
           const milliseconds = Number(value);
-          if (milliseconds < 1000) return `${milliseconds} ms`;
-          if (milliseconds < 60000) return `${(milliseconds / 1000).toFixed(1)} s`;
-          return `${(milliseconds / 60000).toFixed(1)} min`;
+          if (milliseconds < 1000) return `${milliseconds} 毫秒`;
+          if (milliseconds < 60000) return `${(milliseconds / 1000).toFixed(1)} 秒`;
+          return `${(milliseconds / 60000).toFixed(1)} 分钟`;
+        }
+
+        function displayLabel(value) {
+          const labels = {
+            ok: '正常',
+            clean: '干净',
+            available: '可用',
+            mounted: '已挂载',
+            passed: '已通过',
+            completed: '已完成',
+            attention: '需关注',
+            unmeasured: '未采集',
+            manual: '人工',
+            stale: '需刷新',
+            warning: '警告',
+            missing: '缺失',
+            invalid: '无效',
+            failed: '失败',
+            dirty: '有变更',
+            blocked: '已阻塞',
+            automatic: '自动',
+            info: '信息',
+            Agent: '智能体',
+            Harness: '执行框架',
+            Project: '项目',
+            ProjectGroup: '项目组',
+            intake: '接入',
+            design: '设计',
+            review: '评审',
+            'human-gate': '人工门禁',
+            coding: '编码',
+            'pr-readiness': '合并准备',
+            checker: '审核者',
+            skeptical: '审慎',
+            maker: '执行者',
+            orchestrator: '编排者',
+            coordinator: '协调者',
+            function: '函数',
+            file: '文件',
+            document: '文档',
+            config: '配置',
+            class: '类',
+            imports: '导入',
+            contains: '包含',
+            exports: '导出',
+            'local-override': '本机覆盖',
+            missing_instrumentation: '缺少采集机制',
+          };
+          return labels[String(value)] || String(value ?? '--');
+        }
+
+        function loopLabel(loop) {
+          const labels = {
+            'frontend-delivery': '前端交付工作流',
+            'morning-triage': '晨间分诊工作流',
+          };
+          return labels[loop.id] || loop.name;
         }
 
         function statusClass(value) {
@@ -1131,7 +1188,7 @@
         }
 
         function status(value, label = value) {
-          return `<span class="status ${statusClass(value)}">${escapeHtml(label ?? '--')}</span>`;
+          return `<span class="status ${statusClass(value)}">${escapeHtml(displayLabel(label))}</span>`;
         }
 
         function metric(label, value, note = '') {
@@ -1148,9 +1205,9 @@
           const labels = {
             knowledge_graph_stale: '知识图谱需要刷新',
             missing_stage_timing_instrumentation: '节点计时尚未采集',
-            missing_workflow_stage_contract: 'Loop 缺少阶段契约',
-            memory_root_unavailable: 'Memory 根目录不可用',
-            memory_config_unreadable: 'Memory 本机配置不可读',
+            missing_workflow_stage_contract: '工作流缺少阶段契约',
+            memory_root_unavailable: '记忆根目录不可用',
+            memory_config_unreadable: '记忆本机配置不可读',
             structured_file_unreadable: '结构化配置不可读',
             knowledge_graph_unreadable: '知识图谱不可读',
           };
@@ -1160,7 +1217,7 @@
         function gapLabel(code) {
           const labels = {
             missing_stage_timing_instrumentation: '缺少节点计时运行时事件',
-            missing_workflow_stage_contract: '缺少 workflow stage 契约',
+            missing_workflow_stage_contract: '缺少工作流阶段契约',
           };
           return labels[code] || code;
         }
@@ -1168,7 +1225,7 @@
         function gapDetail(gap) {
           if (gap.loopId) return gap.loopId;
           if (gap.code === 'missing_stage_timing_instrumentation') {
-            return '等待 runtime-local append-only stage timing events';
+            return '等待运行时追加式节点计时事件';
           }
           return gap.nextAction || '--';
         }
@@ -1215,11 +1272,11 @@
           health.className = `status ${statusClass(data.health)}`;
           health.textContent = data.health === 'ok' ? '正常' : '需关注';
           $('#overview-metrics').innerHTML = [
-            metric('Loop', formatNumber(data.inventory.loops), '已注册工作流'),
-            metric('Agent / Harness', `${data.inventory.agents} / ${data.inventory.harnesses}`, '执行与约束对象'),
+            metric('工作流', formatNumber(data.inventory.loops), '已注册工作流'),
+            metric('智能体 / 执行框架', `${data.inventory.agents} / ${data.inventory.harnesses}`, '执行与约束对象'),
             metric('项目', formatNumber(data.inventory.projects), `${data.inventory.repositories} 个仓库`),
             metric('仓库挂载', `${data.inventory.mountedRepositories}/${data.inventory.repositories}`, '本机可访问'),
-            metric('Memory Runs', formatNumber(data.inventory.memoryRuns), data.memory.source),
+            metric('记忆运行记录', formatNumber(data.inventory.memoryRuns), displayLabel(data.memory.source)),
             metric('图谱节点', formatNumber(data.inventory.graphNodes), data.graph.stale ? '快照已过期' : '匹配当前提交'),
           ].join('');
 
@@ -1228,13 +1285,13 @@
             ? data.loops.map((loop) => `
                 <li class="fact-row">
                   <div>
-                    <div class="row-title">${escapeHtml(loop.name)}</div>
+                    <div class="row-title">${escapeHtml(loopLabel(loop))}</div>
                     <div class="row-meta">${escapeHtml(loop.project || '未绑定项目')} · ${escapeHtml(loop.generator || '未配置 generator')} · ${escapeHtml(loop.evaluator || '未配置 evaluator')}</div>
                   </div>
-                  ${status(loop.stages.length ? 'automatic' : 'unmeasured', loop.stages.length ? `${loop.stages.length} stages` : '无阶段契约')}
+                  ${status(loop.stages.length ? 'automatic' : 'unmeasured', loop.stages.length ? `${loop.stages.length} 个阶段` : '无阶段契约')}
                 </li>
               `).join('')
-            : '<li class="empty-state"><strong>没有注册 Loop</strong>下一步在 workspace/loops 中声明工作流。</li>';
+            : '<li class="empty-state"><strong>没有注册工作流</strong>下一步在 workspace/loops 中声明工作流。</li>';
 
           $('#warning-count').textContent = String(data.warnings.length);
           $('#warnings').innerHTML = data.warnings.length
@@ -1254,7 +1311,7 @@
           const container = $(selector);
           container.innerHTML = state.snapshot.loops.map((loop) => `
             <button class="segment" type="button" data-loop-id="${escapeHtml(loop.id)}" aria-pressed="${loop.id === activeId}">
-              ${escapeHtml(loop.name)}
+              ${escapeHtml(loopLabel(loop))}
             </button>
           `).join('');
           container.querySelectorAll('[data-loop-id]').forEach((button) => {
@@ -1266,7 +1323,7 @@
           const data = state.snapshot;
           const loop = data.loops.find((item) => item.id === state.activeLoopId) || data.loops[0];
           if (!loop) {
-            $('#workflow-content').innerHTML = '<div class="empty-state"><strong>没有工作流</strong>下一步在 workspace/loops 中注册 Loop。</div>';
+            $('#workflow-content').innerHTML = '<div class="empty-state"><strong>没有工作流</strong>下一步在 workspace/loops 中注册工作流。</div>';
             return;
           }
           state.activeLoopId = loop.id;
@@ -1274,13 +1331,13 @@
             state.activeLoopId = loopId;
             renderWorkflow();
           });
-          $('#workflow-fact').textContent = `${loop.file} · ${loop.schedule.type} · ${loop.owner}`;
+          $('#workflow-fact').textContent = `${loop.file} · ${displayLabel(loop.schedule.type)} · ${loop.owner}`;
 
           if (!loop.stages.length) {
             $('#workflow-content').innerHTML = `
               <div class="empty-state">
-                <strong>${escapeHtml(loop.name)} 未声明 workflow stages</strong>
-                下一步补齐阶段、Owner、输入输出和 required checks；当前不能评价节点级执行状态。
+                <strong>${escapeHtml(loopLabel(loop))} 未声明工作流阶段</strong>
+                下一步补齐阶段、负责人、输入输出和必要检查；当前不能评价节点级执行状态。
               </div>
             `;
             return;
@@ -1293,18 +1350,18 @@
                   <tr>
                     <th>阶段</th>
                     <th>类型</th>
-                    <th>Gate</th>
-                    <th>Owner</th>
-                    <th>Harness</th>
-                    <th>Required checks</th>
-                    <th>Outputs</th>
+                    <th>门禁</th>
+                    <th>负责人</th>
+                    <th>执行框架</th>
+                    <th>必要检查</th>
+                    <th>产出</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${loop.stages.map((stage) => `
                     <tr>
                       <td><span class="cell-title">${escapeHtml(stage.id)}</span></td>
-                      <td>${escapeHtml(stage.kind)}</td>
+                      <td>${escapeHtml(displayLabel(stage.kind))}</td>
                       <td>${status(stage.gate, stage.gate)}</td>
                       <td>${escapeHtml(stage.owner)}</td>
                       <td>${escapeHtml(stage.harness || '--')}</td>
@@ -1323,12 +1380,12 @@
             ...data.agents.map((item) => ({ ...item, category: 'Agent' })),
             ...data.harnesses.map((item) => ({ ...item, category: 'Harness' })),
           ];
-          $('#agent-fact').textContent = `${data.agents.length} Agents · ${data.harnesses.length} Harnesses · ${data.evaluation.evaluatorCount} Evaluators`;
+          $('#agent-fact').textContent = `${data.agents.length} 个智能体 · ${data.harnesses.length} 个执行框架 · ${data.evaluation.evaluatorCount} 个评价器`;
           $('#agent-rows').innerHTML = rows.map((item) => `
             <tr>
               <td><div class="cell-title">${escapeHtml(item.id)}</div><div class="cell-meta">${escapeHtml(item.file)}</div></td>
-              <td>${status(item.category === 'Harness' ? 'manual' : 'info', item.category)}</td>
-              <td>${escapeHtml([item.role, item.stance].filter(Boolean).join(' / ') || '--')}</td>
+              <td>${status(item.category === 'Harness' ? 'manual' : 'info', displayLabel(item.category))}</td>
+              <td>${escapeHtml([item.role, item.stance].filter(Boolean).map(displayLabel).join(' / ') || '--')}</td>
               <td class="numeric">${formatNumber(item.allowedTools)}</td>
               <td class="numeric">${formatNumber(item.deniedTools)}</td>
               <td><code>${escapeHtml(item.file)}</code></td>
@@ -1351,7 +1408,7 @@
             return `
               <tr>
                 <td><div class="cell-title">${escapeHtml(project.name)}</div><div class="cell-meta">${escapeHtml(project.file)}</div></td>
-                <td>${escapeHtml(project.kind)}</td>
+                <td>${escapeHtml(displayLabel(project.kind))}</td>
                 <td><code>${escapeHtml(project.defaultBranch || '--')}</code></td>
                 <td>${background}</td>
                 <td>${mountStatus}</td>
@@ -1372,15 +1429,15 @@
           });
           const stages = data.timing.stages.filter((stage) => stage.loopId === loop.id);
           $('#timing-fact').textContent = data.timing.instrumented
-            ? `${loop.name} · ${stages.length} 个已采集节点`
-            : `${loop.name} · 缺少 runtime stage timing events`;
-          $('#timing-status').textContent = data.timing.status;
+            ? `${loopLabel(loop)} · ${stages.length} 个已采集节点`
+            : `${loopLabel(loop)} · 缺少运行时节点计时事件`;
+          $('#timing-status').textContent = displayLabel(data.timing.status);
 
           if (!stages.length) {
             $('#timing-content').innerHTML = `
               <div class="empty-state">
-                <strong>${escapeHtml(loop.name)} 没有可计时的阶段契约</strong>
-                先在 Loop spec 中声明 workflow stages，再接入 append-only timing events。
+                <strong>${escapeHtml(loopLabel(loop))} 没有可计时的阶段契约</strong>
+                先在工作流规范中声明阶段，再接入追加式计时事件。
               </div>
             `;
             return;
@@ -1391,34 +1448,34 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Stage</th>
-                    <th>Kind</th>
-                    <th>Owner</th>
-                    <th>Status</th>
-                    <th>enteredAt</th>
-                    <th>firstActionAt</th>
-                    <th>exitedAt</th>
-                    <th>durationMs</th>
-                    <th>activeMs</th>
-                    <th>waitingMs</th>
-                    <th>waitingReason</th>
-                    <th>Evidence</th>
+                    <th>阶段</th>
+                    <th>类型</th>
+                    <th>负责人</th>
+                    <th>状态</th>
+                    <th>进入时间</th>
+                    <th>首次动作时间</th>
+                    <th>退出时间</th>
+                    <th>总耗时</th>
+                    <th>活动耗时</th>
+                    <th>等待耗时</th>
+                    <th>等待原因</th>
+                    <th>证据</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${stages.map((stage) => `
                     <tr>
                       <td class="nowrap"><span class="cell-title">${escapeHtml(stage.stageId)}</span></td>
-                      <td>${escapeHtml(stage.stageKind)}</td>
+                      <td>${escapeHtml(displayLabel(stage.stageKind))}</td>
                       <td>${escapeHtml(stage.owner)}</td>
-                      <td>${status(stage.status, stage.status)}</td>
-                      <td>${escapeHtml(stage.enteredAt || 'unmeasured')}</td>
-                      <td>${escapeHtml(stage.firstActionAt || 'unmeasured')}</td>
-                      <td>${escapeHtml(stage.exitedAt || 'unmeasured')}</td>
+                      <td>${status(stage.status, displayLabel(stage.status))}</td>
+                      <td>${escapeHtml(stage.enteredAt || '未采集')}</td>
+                      <td>${escapeHtml(stage.firstActionAt || '未采集')}</td>
+                      <td>${escapeHtml(stage.exitedAt || '未采集')}</td>
                       <td>${formatDuration(stage.durationMs)}</td>
                       <td>${formatDuration(stage.activeMs)}</td>
                       <td>${formatDuration(stage.waitingMs)}</td>
-                      <td><code>${escapeHtml(stage.waitingReason)}</code></td>
+                      <td>${escapeHtml(displayLabel(stage.waitingReason))}</td>
                       <td><code>${escapeHtml(stage.evidence)}</code></td>
                     </tr>
                   `).join('')}
@@ -1432,23 +1489,23 @@
           const evaluation = data.evaluation;
           $('#evaluation-fact').textContent = evaluation.policy;
           $('#evaluation-metrics').innerHTML = [
-            metric('Evaluator', formatNumber(evaluation.evaluatorCount), evaluation.evaluatorIds.join(', ') || '未配置'),
-            metric('Human Gate', formatNumber(evaluation.loopsWithHumanGate), '已声明 Loop'),
-            metric('Self Review 违规', formatNumber(evaluation.allowSelfReviewViolations.length), evaluation.allowSelfReviewViolations.length ? '需要阻断' : '未发现'),
+            metric('评价器', formatNumber(evaluation.evaluatorCount), evaluation.evaluatorIds.join(', ') || '未配置'),
+            metric('人工门禁', formatNumber(evaluation.loopsWithHumanGate), '已声明工作流'),
+            metric('自评违规', formatNumber(evaluation.allowSelfReviewViolations.length), evaluation.allowSelfReviewViolations.length ? '需要阻断' : '未发现'),
             metric('可观测性缺口', formatNumber(evaluation.observabilityGaps.length), '进入评价发现'),
-            metric('计时状态', data.timing.status, data.timing.waitingReason),
-            metric('工作区', data.git.dirty ? 'dirty' : 'clean', `${data.git.changedFiles} 项变更`),
+            metric('计时状态', displayLabel(data.timing.status), displayLabel(data.timing.waitingReason)),
+            metric('工作区', data.git.dirty ? '有变更' : '干净', `${data.git.changedFiles} 项变更`),
           ].join('');
 
           $('#gate-list').innerHTML = data.loops.map((loop) => `
             <li class="fact-row">
               <div>
-                <div class="row-title">${escapeHtml(loop.name)}</div>
-                <div class="row-meta">${escapeHtml(loop.requiredChecks.join(', ') || '未声明 required checks')}</div>
+                <div class="row-title">${escapeHtml(loopLabel(loop))}</div>
+                <div class="row-meta">${escapeHtml(loop.requiredChecks.join(', ') || '未声明必要检查')}</div>
               </div>
               <div class="gate-strip">
                 ${status(loop.allowSelfReview ? 'error' : 'ok', loop.allowSelfReview ? '允许自评' : '禁止自评')}
-                ${status(loop.humanGates.length ? 'manual' : 'info', `${loop.humanGates.length} human gates`)}
+                ${status(loop.humanGates.length ? 'manual' : 'info', `${loop.humanGates.length} 个人工门禁`)}
               </div>
             </li>
           `).join('');
@@ -1461,7 +1518,7 @@
                     <div class="row-title">${escapeHtml(gapLabel(gap.code))}</div>
                     <div class="row-meta">${escapeHtml(gapDetail(gap))}</div>
                   </div>
-                  ${status(gap.status, gap.status)}
+                  ${status(gap.status, displayLabel(gap.status))}
                 </li>
               `).join('')
             : '<li class="empty-state"><strong>没有评价缺口</strong>当前可观测性字段完整。</li>';
@@ -1469,16 +1526,16 @@
 
         function renderMemory(data) {
           const memory = data.memory;
-          $('#memory-fact').textContent = `${memory.source} · 原始正文不进入监控快照`;
+          $('#memory-fact').textContent = `${displayLabel(memory.source)} · 原始正文不进入监控快照`;
           const memoryStatus = $('#memory-status');
           memoryStatus.className = `status ${memory.rootAvailable ? 'ok' : 'error'}`;
           memoryStatus.textContent = memory.rootAvailable ? '可用' : '不可用';
           $('#memory-metrics').innerHTML = [
-            metric('Runs', formatNumber(memory.totals.runs), '追加日志'),
-            metric('Findings', formatNumber(memory.totals.findings), '问题证据'),
-            metric('Metrics', formatNumber(memory.totals.metrics), '运行指标'),
-            metric('Memory Root', memory.rootAvailable ? 'available' : 'missing', memory.source),
-            metric('Loop Memory', formatNumber(memory.loops.filter((loop) => loop.available).length), `${memory.loops.length} 已声明`),
+            metric('运行记录', formatNumber(memory.totals.runs), '追加日志'),
+            metric('问题发现', formatNumber(memory.totals.findings), '问题证据'),
+            metric('运行指标', formatNumber(memory.totals.metrics), '运行指标'),
+            metric('记忆根目录', memory.rootAvailable ? '可用' : '缺失', displayLabel(memory.source)),
+            metric('工作流记忆', formatNumber(memory.loops.filter((loop) => loop.available).length), `${memory.loops.length} 个已声明`),
             metric('最近运行', formatDate(memory.loops.map((loop) => loop.lastRunAt).filter(Boolean).sort().at(-1)), '仅显示时间'),
           ].join('');
 
@@ -1490,7 +1547,7 @@
               <td class="numeric">${formatNumber(loop.findings)}</td>
               <td class="numeric">${formatNumber(loop.metrics)}</td>
               <td class="nowrap">${escapeHtml(formatDate(loop.lastRunAt))}</td>
-              <td>${loop.lastRunStatus ? status(loop.lastRunStatus, loop.lastRunStatus) : '--'}</td>
+              <td>${loop.lastRunStatus ? status(loop.lastRunStatus, displayLabel(loop.lastRunStatus)) : '--'}</td>
             </tr>
           `).join('');
         }
@@ -1505,7 +1562,7 @@
           const maximum = Math.max(...visible.map((item) => item.count), 1);
           container.innerHTML = visible.map((item) => `
             <div class="bar-row">
-              <span class="bar-label" title="${escapeHtml(item.type)}">${escapeHtml(item.type)}</span>
+              <span class="bar-label" title="${escapeHtml(displayLabel(item.type))}">${escapeHtml(displayLabel(item.type))}</span>
               <span class="bar-track" aria-hidden="true"><span class="bar-fill ${extraClass}" style="width: ${Math.max(4, (item.count / maximum) * 100)}%"></span></span>
               <span class="bar-value">${formatNumber(item.count)}</span>
             </div>
@@ -1520,10 +1577,10 @@
           graphStatus.className = `status ${statusClass(graphState)}`;
           graphStatus.textContent = graph.status !== 'ok' ? '未生成' : graph.stale ? '需刷新' : '当前';
           $('#graph-metrics').innerHTML = [
-            metric('Nodes', formatNumber(graph.nodes), '结构对象'),
-            metric('Edges', formatNumber(graph.edges), '对象关系'),
-            metric('Analyzed Files', formatNumber(graph.analyzedFiles), '纳入快照'),
-            metric('分析时间', formatDate(graph.analyzedAt), 'Understand Anything'),
+            metric('节点', formatNumber(graph.nodes), '结构对象'),
+            metric('关系', formatNumber(graph.edges), '对象关系'),
+            metric('已分析文件', formatNumber(graph.analyzedFiles), '纳入快照'),
+            metric('分析时间', formatDate(graph.analyzedAt), '知识图谱分析器'),
             metric('分析提交', graph.analyzedCommit ? graph.analyzedCommit.slice(0, 7) : '--', graph.stale ? '不匹配 HEAD' : '匹配 HEAD'),
             metric('当前提交', data.git.shortHead || '--', data.git.branch),
           ].join('');
