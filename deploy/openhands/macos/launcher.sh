@@ -219,7 +219,7 @@ open_config() {
   ensure_payload || return 1
   ensure_config || return 1
   /usr/bin/open -a TextEdit "$CONFIG_FILE"
-  show_message '请填写 LLM_API_KEY 和 LLM_MODEL，保存后重新打开本应用并选择“启动并打开 Canvas”。配置文件仅保存在当前用户的 Application Support 中。'
+  show_message '请填写 LLM_API_KEY 和 LLM_MODEL，保存后重新打开本应用并选择“启动并打开 Canvas”。如填写 OBSIDIAN_VAULT_PATH，必须选择 88-学习 的上一级 Vault 根目录。配置文件仅保存在当前用户的 Application Support 中。'
 }
 
 ensure_docker() {

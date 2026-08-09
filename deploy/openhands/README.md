@@ -53,7 +53,7 @@ LLM_MODEL=provider/model
 
 真实 Key 只能留在 ignored 的 `.env` 或进程环境中。不要把它写入 `compose.yaml`、`versions.lock`、Git bundle 或文档。
 
-`OBSIDIAN_VAULT_PATH` 留空时使用 runtime 下的新空 Vault。若指定已有 Vault，启动器只在以下项目目录中初始化缺失文件，不覆盖已有内容：
+`OBSIDIAN_VAULT_PATH` 留空时使用 runtime 下的新空 Vault。若指定已有 Vault，必须填写包含 `88-学习` 的 Vault 根目录，不能填写 `88-学习` 本身或其子目录；否则启动器会拒绝启动。配置正确时，启动器只在以下项目目录中初始化缺失文件，不覆盖已有内容：
 
 ```text
 88-学习/xiaobai/10-项目记忆/xbaiProjectCode
@@ -199,7 +199,7 @@ LLM_MODEL=provider/model
 
 Real keys belong only in the ignored `.env` or process environment. Never put them in `compose.yaml`, `versions.lock`, Git bundles, or documentation.
 
-When `OBSIDIAN_VAULT_PATH` is empty, the launcher creates an isolated empty vault under runtime. When an existing vault is selected, setup initializes only missing files under this project directory and never overwrites existing content:
+When `OBSIDIAN_VAULT_PATH` is empty, the launcher creates an isolated empty vault under runtime. For an existing vault, provide the vault root that contains `88-学习`, not `88-学习` itself or any descendant; otherwise the launcher refuses to start. With a valid root, setup initializes only missing files under this project directory and never overwrites existing content:
 
 ```text
 88-学习/xiaobai/10-项目记忆/xbaiProjectCode

@@ -63,6 +63,7 @@ for required in \
   "$PACKAGE_NAME/artifacts/openhands.bundle" \
   "$PACKAGE_NAME/deploy/openhands/run.sh" \
   "$PACKAGE_NAME/deploy/openhands/stop.sh" \
+  "$PACKAGE_NAME/deploy/openhands/vault-path.sh" \
   "$PACKAGE_NAME/deploy/openhands/.env.example"; do
   if ! /usr/bin/tar -tzf "$PACKAGE_ARCHIVE" | /usr/bin/grep -qx "$required"; then
     printf 'package archive is missing: %s\n' "$required" >&2

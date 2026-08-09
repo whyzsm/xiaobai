@@ -22,6 +22,9 @@ warn() {
   WARNINGS=$((WARNINGS + 1))
 }
 
+# shellcheck source=vault-path.sh
+source "$SCRIPT_DIR/vault-path.sh"
+
 if [ ! -f "$LOCK_FILE" ]; then
   fail "missing version lock: $LOCK_FILE"
 else
@@ -185,24 +188,28 @@ else
 fi
 
 if [ -n "$OBSIDIAN_VAULT_PATH" ]; then
-  if [ -d "$OBSIDIAN_VAULT_PATH" ] && [ -w "$OBSIDIAN_VAULT_PATH" ]; then
-    pass "Obsidian vault is writable: $OBSIDIAN_VAULT_PATH"
+  if ! is_obsidian_vault_root "$OBSIDIAN_VAULT_PATH"; then
+    fail "Obsidian Vault root must point above 88-学习: $OBSIDIAN_VAULT_PATH"
   else
-    fail "Obsidian vault is missing or not writable: $OBSIDIAN_VAULT_PATH"
-  fi
-  WRITER_LOCK="$OBSIDIAN_VAULT_PATH/88-学习/xiaobai/10-项目记忆/xbaiProjectCode/.xiaobai-writer.lock"
-  if [ -d "$WRITER_LOCK" ]; then
-    if [ -n "$CONTAINER_ID" ]; then
-      pass "memory writer lock belongs to the running Agent Canvas instance: $WRITER_LOCK"
-    elif [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -f "$COMPOSE_ENV" ]; then
-      fail "stale memory writer lock exists while Agent Canvas is stopped: $WRITER_LOCK"
+    if [ -d "$OBSIDIAN_VAULT_PATH" ] && [ -w "$OBSIDIAN_VAULT_PATH" ]; then
+      pass "Obsidian vault is writable: $OBSIDIAN_VAULT_PATH"
     else
-      warn "memory writer lock exists but container state cannot be verified: $WRITER_LOCK"
+      fail "Obsidian vault is missing or not writable: $OBSIDIAN_VAULT_PATH"
     fi
-  elif [ -n "$CONTAINER_ID" ]; then
-    fail 'Agent Canvas is running without a memory writer lock'
-  else
-    warn 'memory writer lock is inactive because Agent Canvas is not running'
+    WRITER_LOCK="$OBSIDIAN_VAULT_PATH/88-学习/xiaobai/10-项目记忆/xbaiProjectCode/.xiaobai-writer.lock"
+    if [ -d "$WRITER_LOCK" ]; then
+      if [ -n "$CONTAINER_ID" ]; then
+        pass "memory writer lock belongs to the running Agent Canvas instance: $WRITER_LOCK"
+      elif [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -f "$COMPOSE_ENV" ]; then
+        fail "stale memory writer lock exists while Agent Canvas is stopped: $WRITER_LOCK"
+      else
+        warn "memory writer lock exists but container state cannot be verified: $WRITER_LOCK"
+      fi
+    elif [ -n "$CONTAINER_ID" ]; then
+      fail 'Agent Canvas is running without a memory writer lock'
+    else
+      warn 'memory writer lock is inactive because Agent Canvas is not running'
+    fi
   fi
 fi
 

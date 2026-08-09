@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUNDLE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOCK_FILE="$SCRIPT_DIR/versions.lock"
 ENV_FILE="$SCRIPT_DIR/.env"
+# shellcheck source=vault-path.sh
+source "$SCRIPT_DIR/vault-path.sh"
 
 if [ "${1:-}" = "--env" ]; then
   if [ -z "${2:-}" ]; then
@@ -32,6 +34,12 @@ if [ -f "$ENV_FILE" ]; then
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+fi
+
+if [ -n "${OBSIDIAN_VAULT_PATH:-}" ] && ! is_obsidian_vault_root "$OBSIDIAN_VAULT_PATH"; then
+  printf 'invalid Obsidian Vault root: %s\n' "$OBSIDIAN_VAULT_PATH" >&2
+  printf 'OBSIDIAN_VAULT_PATH must point to the directory above 88-学习, not 88-学习 or one of its descendants.\n' >&2
+  exit 2
 fi
 
 : "${LLM_API_KEY:?Set LLM_API_KEY in deploy/openhands/.env or the environment}"
