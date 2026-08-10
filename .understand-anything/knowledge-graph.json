@@ -4,86 +4,47 @@
     "name": "xiaobaicode-loop-engineering",
     "languages": [
       "example",
+      "html",
       "javascript",
       "json",
       "jsonl",
       "markdown",
       "typescript",
+      "unknown",
       "yaml"
     ],
     "frameworks": [],
-    "description": "Loop Engineering 工程骨架，将 Agent 工作流的发现、交付、验证、持久化与调度拆分为可维护、可审计、可验证的引擎层和运行空间。",
-    "analyzedAt": "2026-07-31T14:07:33.051Z",
-    "gitCommitHash": "0e8a1369f05ff1ffac2c01aa12f1376708545272"
+    "description": "Loop Engineering 工程骨架，将 Agent 工作流的发现、交付、验证、持久化与调度拆分为可维护、可审计、可扩展的引擎层和运行空间。注意：本项目包含超过 100 个源文件，完整分析可能耗时较长。",
+    "analyzedAt": "2026-08-10T08:58:42.652Z",
+    "gitCommitHash": "ddec6bf79c03b6ae7c3b0f11e9fd38c4d7a5f121"
   },
   "nodes": [
-    {
-      "id": "document:AGENTS.md",
-      "type": "document",
-      "name": "AGENTS.md",
-      "filePath": "AGENTS.md",
-      "summary": "定义 Loop Engineering 仓库的中英双语协作规范、引擎与 workspace 边界、本机状态隔离、Memory 配置和人工确认门禁。它是仓库内 agent 行为与提交安全的最高级维护规则。",
-      "tags": [
-        "documentation",
-        "repository-governance",
-        "safety-policy",
-        "bilingual"
-      ],
-      "complexity": "complex"
-    },
     {
       "id": "document:README.md",
       "type": "document",
       "name": "README.md",
       "filePath": "README.md",
-      "summary": "说明 Loop Engineering 确定性骨架的目标、运行链路、目录职责、CLI 命令、前端交付与 Obsidian Memory 工作流，并明确当前不调用真实 LLM 或创建 PR。",
+      "summary": "Loop Engineering 项目总览与操作指南，覆盖安装、CLI 命令、运行链路、目录结构、核心规格、Memory、dry-run、模拟和当前能力边界。",
       "tags": [
         "documentation",
-        "entry-point",
-        "architecture",
-        "operations"
+        "项目概览",
+        "快速开始",
+        "工作流",
+        "memory"
       ],
       "complexity": "complex"
-    },
-    {
-      "id": "document:SKILL.md",
-      "type": "document",
-      "name": "SKILL.md",
-      "filePath": "SKILL.md",
-      "summary": "规定仓级代码实现阶段的加载顺序、四项实现原则、验证门禁和交付说明，约束 generator、harness 与人工协作保持简洁、精准和可验证。",
-      "tags": [
-        "documentation",
-        "implementation-guideline",
-        "agent-policy",
-        "verification"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "config:package.json",
-      "type": "config",
-      "name": "package.json",
-      "filePath": "package.json",
-      "summary": "声明 Node.js 20 以上的私有 TypeScript 工程、Loop CLI 入口、构建测试与 dry-run 脚本，以及 AJV、YAML 和 TypeScript 依赖。",
-      "tags": [
-        "configuration",
-        "npm",
-        "build-system",
-        "cli"
-      ],
-      "complexity": "simple"
     },
     {
       "id": "config:tsconfig.json",
       "type": "config",
       "name": "tsconfig.json",
       "filePath": "tsconfig.json",
-      "summary": "配置 Loop Engineering TypeScript 源码以严格模式编译为 ES2022 CommonJS，并把产物写入 dist 目录。",
+      "summary": "TypeScript 编译配置，面向 ES2022 与 CommonJS，启用严格模式、Node 模块解析和统一 dist 输出。",
       "tags": [
         "configuration",
         "typescript",
         "build-system",
-        "strict-mode"
+        "严格模式"
       ],
       "complexity": "simple"
     },
@@ -92,12 +53,13 @@
       "type": "document",
       "name": "workbuddy-expert-skill-guide.md",
       "filePath": "workbuddy-expert-skill-guide.md",
-      "summary": "系统整理 WorkBuddy 专家包与 Skill 的结构、创建、校验、注册、协作、头像和存储规则，并强调其与仓内 YAML Loop/Agent 机制相互独立。",
+      "summary": "WorkBuddy 专家包与 Skill 的中英双语创建指南，区分 agent、team 与 Skill 机制，并规定目录、清单、命名、头像、协作、校验和发布流程。",
       "tags": [
         "documentation",
-        "expert-package",
-        "skill-authoring",
-        "workbuddy"
+        "workbuddy",
+        "专家包",
+        "skill",
+        "创建规范"
       ],
       "complexity": "complex"
     },
@@ -106,12 +68,12 @@
       "type": "document",
       "name": "专家团使用与模型说明.md",
       "filePath": "专家团使用与模型说明.md",
-      "summary": "说明 loop-review-team 专家团的成员分工、完整评审流程和模型继承限制，并解释专家团与四个独立专家之间的保留关系。",
+      "summary": "项目评审团专家包的使用说明，列出团队成员、完整评审流程、模型继承限制及与四个独立专家的关系。",
       "tags": [
         "documentation",
-        "expert-team",
-        "model-routing",
-        "review-workflow"
+        "专家团",
+        "模型路由",
+        "使用指南"
       ],
       "complexity": "simple"
     },
@@ -120,12 +82,13 @@
       "type": "document",
       "name": "专家评审团-项目评审报告.md",
       "filePath": "专家评审团-项目评审报告.md",
-      "summary": "汇总四角色对 Loop Engineering 骨架的 Agent 工作流、系统架构与风险评审，识别纸面门禁、双方言漂移、过度拆分和文档漂移，并给出优先级行动项。",
+      "summary": "四角色专家团对 Loop Engineering 骨架的历史评审报告，汇总工作流、架构和批判意见，并给出规格统一、模型路由、文档漂移及真实执行验证行动项。",
       "tags": [
-        "documentation",
-        "architecture-review",
-        "risk-assessment",
-        "agent-governance"
+        "评审报告",
+        "架构",
+        "风险",
+        "工作流",
+        "行动清单"
       ],
       "complexity": "moderate"
     },
@@ -176,12 +139,12 @@
       "type": "document",
       "name": "architecture.md",
       "filePath": "loop-engineering/docs/architecture.md",
-      "summary": "概述 Loop Engineering 以职责边界拆分引擎与 workspace 的核心架构、标准 Loop 合约及生成评审分离、只读 dry-run、磁盘记忆和人工门禁等安全默认值。",
+      "summary": "说明 Loop Engineering 以责任边界划分引擎与 workspace，并定义 discovery 到 schedule 的核心链路及默认安全约束。",
       "tags": [
         "documentation",
         "architecture",
         "responsibility-boundary",
-        "safety-defaults"
+        "safety"
       ],
       "complexity": "simple"
     },
@@ -190,12 +153,12 @@
       "type": "document",
       "name": "frontend-platform-standards.md",
       "filePath": "loop-engineering/docs/frontend-platform-standards.md",
-      "summary": "定义平台级前端目录、命名、类型、框架、样式、可访问性、性能、安全、Agent 交付与验收规则，允许项目 Skill 收窄但不得削弱安全和可验证性。",
+      "summary": "中英双语前端平台工程规范，覆盖目录、命名、可访问性、CSS、JavaScript、TypeScript、Vue、React、Git、安全、性能与 Agent 验收要求。",
       "tags": [
         "documentation",
-        "frontend-standards",
-        "accessibility",
-        "engineering-governance"
+        "frontend",
+        "engineering-standards",
+        "acceptance"
       ],
       "complexity": "complex"
     },
@@ -204,12 +167,12 @@
       "type": "document",
       "name": "obsidian-memory-architecture.md",
       "filePath": "loop-engineering/docs/obsidian-memory-architecture.md",
-      "summary": "定义 Obsidian 持久记忆的目录协议、L0-L5 分层、frontmatter 与机器索引、离线检索、上下文装配、案例晋升、预览优先写入和恢复策略。",
+      "summary": "定义 Obsidian 记忆系统从原始日志到执行记忆和检索索引的分层架构、目录协议、frontmatter、命令、捕获提升、校验与恢复策略。",
       "tags": [
         "documentation",
-        "obsidian-memory",
-        "knowledge-index",
-        "safety-design"
+        "obsidian",
+        "memory-architecture",
+        "retrieval"
       ],
       "complexity": "complex"
     },
@@ -218,11 +181,11 @@
       "type": "document",
       "name": "obsidian-memory-migration.md",
       "filePath": "loop-engineering/docs/obsidian-memory-migration.md",
-      "summary": "提供把 workspace/memory 迁移到 Obsidian 项目目录的配置、复制、建索引、校验、回滚、人工编辑与恢复步骤。",
+      "summary": "指导把仓库内记忆迁移到 Obsidian 项目目录，并通过初始化、索引、校验、上下文验证、回滚和恢复维持可审计状态。",
       "tags": [
         "documentation",
-        "migration-guide",
-        "obsidian-memory",
+        "obsidian",
+        "migration",
         "recovery"
       ],
       "complexity": "moderate"
@@ -232,12 +195,12 @@
       "type": "document",
       "name": "product-requirement-platform-standards.md",
       "filePath": "loop-engineering/docs/product-requirement-platform-standards.md",
-      "summary": "定义需求澄清、伪需求识别、最小 PRD、用户故事、优先级、指标、风险、Sprint、发布说明和 Agent 交付的可验证平台规则。",
+      "summary": "中英双语产品需求平台规范，覆盖需求澄清、伪需求识别、PRD、用户故事、优先级、指标、风险假设、Sprint、发布和验收。",
       "tags": [
         "documentation",
         "product-requirements",
         "prd",
-        "acceptance-criteria"
+        "acceptance"
       ],
       "complexity": "complex"
     },
@@ -400,12 +363,13 @@
       "type": "config",
       "name": "coding.harness.yaml",
       "filePath": "workspace/agents/coding.harness.yaml",
-      "summary": "定义通用编码 Harness 的工具白名单、上下文装载器、客观完成条件和失败处理策略，并要求输出变更与测试摘要。",
+      "summary": "通用编码 Harness 配置，限定文件读写、测试、diff 与搜索工具，装载仓库和项目上下文，并以代码变更、测试尝试和摘要作为完成条件。",
       "tags": [
         "configuration",
-        "agent-harness",
-        "tool-policy",
-        "completion-gate"
+        "harness",
+        "编码",
+        "工具权限",
+        "完成门禁"
       ],
       "complexity": "simple"
     },
@@ -414,12 +378,12 @@
       "type": "config",
       "name": "evaluator.agent.yaml",
       "filePath": "workspace/agents/evaluator.agent.yaml",
-      "summary": "配置通用独立 evaluator，以怀疑式立场直接检查 diff、测试与项目技能约束，证据不足时拒绝交付。",
+      "summary": "通用独立 evaluator 配置，要求直接检查 diff、测试和项目 Skill，并在证据不足时拒绝生成者结论。",
       "tags": [
         "configuration",
-        "agent",
-        "evaluation",
-        "quality-gate"
+        "evaluator",
+        "独立评审",
+        "验证门禁"
       ],
       "complexity": "simple"
     },
@@ -428,13 +392,13 @@
       "type": "config",
       "name": "frontend-delivery.harness.yaml",
       "filePath": "workspace/agents/frontend-delivery.harness.yaml",
-      "summary": "定义前端交付 Harness 的挂载仓访问、设计审批、实现验证和 PR-ready 完成条件，同时禁止直接合并、发布及越界写入。",
+      "summary": "前端交付 Harness 配置，约束动态挂载仓库、设计文档、独立设计评审、人工审批、实现验证、UI smoke 和 PR 就绪产物的阶段门禁。",
       "tags": [
         "configuration",
-        "frontend-delivery",
-        "agent-harness",
-        "human-gate",
-        "tool-policy"
+        "harness",
+        "前端交付",
+        "设计门禁",
+        "人工审批"
       ],
       "complexity": "moderate"
     },
@@ -443,13 +407,13 @@
       "type": "config",
       "name": "frontend-evaluator.agent.yaml",
       "filePath": "workspace/agents/frontend-evaluator.agent.yaml",
-      "summary": "配置前端独立 evaluator，核验需求、设计、挂载仓、审批、实现证据与 PR 计划，并阻止未获人工设计确认的实现。",
+      "summary": "前端独立评审 agent 配置，核查需求真源、设计审批、目标仓边界、实现 diff、测试、UI 证据和 PR 计划。",
       "tags": [
         "configuration",
-        "frontend",
-        "evaluation",
-        "quality-gate",
-        "human-gate"
+        "evaluator",
+        "前端评审",
+        "仓库边界",
+        "ui验证"
       ],
       "complexity": "simple"
     },
@@ -458,13 +422,13 @@
       "type": "config",
       "name": "frontend-generator.agent.yaml",
       "filePath": "workspace/agents/frontend-generator.agent.yaml",
-      "summary": "配置前端生成 Agent，从多来源需求归一化和挂载仓解析推进到设计、审批后实现、验证及 PR-ready 输出。",
+      "summary": "前端生成者 agent 配置，负责需求归一、挂载仓路由、主设计与仓库补充设计，并在审批后实施、测试和准备 PR。",
       "tags": [
         "configuration",
-        "frontend",
         "generator",
-        "delivery-workflow",
-        "repository-routing"
+        "前端交付",
+        "技术设计",
+        "pr准备"
       ],
       "complexity": "simple"
     },
@@ -473,12 +437,12 @@
       "type": "config",
       "name": "generator.agent.yaml",
       "filePath": "workspace/agents/generator.agent.yaml",
-      "summary": "配置通用代码生成 Agent，要求最小化实现变更、遵循仓库和项目技能规则并汇总修改文件。",
+      "summary": "通用生成者 agent 配置，要求遵循仓库与项目 Skill，以最小补丁实现请求并汇总变更文件。",
       "tags": [
         "configuration",
-        "agent",
         "generator",
-        "minimal-change"
+        "最小修改",
+        "实现"
       ],
       "complexity": "simple"
     },
@@ -487,28 +451,13 @@
       "type": "config",
       "name": "suagent.agent.yaml",
       "filePath": "workspace/agents/suagent.agent.yaml",
-      "summary": "配置监督型 checker，独立审查多 Agent 计划、源码、验证证据和仓库边界，并明确保护本机状态与外部参考仓。",
+      "summary": "多 agent 工作监督配置，通过直接检查计划、diff、真源和验证证据，守住外部仓库、挂载产物与本机配置的提交边界。",
       "tags": [
         "configuration",
-        "agent",
-        "supervision",
-        "repository-boundary",
-        "quality-gate"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
-      "type": "config",
-      "name": "xiaobai.orchestrator.agent.yaml",
-      "filePath": "workspace/agents/xiaobai.orchestrator.agent.yaml",
-      "summary": "定义小白顶层编排器，负责项目解析、Loop 路由、Agent 与人工门禁协调，并在完成后将双语摘要持久化到配置的 Obsidian 记忆。",
-      "tags": [
-        "configuration",
-        "orchestrator",
-        "project-routing",
-        "human-gate",
-        "memory"
+        "监督评审",
+        "多agent",
+        "证据",
+        "仓库边界"
       ],
       "complexity": "simple"
     },
@@ -755,11 +704,12 @@
       "type": "document",
       "name": "pull_request_template.md",
       "filePath": ".aliyun/pull_request_template.md",
-      "summary": "阿里云代码评审模板，要求说明变更动机、UI 效果、测试验证、验收清单及关联工作项。",
+      "summary": "阿里云代码托管的 Pull Request 模板，要求填写变更背景、效果、验证方式、验收清单和关联资料。",
       "tags": [
         "documentation",
-        "code-review",
-        "pull-request"
+        "pull-request",
+        "review",
+        "checklist"
       ],
       "complexity": "simple"
     },
@@ -768,11 +718,12 @@
       "type": "document",
       "name": "2026-06-28-loop-simulation-lifecycle.md",
       "filePath": "data/cases/2026-06-28-loop-simulation-lifecycle.md",
-      "summary": "记录 Loop Engineering 在接入真实外部系统前先执行确定性端到端模拟的案例、证据与复用规则。",
+      "summary": "记录 Loop 模拟生命周期案例，按触发条件、症状、规则、反模式、适用范围和证据沉淀可复用经验。",
       "tags": [
         "documentation",
         "simulation",
-        "knowledge-case"
+        "lifecycle",
+        "case-study"
       ],
       "complexity": "simple"
     },
@@ -781,11 +732,12 @@
       "type": "config",
       "name": "cases-index.json",
       "filePath": "data/index/cases-index.json",
-      "summary": "团队成长案例的机器索引，保存案例标识、标签、状态、晋升分数与文档路径。",
+      "summary": "维护案例知识的结构化索引，供工具按案例元数据定位对应文档。",
       "tags": [
         "configuration",
         "case-index",
-        "knowledge-base"
+        "knowledge-base",
+        "metadata"
       ],
       "complexity": "simple"
     },
@@ -794,411 +746,12 @@
       "type": "document",
       "name": "patterns-index.md",
       "filePath": "data/index/patterns-index.md",
-      "summary": "人工可读的模式索引，记录当前案例尚未达到模式晋升阈值及最近更新时间。",
+      "summary": "提供模式知识库的主题目录与最近更新入口，便于人工浏览和回溯。",
       "tags": [
         "documentation",
         "pattern-index",
-        "knowledge-base"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:loop-engineering/cli/loop.ts",
-      "type": "file",
-      "name": "loop.ts",
-      "filePath": "loop-engineering/cli/loop.ts",
-      "summary": "Loop Engineering 命令行入口，解析 validate、dry-run、simulate 与 memory 子命令并输出计划或模拟结果。",
-      "tags": [
-        "entry-point",
-        "cli",
-        "orchestration"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:loop-engineering/cli/loop.ts:main",
-      "type": "function",
-      "name": "main",
-      "filePath": "loop-engineering/cli/loop.ts",
-      "lineRange": [
-        22,
-        108
-      ],
-      "summary": "解析顶层命令并分派工作区校验、干运行、模拟或记忆管理流程。",
-      "tags": [
-        "entry-point",
-        "cli",
-        "command-dispatch"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:loop-engineering/cli/loop.ts:parseArgs",
-      "type": "function",
-      "name": "parseArgs",
-      "filePath": "loop-engineering/cli/loop.ts",
-      "lineRange": [
-        119,
-        163
-      ],
-      "summary": "将命令行参数转换为 Loop CLI 的结构化选项并拒绝未知参数。",
-      "tags": [
-        "cli",
-        "argument-parser",
-        "validation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/loop.ts:printPlan",
-      "type": "function",
-      "name": "printPlan",
-      "filePath": "loop-engineering/cli/loop.ts",
-      "lineRange": [
-        173,
-        208
-      ],
-      "summary": "把 dry-run 产生的运行计划格式化为可读文本。",
-      "tags": [
-        "cli",
-        "serialization",
-        "reporting"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/loop.ts:printSimulation",
-      "type": "function",
-      "name": "printSimulation",
-      "filePath": "loop-engineering/cli/loop.ts",
-      "lineRange": [
-        210,
-        224
-      ],
-      "summary": "输出模拟运行的阶段、工件与汇总信息。",
-      "tags": [
-        "cli",
-        "simulation",
-        "reporting"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/loop.ts:printHelp",
-      "type": "function",
-      "name": "printHelp",
-      "filePath": "loop-engineering/cli/loop.ts",
-      "lineRange": [
-        226,
-        239
-      ],
-      "summary": "输出 Loop CLI 的命令与参数帮助。",
-      "tags": [
-        "cli",
-        "help",
-        "documentation"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:loop-engineering/cli/memory.ts",
-      "type": "file",
-      "name": "memory.ts",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "summary": "记忆协议命令行实现，覆盖初始化、索引、检索、上下文、校验、诊断、捕获、晋升、报告、快照与检查点。",
-      "tags": [
-        "cli",
-        "memory",
-        "orchestration"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
-      "type": "function",
-      "name": "runMemoryCommand",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        47,
-        56
-      ],
-      "summary": "执行记忆子命令并按 JSON 或人类可读格式返回结果。",
-      "tags": [
-        "cli",
-        "memory",
-        "entry-point"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:executeMemoryCommand",
-      "type": "function",
-      "name": "executeMemoryCommand",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        58,
-        84
-      ],
-      "summary": "根据子命令路由到相应记忆处理器，并统一构造错误结果。",
-      "tags": [
-        "cli",
-        "command-dispatch",
-        "memory"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleCheckpoint",
-      "type": "function",
-      "name": "handleCheckpoint",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        86,
-        154
-      ],
-      "summary": "在明确写入与确认门禁下同时捕获案例、生成项目快照并刷新索引。",
-      "tags": [
-        "memory",
-        "checkpoint",
-        "human-gate"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:resolveCliMemoryPaths",
-      "type": "function",
-      "name": "resolveCliMemoryPaths",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        156,
-        168
-      ],
-      "summary": "结合工作区配置和命令参数解析当前 vault、学习根、项目与 loop 的记忆路径。",
-      "tags": [
-        "memory",
-        "path-resolution",
-        "configuration"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleInit",
-      "type": "function",
-      "name": "handleInit",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        182,
-        207
-      ],
-      "summary": "规划或写入 Obsidian 记忆目录与初始模板，并避免重复 seed case。",
-      "tags": [
-        "memory",
-        "initialization",
-        "template"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleIndex",
-      "type": "function",
-      "name": "handleIndex",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        223,
-        242
-      ],
-      "summary": "构建记忆索引，并在写入模式下以原子方式落盘。",
-      "tags": [
-        "memory",
-        "indexing",
-        "serialization"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleSearch",
-      "type": "function",
-      "name": "handleSearch",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        244,
-        264
-      ],
-      "summary": "加载已有索引并按查询、项目、类型、标签和置信度过滤排序记忆。",
-      "tags": [
-        "memory",
-        "search",
-        "filtering"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleContext",
-      "type": "function",
-      "name": "handleContext",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        266,
-        278
-      ],
-      "summary": "从记忆索引装配受字符预算约束的项目与 loop 上下文。",
-      "tags": [
-        "memory",
-        "context",
-        "budget"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleValidate",
-      "type": "function",
-      "name": "handleValidate",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        280,
-        291
-      ],
-      "summary": "校验记忆目录、索引 schema、JSONL 日志与索引新鲜度。",
-      "tags": [
-        "memory",
-        "validation",
-        "schema"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleCapture",
-      "type": "function",
-      "name": "handleCapture",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        299,
-        324
-      ],
-      "summary": "根据标题与正文规划案例文件，并在写入模式下保存和刷新索引。",
-      "tags": [
-        "memory",
-        "capture",
-        "knowledge-case"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handlePromote",
-      "type": "function",
-      "name": "handlePromote",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        326,
-        352
-      ],
-      "summary": "把候选案例晋升为模式文档，更新来源链接并刷新全局记忆索引。",
-      "tags": [
-        "memory",
-        "promotion",
-        "pattern"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleReport",
-      "type": "function",
-      "name": "handleReport",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        354,
-        363
-      ],
-      "summary": "生成记忆健康度与索引状态报告。",
-      "tags": [
-        "memory",
-        "reporting",
-        "diagnostics"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:handleSnapshot",
-      "type": "function",
-      "name": "handleSnapshot",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        365,
-        413
-      ],
-      "summary": "选择项目核心记忆与摘要，生成可审计的 Obsidian 项目记忆快照。",
-      "tags": [
-        "memory",
-        "snapshot",
-        "obsidian"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:renderProjectMemorySnapshot",
-      "type": "function",
-      "name": "renderProjectMemorySnapshot",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        415,
-        440
-      ],
-      "summary": "把来源清单、记忆摘要和上下文正文渲染为中英双语快照文档。",
-      "tags": [
-        "memory",
-        "serialization",
-        "documentation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:ensureIndex",
-      "type": "function",
-      "name": "ensureIndex",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        454,
-        464
-      ],
-      "summary": "读取现有索引，或在缺失时构建并原子写入新索引。",
-      "tags": [
-        "memory",
-        "indexing",
-        "utility"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:parseMemoryArgs",
-      "type": "function",
-      "name": "parseMemoryArgs",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        480,
-        508
-      ],
-      "summary": "解析记忆命令的写入确认、路径、查询、过滤与正文参数。",
-      "tags": [
-        "cli",
-        "argument-parser",
-        "memory"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:loop-engineering/cli/memory.ts:printHuman",
-      "type": "function",
-      "name": "printHuman",
-      "filePath": "loop-engineering/cli/memory.ts",
-      "lineRange": [
-        516,
-        528
-      ],
-      "summary": "以稳定的人类可读格式输出记忆命令结果、警告和错误。",
-      "tags": [
-        "cli",
-        "reporting",
-        "serialization"
+        "knowledge-base",
+        "navigation"
       ],
       "complexity": "simple"
     },
@@ -1421,7 +974,8 @@
       "tags": [
         "runtime",
         "orchestration",
-        "dry-run"
+        "dry-run",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -1515,13 +1069,14 @@
       "type": "file",
       "name": "caseTemplate.ts",
       "filePath": "loop-engineering/packages/memory-capture/src/caseTemplate.ts",
-      "summary": "渲染带受控 frontmatter 和标准知识段落的案例 Markdown 模板。",
+      "summary": "生成带标准 frontmatter、证据区段和复用提示的项目记忆案例 Markdown 模板。",
       "tags": [
-        "memory",
+        "memory-capture",
         "template",
         "serialization"
       ],
-      "complexity": "simple"
+      "complexity": "simple",
+      "languageNotes": "使用 TypeScript 模板字符串按可选 loop 与 run 元数据组装 Obsidian 笔记。"
     },
     {
       "id": "function:loop-engineering/packages/memory-capture/src/caseTemplate.ts:renderCaseTemplate",
@@ -1532,11 +1087,11 @@
         1,
         11
       ],
-      "summary": "根据项目、loop、run 与日期渲染可索引的案例文档。",
+      "summary": "把案例标识、项目上下文和正文渲染为可写入 Obsidian 的 Markdown 文本。",
       "tags": [
-        "memory",
         "template",
-        "knowledge-case"
+        "serialization",
+        "memory-capture"
       ],
       "complexity": "simple"
     },
@@ -1545,11 +1100,11 @@
       "type": "file",
       "name": "caseWriter.ts",
       "filePath": "loop-engineering/packages/memory-capture/src/caseWriter.ts",
-      "summary": "规划安全且不冲突的案例文件路径，并负责最终写入。",
+      "summary": "规划并写入项目记忆案例文件，通过标题 slug 和递增后缀避免覆盖已有案例。",
       "tags": [
-        "memory",
-        "capture",
-        "file-system"
+        "memory-capture",
+        "file-writer",
+        "collision-avoidance"
       ],
       "complexity": "simple"
     },
@@ -1562,11 +1117,11 @@
         13,
         30
       ],
-      "summary": "基于日期和标题生成唯一案例路径及模板内容。",
+      "summary": "根据日期、标题和项目上下文生成唯一案例路径及待写入内容。",
       "tags": [
-        "memory",
-        "capture",
-        "planning"
+        "planning",
+        "memory-capture",
+        "path-resolution"
       ],
       "complexity": "simple"
     },
@@ -1579,11 +1134,11 @@
         32,
         36
       ],
-      "summary": "创建目标目录并写入已规划的案例内容。",
+      "summary": "创建父目录并将案例计划写入磁盘，同时返回已创建状态。",
       "tags": [
-        "memory",
-        "capture",
-        "file-system"
+        "file-writer",
+        "memory-capture",
+        "persistence"
       ],
       "complexity": "simple"
     },
@@ -1596,10 +1151,10 @@
         38,
         47
       ],
-      "summary": "在案例文件重名时递增后缀，返回首个未占用路径。",
+      "summary": "检测路径冲突并递增文件名后缀，选择未被占用的案例文件路径。",
       "tags": [
-        "memory",
         "path-resolution",
+        "collision-avoidance",
         "utility"
       ],
       "complexity": "simple"
@@ -1609,11 +1164,12 @@
       "type": "file",
       "name": "index.ts",
       "filePath": "loop-engineering/packages/memory-capture/src/index.ts",
-      "summary": "统一重导出案例模板、案例写入、模式晋升和 slug 工具的包入口。",
+      "summary": "Memory 捕获包的 barrel 入口，统一导出 case 模板、写入器、模式晋升、slug 与预算能力。",
       "tags": [
-        "entry-point",
         "barrel",
-        "memory"
+        "memory",
+        "知识捕获",
+        "导出"
       ],
       "complexity": "simple"
     },
@@ -1622,13 +1178,13 @@
       "type": "file",
       "name": "patternPromoter.ts",
       "filePath": "loop-engineering/packages/memory-capture/src/patternPromoter.ts",
-      "summary": "将案例内容渲染并写为模式，同时更新全局模式索引与来源案例反向链接。",
+      "summary": "把多个案例提升为模式笔记，并维护全局模式索引及源案例的双向 Obsidian 链接。",
       "tags": [
-        "memory",
-        "promotion",
-        "pattern"
+        "memory-promotion",
+        "obsidian-links",
+        "file-writer"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/memory-capture/src/patternPromoter.ts:renderPattern",
@@ -1639,11 +1195,11 @@
         7,
         14
       ],
-      "summary": "基于标题、日期和来源案例渲染 active pattern 文档。",
+      "summary": "渲染包含适用范围、反例、停止条件和源案例链接的模式 Markdown。",
       "tags": [
-        "memory",
-        "pattern",
-        "template"
+        "template",
+        "memory-promotion",
+        "serialization"
       ],
       "complexity": "simple"
     },
@@ -1656,20 +1212,20 @@
         16,
         34
       ],
-      "summary": "安全写入模式文件，并同步全局索引和来源案例链接。",
+      "summary": "写入模式笔记，并按配置将其登记到全局索引和各源案例。",
       "tags": [
-        "memory",
-        "promotion",
-        "file-system"
+        "memory-promotion",
+        "file-writer",
+        "obsidian-links"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "file:loop-engineering/packages/memory-capture/src/slug.ts",
       "type": "file",
       "name": "slug.ts",
       "filePath": "loop-engineering/packages/memory-capture/src/slug.ts",
-      "summary": "提供将中英文标题规范化为稳定文件名 slug 的工具。",
+      "summary": "提供兼容 Unicode 字母和数字的标题 slug 生成逻辑，并为全空结果提供稳定回退值。",
       "tags": [
         "utility",
         "slug",
@@ -1686,7 +1242,7 @@
         1,
         8
       ],
-      "summary": "清理标题字符、折叠分隔符并提供空值回退 slug。",
+      "summary": "规范化标题并以连字符生成小写文件名片段。",
       "tags": [
         "utility",
         "slug",
@@ -1742,11 +1298,12 @@
       "type": "file",
       "name": "index.ts",
       "filePath": "loop-engineering/packages/memory-context/src/index.ts",
-      "summary": "重导出记忆上下文预算、bundle 类型和加载器的包入口。",
+      "summary": "Memory 上下文包的 barrel 入口，导出上下文 bundle 与加载器。",
       "tags": [
-        "entry-point",
         "barrel",
-        "memory"
+        "memory",
+        "上下文",
+        "导出"
       ],
       "complexity": "simple"
     },
@@ -1802,11 +1359,12 @@
       "type": "file",
       "name": "doctorMemory.ts",
       "filePath": "loop-engineering/packages/memory-doctor/src/doctorMemory.ts",
-      "summary": "汇总记忆索引中的项目、笔记、案例、模式、警告和质量计数，形成诊断报告。",
+      "summary": "检查 memory 索引的覆盖率、链接完整性与已有警告，并生成健康状态、评分和诊断警告。",
       "tags": [
         "memory",
         "diagnostics",
-        "reporting"
+        "validation",
+        "health-check"
       ],
       "complexity": "simple"
     },
@@ -1819,11 +1377,11 @@
         14,
         36
       ],
-      "summary": "计算记忆索引健康指标并返回结构化 doctor 报告。",
+      "summary": "汇总索引统计与警告，计算 memory 健康评分并返回诊断结果。",
       "tags": [
         "memory",
         "diagnostics",
-        "metrics"
+        "validation"
       ],
       "complexity": "simple"
     },
@@ -1832,11 +1390,12 @@
       "type": "file",
       "name": "index.ts",
       "filePath": "loop-engineering/packages/memory-doctor/src/index.ts",
-      "summary": "重导出记忆诊断、JSONL 校验、索引新鲜度与整体验证能力。",
+      "summary": "Memory 诊断包的 barrel 入口，导出诊断、索引新鲜度、JSONL 与结构校验能力。",
       "tags": [
-        "entry-point",
         "barrel",
-        "memory"
+        "memory",
+        "诊断",
+        "验证"
       ],
       "complexity": "simple"
     },
@@ -1845,9 +1404,9 @@
       "type": "file",
       "name": "indexFreshness.ts",
       "filePath": "loop-engineering/packages/memory-doctor/src/indexFreshness.ts",
-      "summary": "通过比对磁盘文件哈希与索引哈希识别缺失或过期的记忆条目。",
+      "summary": "逐条核对记忆索引中的文件是否存在且内容哈希仍与索引一致。",
       "tags": [
-        "memory",
+        "memory-doctor",
         "validation",
         "freshness"
       ],
@@ -1862,11 +1421,11 @@
         4,
         17
       ],
-      "summary": "遍历索引笔记并报告文件缺失或内容哈希不一致。",
+      "summary": "扫描索引条目并返回文件缺失或内容过期警告。",
       "tags": [
-        "memory",
+        "validation",
         "freshness",
-        "validation"
+        "hash-check"
       ],
       "complexity": "simple"
     },
@@ -1875,9 +1434,9 @@
       "type": "file",
       "name": "jsonl.ts",
       "filePath": "loop-engineering/packages/memory-doctor/src/jsonl.ts",
-      "summary": "逐行解析 JSONL 文件并返回带行号的格式错误。",
+      "summary": "按行解析 JSONL 日志并输出带文件名和行号的语法错误。",
       "tags": [
-        "memory",
+        "memory-doctor",
         "jsonl",
         "validation"
       ],
@@ -1892,11 +1451,11 @@
         3,
         17
       ],
-      "summary": "忽略空行并验证每一条 JSONL 记录的 JSON 合法性。",
+      "summary": "验证 JSONL 文件中的每个非空行并收集精确定位的解析错误。",
       "tags": [
         "jsonl",
         "validation",
-        "serialization"
+        "error-reporting"
       ],
       "complexity": "simple"
     },
@@ -1905,11 +1464,11 @@
       "type": "file",
       "name": "validateMemory.ts",
       "filePath": "loop-engineering/packages/memory-doctor/src/validateMemory.ts",
-      "summary": "聚合目录存在性、索引 schema、重复 ID、索引新鲜度和 JSONL 日志校验。",
+      "summary": "编排记忆目录、索引 schema、索引新鲜度、重复 ID 与递归 JSONL 检查，汇总错误和警告。",
       "tags": [
-        "memory",
+        "memory-doctor",
         "validation",
-        "diagnostics"
+        "orchestration"
       ],
       "complexity": "moderate"
     },
@@ -1922,11 +1481,11 @@
         15,
         46
       ],
-      "summary": "执行记忆协议的结构、schema、唯一性与日志完整性检查。",
+      "summary": "执行完整记忆健康检查并返回结构化成功状态、错误和警告。",
       "tags": [
-        "memory",
         "validation",
-        "schema"
+        "orchestration",
+        "memory-doctor"
       ],
       "complexity": "moderate"
     },
@@ -1939,9 +1498,9 @@
         48,
         57
       ],
-      "summary": "递归枚举项目记忆目录下的 JSONL 文件。",
+      "summary": "递归收集项目记忆目录下的全部 JSONL 文件。",
       "tags": [
-        "file-system",
+        "file-discovery",
         "jsonl",
         "utility"
       ],
@@ -1952,11 +1511,12 @@
       "type": "file",
       "name": "index.ts",
       "filePath": "loop-engineering/packages/memory-indexer/src/index.ts",
-      "summary": "重导出记忆索引 schema 校验、原子写入、构建器和分类器。",
+      "summary": "Memory 索引包的 barrel 入口，导出索引 schema、原子写入、构建器与笔记分类器。",
       "tags": [
-        "entry-point",
         "barrel",
-        "memory"
+        "memory",
+        "索引",
+        "导出"
       ],
       "complexity": "simple"
     },
@@ -1965,10 +1525,11 @@
       "type": "file",
       "name": "indexSchema.ts",
       "filePath": "loop-engineering/packages/memory-indexer/src/indexSchema.ts",
-      "summary": "使用 AJV 2020 加载仓库 schema 并校验生成的记忆索引。",
+      "summary": "使用 memory 索引 JSON Schema 校验索引对象，并返回标准化错误列表。",
       "tags": [
         "memory",
-        "schema",
+        "schema-validation",
+        "indexer",
         "validation"
       ],
       "complexity": "simple"
@@ -1982,10 +1543,10 @@
         5,
         13
       ],
-      "summary": "编译 memory-index schema 并把 AJV 错误格式化为路径消息。",
+      "summary": "根据编译后的 JSON Schema 验证 memory 索引并格式化校验错误。",
       "tags": [
         "memory",
-        "schema",
+        "schema-validation",
         "validation"
       ],
       "complexity": "simple"
@@ -1995,11 +1556,12 @@
       "type": "file",
       "name": "indexWriter.ts",
       "filePath": "loop-engineering/packages/memory-indexer/src/indexWriter.ts",
-      "summary": "通过临时文件和 rename 原子写入格式化后的记忆索引。",
+      "summary": "以临时文件加原子重命名的方式持久化 memory 索引，避免写入中断留下半成品。",
       "tags": [
         "memory",
-        "serialization",
-        "atomic-write"
+        "index-writer",
+        "atomic-write",
+        "persistence"
       ],
       "complexity": "simple"
     },
@@ -2012,11 +1574,11 @@
         6,
         11
       ],
-      "summary": "创建索引目录，将 JSON 写入临时文件后原子替换目标。",
+      "summary": "先写入同目录临时文件，再原子重命名为目标索引，保证持久化完整性。",
       "tags": [
         "memory",
         "atomic-write",
-        "file-system"
+        "persistence"
       ],
       "complexity": "simple"
     },
@@ -2025,13 +1587,16 @@
       "type": "file",
       "name": "memoryIndexer.ts",
       "filePath": "loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
-      "summary": "扫描 Obsidian 项目记忆 Markdown，解析 frontmatter、正文、链接和哈希并构建全局 MemoryIndex。",
+      "summary": "遍历项目 memory Markdown，解析元数据与正文并构建项目、笔记、标签和链接索引。它同时处理路径归一化、稳定 ID、文件哈希和扫描警告。",
       "tags": [
         "memory",
-        "indexing",
-        "obsidian"
+        "indexer",
+        "markdown",
+        "obsidian",
+        "data-pipeline"
       ],
-      "complexity": "complex"
+      "complexity": "complex",
+      "languageNotes": "使用 TypeScript 的异步文件系统 API，并通过稳定排序和哈希保证索引结果可重复。"
     },
     {
       "id": "function:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts:buildMemoryIndex",
@@ -2042,13 +1607,13 @@
         26,
         106
       ],
-      "summary": "遍历项目目录构建项目、笔记、案例、模式、标签、链接和警告集合。",
+      "summary": "扫描选定项目的 memory 文档，聚合笔记、标签、链接、项目统计和警告形成完整索引。",
       "tags": [
         "memory",
-        "indexing",
-        "aggregation"
+        "indexer",
+        "data-pipeline"
       ],
-      "complexity": "complex"
+      "complexity": "moderate"
     },
     {
       "id": "function:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts:readNote",
@@ -2059,11 +1624,11 @@
         108,
         164
       ],
-      "summary": "读取单个 Markdown 笔记并组合 frontmatter、分类、摘要、链接、统计与内容哈希。",
+      "summary": "读取单篇 Markdown，解析 frontmatter 与正文特征，并生成带路径、哈希和分类的索引笔记。",
       "tags": [
         "memory",
-        "parsing",
-        "indexing"
+        "markdown",
+        "parsing"
       ],
       "complexity": "moderate"
     },
@@ -2076,13 +1641,13 @@
         166,
         191
       ],
-      "summary": "递归枚举 Markdown 文件，拒绝跟随符号链接并把异常写入警告集合。",
+      "summary": "递归枚举 Markdown 文件，跳过符号链接并把异常记录为扫描警告。",
       "tags": [
-        "file-system",
-        "security",
-        "indexing"
+        "filesystem",
+        "scanner",
+        "memory"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts:buildTags",
@@ -2093,11 +1658,11 @@
         193,
         208
       ],
-      "summary": "按标签聚合笔记 ID 和计数，形成稳定排序的标签索引。",
+      "summary": "按标签聚合关联笔记 ID，并稳定排序生成标签索引。",
       "tags": [
         "memory",
-        "aggregation",
-        "indexing"
+        "tag-index",
+        "aggregation"
       ],
       "complexity": "simple"
     },
@@ -2106,11 +1671,12 @@
       "type": "file",
       "name": "noteClassifier.ts",
       "filePath": "loop-engineering/packages/memory-indexer/src/noteClassifier.ts",
-      "summary": "根据 frontmatter 类型与项目相对路径将笔记分类为案例、模式、报告、项目入口或 loop 状态。",
+      "summary": "根据笔记相对路径和 frontmatter 判定项目笔记、loop 状态、收件箱、决策及日志等 memory 类型。",
       "tags": [
         "memory",
         "classification",
-        "routing"
+        "path-routing",
+        "metadata"
       ],
       "complexity": "simple"
     },
@@ -2123,26 +1689,27 @@
         4,
         31
       ],
-      "summary": "应用类型和路径优先规则返回 MemoryNoteKind 及可选 loopId。",
+      "summary": "结合相对路径和元数据识别 memory 笔记的 kind、loopId 与文件角色。",
       "tags": [
         "memory",
         "classification",
-        "utility"
+        "path-routing"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "file:loop-engineering/packages/memory-protocol/src/frontmatter.ts",
       "type": "file",
       "name": "frontmatter.ts",
       "filePath": "loop-engineering/packages/memory-protocol/src/frontmatter.ts",
-      "summary": "容错解析 Markdown YAML frontmatter，并规范化 tags、domain 和关系数组字段。",
+      "summary": "解析 Markdown frontmatter，并把标量与数组值归一化为 memory 协议可消费的结构。",
       "tags": [
         "memory",
         "frontmatter",
-        "parsing"
+        "parsing",
+        "normalization"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/memory-protocol/src/frontmatter.ts:parseFrontmatter",
@@ -2153,13 +1720,13 @@
         6,
         38
       ],
-      "summary": "识别 frontmatter 边界、解析 YAML，并将缺失或格式错误转为警告而非抛错。",
+      "summary": "识别 Markdown 顶部 frontmatter 区块，解析 YAML 并返回元数据与正文。",
       "tags": [
+        "memory",
         "frontmatter",
-        "parsing",
-        "validation"
+        "parsing"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/memory-protocol/src/frontmatter.ts:normalizeStringArray",
@@ -2170,11 +1737,11 @@
         48,
         51
       ],
-      "summary": "将标量或数组字段规范化为去空的字符串数组。",
+      "summary": "把未知输入归一化为去空白的字符串数组。",
       "tags": [
-        "frontmatter",
         "normalization",
-        "utility"
+        "utility",
+        "validation"
       ],
       "complexity": "simple"
     },
@@ -2183,11 +1750,12 @@
       "type": "file",
       "name": "hash.ts",
       "filePath": "loop-engineering/packages/memory-protocol/src/hash.ts",
-      "summary": "计算普通文件的 SHA-256 内容哈希，并明确拒绝符号链接。",
+      "summary": "以流式 SHA-256 计算文件内容哈希，用于 memory 笔记变更检测和索引一致性。",
       "tags": [
         "memory",
         "hashing",
-        "security"
+        "utility",
+        "integrity"
       ],
       "complexity": "simple"
     },
@@ -2200,11 +1768,11 @@
         4,
         11
       ],
-      "summary": "检查文件类型后返回内容的 SHA-256 十六进制摘要。",
+      "summary": "流式读取文件并返回 SHA-256 十六进制摘要。",
       "tags": [
         "hashing",
-        "security",
-        "file-system"
+        "integrity",
+        "utility"
       ],
       "complexity": "simple"
     },
@@ -2213,11 +1781,13 @@
       "type": "file",
       "name": "index.ts",
       "filePath": "loop-engineering/packages/memory-protocol/src/index.ts",
-      "summary": "统一重导出记忆协议的类型、路径、frontmatter、Markdown、哈希和模板能力。",
+      "summary": "集中导出 memory 协议的类型、路径、Markdown、frontmatter、模板和哈希能力，作为协议包公共入口。",
       "tags": [
+        "memory",
         "entry-point",
         "barrel",
-        "memory"
+        "protocol",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -2226,11 +1796,12 @@
       "type": "file",
       "name": "markdown.ts",
       "filePath": "loop-engineering/packages/memory-protocol/src/markdown.ts",
-      "summary": "从 Markdown 正文提取标题、层级标题、Obsidian 链接、摘要与关键词。",
+      "summary": "从 Markdown 正文中提取标题、双链、摘要和关键词，为 memory 索引提供可检索字段。",
       "tags": [
         "memory",
         "markdown",
-        "parsing"
+        "parsing",
+        "text-extraction"
       ],
       "complexity": "moderate"
     },
@@ -2243,11 +1814,11 @@
         9,
         24
       ],
-      "summary": "综合 frontmatter 与正文生成标准 MarkdownExtraction。",
+      "summary": "统一提取 Markdown 标题、链接、摘要、关键词和正文文本。",
       "tags": [
+        "memory",
         "markdown",
-        "parsing",
-        "memory"
+        "text-extraction"
       ],
       "complexity": "simple"
     },
@@ -2260,11 +1831,11 @@
         26,
         35
       ],
-      "summary": "从正文提取并去重 Markdown 标题文本。",
+      "summary": "扫描 Markdown 标题并保留层级与文本。",
       "tags": [
         "markdown",
-        "parsing",
-        "utility"
+        "headings",
+        "text-extraction"
       ],
       "complexity": "simple"
     },
@@ -2277,11 +1848,11 @@
         37,
         46
       ],
-      "summary": "解析 Obsidian wiki link 并返回去重后的目标列表。",
+      "summary": "提取并去重 Obsidian 双向链接目标。",
       "tags": [
+        "markdown",
         "obsidian",
-        "link-parsing",
-        "utility"
+        "link-extraction"
       ],
       "complexity": "simple"
     },
@@ -2294,92 +1865,11 @@
         57,
         72
       ],
-      "summary": "对中英文文本分词、过滤停用词并按频次提取关键词。",
+      "summary": "从 Markdown 文本分词、归一化并筛选高价值关键词。",
       "tags": [
         "markdown",
-        "keyword-extraction",
-        "ranking"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "type": "file",
-      "name": "paths.ts",
-      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "summary": "定义 Obsidian 记忆协议目录、受限写入路径、vault 相对路径和 wiki link 的解析规则。",
-      "tags": [
-        "memory",
-        "path-resolution",
-        "obsidian"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
-      "type": "function",
-      "name": "resolveMemoryProtocolPaths",
-      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "lineRange": [
-        8,
-        29
-      ],
-      "summary": "从 vault、学习根、项目和 loop 参数派生全部标准记忆目录。",
-      "tags": [
-        "memory",
-        "path-resolution",
-        "configuration"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveSafeWritePath",
-      "type": "function",
-      "name": "resolveSafeWritePath",
-      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "lineRange": [
-        31,
-        39
-      ],
-      "summary": "确保写入目标位于允许根目录内，防止路径逃逸。",
-      "tags": [
-        "security",
-        "path-resolution",
-        "validation"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:vaultRelativePath",
-      "type": "function",
-      "name": "vaultRelativePath",
-      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "lineRange": [
-        41,
-        43
-      ],
-      "summary": "将绝对文件路径转换为使用正斜杠的 vault 相对路径。",
-      "tags": [
-        "obsidian",
-        "path-resolution",
-        "utility"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:buildObsidianLink",
-      "type": "function",
-      "name": "buildObsidianLink",
-      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "lineRange": [
-        45,
-        48
-      ],
-      "summary": "根据 vault 相对 Markdown 路径与标题构建稳定 Obsidian wiki link。",
-      "tags": [
-        "obsidian",
-        "link-builder",
-        "utility"
+        "keywords",
+        "tokenization"
       ],
       "complexity": "simple"
     },
@@ -2388,11 +1878,12 @@
       "type": "file",
       "name": "templates.ts",
       "filePath": "loop-engineering/packages/memory-protocol/src/templates.ts",
-      "summary": "为项目入口、画像、活动上下文、决策、inbox、loop 状态及 seed 知识生成初始记忆模板。",
+      "summary": "生成项目 memory、loop 状态、收件箱、决策和日志文件的初始模板集合。",
       "tags": [
         "memory",
-        "template",
-        "initialization"
+        "templates",
+        "initialization",
+        "protocol"
       ],
       "complexity": "moderate"
     },
@@ -2405,37 +1896,40 @@
         3,
         93
       ],
-      "summary": "根据项目、loop 和日期返回标准 Obsidian 记忆目录的完整模板集合。",
+      "summary": "生成项目级与 Loop 级 memory 初始文档和 JSONL 文件内容。",
       "tags": [
         "memory",
-        "template",
-        "factory"
+        "templates",
+        "initialization"
       ],
-      "complexity": "complex"
+      "complexity": "moderate"
     },
     {
       "id": "file:loop-engineering/packages/memory-protocol/src/types.ts",
       "type": "file",
       "name": "types.ts",
       "filePath": "loop-engineering/packages/memory-protocol/src/types.ts",
-      "summary": "定义记忆协议路径、frontmatter、Markdown 提取、笔记、项目、索引、搜索、模板和诊断报告类型。",
+      "summary": "定义 memory 协议的项目、笔记、标签、链接、索引、搜索、诊断与路径数据结构。",
       "tags": [
-        "type-definition",
         "memory",
-        "schema-definition"
+        "type-definition",
+        "protocol",
+        "data-model"
       ],
-      "complexity": "moderate"
+      "complexity": "moderate",
+      "languageNotes": "以 TypeScript interface 和联合类型集中约束跨包共享的数据契约。"
     },
     {
       "id": "file:loop-engineering/packages/memory-search/src/filters.ts",
       "type": "file",
       "name": "filters.ts",
       "filePath": "loop-engineering/packages/memory-search/src/filters.ts",
-      "summary": "按项目、loop、类型、标签、状态和置信度过滤记忆笔记。",
+      "summary": "按项目、笔记类型、标签、状态和最低置信度过滤 memory 笔记集合。",
       "tags": [
         "memory",
+        "filtering",
         "search",
-        "filtering"
+        "validation"
       ],
       "complexity": "simple"
     },
@@ -2448,7 +1942,7 @@
         12,
         21
       ],
-      "summary": "组合可选过滤条件，返回符合全部约束的笔记。",
+      "summary": "按结构化搜索条件逐项筛选 memory 笔记。",
       "tags": [
         "memory",
         "filtering",
@@ -2474,11 +1968,12 @@
       "type": "file",
       "name": "indexReader.ts",
       "filePath": "loop-engineering/packages/memory-search/src/indexReader.ts",
-      "summary": "读取持久化 MemoryIndex，并在跨电脑同步时将索引内绝对路径重定位到当前 vault。",
+      "summary": "读取磁盘中的 memory 索引，并将索引内绝对路径重新绑定到当前 vault 根目录以支持跨机器使用。",
       "tags": [
         "memory",
-        "indexing",
-        "path-resolution"
+        "index-reader",
+        "path-rebasing",
+        "serialization"
       ],
       "complexity": "simple"
     },
@@ -2491,7 +1986,7 @@
         5,
         16
       ],
-      "summary": "解析索引 JSON，并按可选 vaultRoot 重定位路径。",
+      "summary": "读取并解析索引文件，将路径重绑定到当前 vault 后返回索引。",
       "tags": [
         "memory",
         "index-reader",
@@ -2508,10 +2003,10 @@
         18,
         40
       ],
-      "summary": "复制索引并将项目与笔记路径映射到当前机器的 vault 根。",
+      "summary": "批量重建索引中的 vault、项目和笔记绝对路径，保持相对标识不变。",
       "tags": [
         "memory",
-        "path-resolution",
+        "path-rebasing",
         "normalization"
       ],
       "complexity": "simple"
@@ -2521,11 +2016,12 @@
       "type": "file",
       "name": "memorySearch.ts",
       "filePath": "loop-engineering/packages/memory-search/src/memorySearch.ts",
-      "summary": "组合过滤、查询评分和结果数量限制，提供统一记忆搜索入口。",
+      "summary": "组合结构化过滤、字段匹配和相关性评分，对 memory 索引执行查询并返回排序结果。",
       "tags": [
         "memory",
         "search",
-        "ranking"
+        "ranking",
+        "query-engine"
       ],
       "complexity": "simple"
     },
@@ -2538,7 +2034,7 @@
         9,
         17
       ],
-      "summary": "过滤索引笔记，计算相关性并返回排序后的有限结果。",
+      "summary": "应用过滤器并计算查询相关性，返回按得分排列的 memory 搜索结果。",
       "tags": [
         "memory",
         "search",
@@ -2551,11 +2047,12 @@
       "type": "file",
       "name": "scoring.ts",
       "filePath": "loop-engineering/packages/memory-search/src/scoring.ts",
-      "summary": "根据标题、标签、摘要、关键词、正文、项目匹配和记忆类型计算可解释搜索分数。",
+      "summary": "对查询与笔记标题、摘要、关键词、标签和正文片段的匹配程度进行加权评分。",
       "tags": [
         "memory",
-        "search",
-        "scoring"
+        "scoring",
+        "ranking",
+        "tokenization"
       ],
       "complexity": "moderate"
     },
@@ -2568,26 +2065,27 @@
         9,
         46
       ],
-      "summary": "对查询词与笔记多个字段的匹配进行加权并返回匹配原因。",
+      "summary": "对笔记多个文本字段执行分词匹配和加权累计，计算查询相关性得分。",
       "tags": [
         "memory",
         "scoring",
         "ranking"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "file:loop-engineering/packages/memory-store/src/memoryStore.ts",
       "type": "file",
       "name": "memoryStore.ts",
       "filePath": "loop-engineering/packages/memory-store/src/memoryStore.ts",
-      "summary": "解析 Loop 持久化路径，读取状态与 inbox，并提供运行日志计数和计划写入清单。",
+      "summary": "封装 loop Memory 状态、inbox 和运行日志的路径解析、读取、计数及计划写入清单。",
       "tags": [
         "memory",
-        "storage",
-        "runtime"
+        "存储",
+        "路径解析",
+        "日志"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "class:loop-engineering/packages/memory-store/src/memoryStore.ts:MemoryStore",
@@ -2598,13 +2096,14 @@
         6,
         46
       ],
-      "summary": "封装特定 Loop 的记忆文件路径、读取和持久化计划。",
+      "summary": "基于 workspace、memory root 与 LoopSpec 提供状态文件、inbox、运行日志及计划写入的统一访问接口。",
       "tags": [
+        "存储",
         "memory",
-        "storage",
-        "service"
+        "封装",
+        "路径解析"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/memory-store/src/memoryStore.ts:countRunLogEntries",
@@ -2615,11 +2114,12 @@
         48,
         52
       ],
-      "summary": "统计存在的运行 JSONL 中非空记录数量。",
+      "summary": "安全读取运行日志并按非空行统计 loop 执行记录数量。",
       "tags": [
+        "日志",
+        "计数",
         "memory",
-        "jsonl",
-        "metrics"
+        "工具函数"
       ],
       "complexity": "simple"
     },
@@ -2841,11 +2341,13 @@
       "type": "file",
       "name": "fs.ts",
       "filePath": "loop-engineering/packages/shared/src/fs.ts",
-      "summary": "提供工作区通用的文件存在性、文本/YAML 读写、Loop spec 查找和路径解析工具。",
+      "summary": "集中提供异步文件读写、YAML 解析、loop spec 定位、workspace 路径解析和 JSON 格式化工具。",
       "tags": [
         "utility",
-        "file-system",
-        "configuration"
+        "filesystem",
+        "path-resolution",
+        "serialization",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -2858,10 +2360,10 @@
         5,
         12
       ],
-      "summary": "以布尔值返回文件或目录是否可访问。",
+      "summary": "以异步 access 检查路径是否可访问。",
       "tags": [
-        "file-system",
         "utility",
+        "filesystem",
         "validation"
       ],
       "complexity": "simple"
@@ -2875,11 +2377,11 @@
         14,
         16
       ],
-      "summary": "以 UTF-8 读取文本文件。",
+      "summary": "以 UTF-8 编码读取文本文件。",
       "tags": [
-        "file-system",
         "utility",
-        "io"
+        "filesystem",
+        "text-reader"
       ],
       "complexity": "simple"
     },
@@ -2892,11 +2394,11 @@
         18,
         21
       ],
-      "summary": "创建父目录后以 UTF-8 写入文本文件。",
+      "summary": "创建父目录后以 UTF-8 编码写入文本文件。",
       "tags": [
-        "file-system",
         "utility",
-        "io"
+        "filesystem",
+        "file-writer"
       ],
       "complexity": "simple"
     },
@@ -2909,11 +2411,11 @@
         23,
         26
       ],
-      "summary": "读取并解析泛型 YAML 配置。",
+      "summary": "读取并解析 YAML 文件为调用方指定的类型。",
       "tags": [
-        "configuration",
+        "utility",
         "yaml",
-        "utility"
+        "serialization"
       ],
       "complexity": "simple"
     },
@@ -2926,13 +2428,13 @@
         28,
         48
       ],
-      "summary": "按显式 loop ID 查找规格，或在目录只有一个候选时自动选择。",
+      "summary": "解析显式 loop 标识或在唯一候选条件下自动定位 loop spec，并对缺失与歧义报错。",
       "tags": [
-        "configuration",
         "path-resolution",
+        "loop-spec",
         "validation"
       ],
-      "complexity": "simple"
+      "complexity": "moderate"
     },
     {
       "id": "function:loop-engineering/packages/shared/src/fs.ts:resolveWorkspacePath",
@@ -2943,10 +2445,10 @@
         50,
         54
       ],
-      "summary": "将相对路径绑定到工作区根，绝对路径保持不变。",
+      "summary": "将相对路径基于 workspace 根目录解析，同时保留绝对路径。",
       "tags": [
-        "path-resolution",
         "utility",
+        "path-resolution",
         "workspace"
       ],
       "complexity": "simple"
@@ -2960,11 +2462,11 @@
         56,
         58
       ],
-      "summary": "生成带两空格缩进和末尾换行的稳定 JSON 文本。",
+      "summary": "生成带两空格缩进和末尾换行的 JSON 文本。",
       "tags": [
+        "utility",
         "serialization",
-        "json",
-        "utility"
+        "json"
       ],
       "complexity": "simple"
     },
@@ -2973,11 +2475,12 @@
       "type": "file",
       "name": "memoryRoot.ts",
       "filePath": "loop-engineering/packages/shared/src/memoryRoot.ts",
-      "summary": "解析机器级 memoryRoot、vaultRoot 与学习根覆盖，并兼容工作区默认记忆目录。",
+      "summary": "解析 workspace 的 Memory 根、vault 根和学习根配置，并兼容默认目录、绝对路径及 Obsidian 目录推断。",
       "tags": [
         "memory",
-        "configuration",
-        "path-resolution"
+        "配置",
+        "路径解析",
+        "obsidian"
       ],
       "complexity": "moderate"
     },
@@ -2990,11 +2493,12 @@
         18,
         36
       ],
-      "summary": "读取忽略提交的本机配置，并结合路径布局推断 Obsidian 根信息。",
+      "summary": "读取可选的 workspace.local.yaml，解析 Memory 根路径并补充从目录结构推断的 vault 与学习根。",
       "tags": [
+        "配置",
+        "路径解析",
         "memory",
-        "configuration",
-        "path-resolution"
+        "obsidian"
       ],
       "complexity": "simple"
     },
@@ -3007,11 +2511,12 @@
         38,
         40
       ],
-      "summary": "返回当前机器解析后的记忆根目录。",
+      "summary": "从完整 Memory 配置中返回当前 workspace 的 Memory 根路径。",
       "tags": [
+        "路径解析",
         "memory",
-        "path-resolution",
-        "utility"
+        "工具函数",
+        "配置"
       ],
       "complexity": "simple"
     },
@@ -3024,11 +2529,12 @@
         42,
         56
       ],
-      "summary": "把配置中的 memory 相对路径映射到实际记忆根。",
+      "summary": "将绝对路径、memory 根别名或普通相对路径统一解析到实际 Memory 根下。",
       "tags": [
+        "路径解析",
         "memory",
-        "path-resolution",
-        "utility"
+        "兼容性",
+        "工具函数"
       ],
       "complexity": "simple"
     },
@@ -3041,11 +2547,12 @@
         58,
         70
       ],
-      "summary": "从包含 88-学习 与 10-项目记忆 的路径推断 vault 和学习根名称。",
+      "summary": "从包含 88-学习 与 10-项目记忆 的目录层级推断 Obsidian vault 根和学习根名称。",
       "tags": [
+        "路径推断",
+        "obsidian",
         "memory",
-        "path-inference",
-        "obsidian"
+        "协议"
       ],
       "complexity": "simple"
     },
@@ -3058,7 +2565,8 @@
       "tags": [
         "type-definition",
         "contracts",
-        "runtime"
+        "runtime",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -3067,11 +2575,13 @@
       "type": "file",
       "name": "validation.ts",
       "filePath": "loop-engineering/packages/shared/src/validation.ts",
-      "summary": "使用 AJV 校验 workspace 中的 loop、agent、harness、connector、budget 等结构和跨文件引用。",
+      "summary": "使用 AJV 校验 loop、agent、harness、connector 和 budget，并检查工作流引用、项目 Skill、Memory 路径及 connector 文件是否存在。",
       "tags": [
-        "validation",
-        "schema",
-        "workspace",
+        "验证",
+        "json-schema",
+        "工作流",
+        "配置",
+        "ajv",
         "tested"
       ],
       "complexity": "moderate"
@@ -3085,11 +2595,12 @@
         30,
         40
       ],
-      "summary": "加载共享 schema 并创建支持完整错误收集的 AJV 2020 实例。",
+      "summary": "创建 AJV 2020 实例并从引擎 schema 目录加载全部核心配置模式。",
       "tags": [
-        "validation",
-        "schema",
-        "factory"
+        "ajv",
+        "json-schema",
+        "验证",
+        "配置"
       ],
       "complexity": "simple"
     },
@@ -3102,11 +2613,12 @@
         49,
         60
       ],
-      "summary": "针对指定 schema 校验对象并返回格式化错误。",
+      "summary": "按指定 schema 校验结构化对象，并返回包含显示名称和字段路径的错误列表。",
       "tags": [
-        "validation",
-        "schema",
-        "utility"
+        "验证",
+        "json-schema",
+        "错误处理",
+        "工具函数"
       ],
       "complexity": "simple"
     },
@@ -3119,24 +2631,27 @@
         62,
         199
       ],
-      "summary": "校验工作区资源与 Loop workflow 引用、阶段唯一性、Agent 角色和项目文件存在性。",
+      "summary": "对 LoopSpec 及其项目、Skill、agent、harness、budget、workflow stage、connector 和发现路径执行完整引用校验。",
       "tags": [
-        "validation",
-        "workspace",
-        "governance"
+        "工作区验证",
+        "工作流",
+        "json-schema",
+        "引用完整性"
       ],
-      "complexity": "complex"
+      "complexity": "moderate"
     },
     {
       "id": "file:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
       "type": "file",
       "name": "simulationRuntime.ts",
       "filePath": "loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
-      "summary": "在 dry-run 计划基础上执行确定性本地模拟，写入报告、状态、JSONL 指标、知识案例与 Obsidian 索引。",
+      "summary": "在 dry-run 计划基础上执行确定性端到端模拟，生成阶段报告、Memory 日志、项目状态、知识案例和索引产物。",
       "tags": [
-        "simulation",
-        "runtime",
-        "knowledge-capture",
+        "模拟运行时",
+        "工作流",
+        "memory",
+        "报告",
+        "知识沉淀",
         "tested"
       ],
       "complexity": "complex"
@@ -3150,13 +2665,14 @@
         29,
         101
       ],
-      "summary": "协调 Loop 计划与文件系统副作用，生成端到端模拟结果和可审计工件。",
+      "summary": "编排 Loop dry-run 与模拟产物落盘，创建报告、状态、JSONL 指标、知识案例和 Obsidian case。",
       "tags": [
-        "simulation",
-        "runtime",
-        "orchestrator"
+        "运行时",
+        "模拟",
+        "工作流",
+        "持久化"
       ],
-      "complexity": "complex"
+      "complexity": "moderate"
     },
     {
       "id": "function:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts:writeObsidianSimulationCase",
@@ -3167,13 +2683,14 @@
         103,
         135
       ],
-      "summary": "在 Obsidian 项目记忆中写入模拟案例并刷新全局索引。",
+      "summary": "依据 Memory 协议规划并写入模拟案例，随后重建和原子保存 Obsidian Memory 索引。",
       "tags": [
-        "simulation",
         "obsidian",
-        "knowledge-capture"
+        "case",
+        "模拟",
+        "索引"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts:renderObsidianCaseBody",
@@ -3184,13 +2701,14 @@
         141,
         172
       ],
-      "summary": "渲染包含触发、症状、规则、反模式、范围、证据和复用提示的模拟案例正文。",
+      "summary": "渲染包含触发条件、症状、规则、反模式、范围和证据的模拟知识案例正文。",
       "tags": [
-        "simulation",
-        "template",
-        "documentation"
+        "渲染",
+        "知识案例",
+        "markdown",
+        "模拟"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts:artifactPaths",
@@ -3201,13 +2719,14 @@
         178,
         197
       ],
-      "summary": "根据仓库、工作区、记忆根、loop 和 run ID 推导全部模拟工件路径。",
+      "summary": "根据仓库、workspace、Memory 根、loop、runId 和日期计算全部模拟产物路径。",
       "tags": [
-        "simulation",
-        "path-resolution",
-        "artifact"
+        "路径解析",
+        "模拟",
+        "产物",
+        "memory"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts:buildStages",
@@ -3218,13 +2737,14 @@
         211,
         258
       ],
-      "summary": "将运行计划映射为初始化、仓库接入、发现、handoff、评审与知识沉淀六个完成阶段。",
+      "summary": "把运行计划映射为初始化、仓库接入、发现、交接、评审和知识沉淀六个已完成模拟阶段。",
       "tags": [
-        "simulation",
-        "workflow",
-        "planning"
+        "工作流",
+        "阶段建模",
+        "模拟",
+        "编排"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts:renderReport",
@@ -3235,13 +2755,14 @@
         260,
         304
       ],
-      "summary": "生成包含阶段、发现项、handoff、校验和知识工件的模拟报告。",
+      "summary": "将运行元信息、阶段、finding、handoff、验证和知识产物渲染为模拟报告。",
       "tags": [
-        "simulation",
-        "reporting",
-        "serialization"
+        "报告",
+        "渲染",
+        "模拟",
+        "markdown"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
       "id": "function:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts:renderState",
@@ -3252,11 +2773,12 @@
         313,
         335
       ],
-      "summary": "根据本次发现项渲染 loop 当前状态与后续真实执行缺口。",
+      "summary": "生成包含当前关注点、最近运行、开放 finding 和遗留项的模拟 Memory 状态文档。",
       "tags": [
-        "simulation",
+        "状态",
+        "渲染",
         "memory",
-        "serialization"
+        "模拟"
       ],
       "complexity": "simple"
     },
@@ -3269,11 +2791,12 @@
         337,
         390
       ],
-      "summary": "渲染仓库内 team-growth 模拟案例及其来源证据。",
+      "summary": "生成带 YAML frontmatter 和复用提示的 Loop 模拟生命周期知识案例。",
       "tags": [
-        "simulation",
-        "knowledge-case",
-        "template"
+        "知识案例",
+        "渲染",
+        "markdown",
+        "模拟"
       ],
       "complexity": "moderate"
     },
@@ -3286,11 +2809,12 @@
         392,
         404
       ],
-      "summary": "为新模拟案例构建 cases-index 的机器可读条目。",
+      "summary": "为模拟知识案例构建供机器索引使用的结构化条目。",
       "tags": [
-        "simulation",
-        "case-index",
-        "serialization"
+        "索引",
+        "知识案例",
+        "序列化",
+        "模拟"
       ],
       "complexity": "simple"
     },
@@ -3303,11 +2827,12 @@
         406,
         417
       ],
-      "summary": "渲染尚未达到晋升阈值的 patterns 人工索引。",
+      "summary": "渲染模式索引，明确当前模拟案例尚未达到模式归纳阈值。",
       "tags": [
-        "simulation",
-        "pattern-index",
-        "documentation"
+        "模式索引",
+        "渲染",
+        "markdown",
+        "知识沉淀"
       ],
       "complexity": "simple"
     },
@@ -3320,11 +2845,12 @@
         424,
         436
       ],
-      "summary": "从 Git 配置解析案例来源用户，并在失败时回退到环境或 unknown。",
+      "summary": "优先从环境变量读取来源用户，否则回退到 Git 用户名并在失败时返回 unknown。",
       "tags": [
-        "simulation",
+        "身份解析",
         "git",
-        "metadata"
+        "环境变量",
+        "容错"
       ],
       "complexity": "simple"
     },
@@ -3389,66 +2915,29 @@
       "complexity": "simple"
     },
     {
-      "id": "file:loop-engineering/tests/memory-cli.test.ts",
-      "type": "file",
-      "name": "memory-cli.test.ts",
-      "filePath": "loop-engineering/tests/memory-cli.test.ts",
-      "summary": "端到端覆盖 memory CLI 的预览/写入门禁、初始化、快照、检查点、索引、检索、上下文、晋升和跨机器路径推断。",
-      "tags": [
-        "test",
-        "memory",
-        "cli"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:loop-engineering/tests/memory-protocol.test.ts",
-      "type": "file",
-      "name": "memory-protocol.test.ts",
-      "filePath": "loop-engineering/tests/memory-protocol.test.ts",
-      "summary": "验证记忆协议的路径、frontmatter、Markdown、哈希、模板与 Obsidian link 行为。",
-      "tags": [
-        "test",
-        "memory",
-        "protocol"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:loop-engineering/tests/memory-schema.test.ts",
       "type": "file",
       "name": "memory-schema.test.ts",
       "filePath": "loop-engineering/tests/memory-schema.test.ts",
-      "summary": "使用代表性数据验证 memory index 与 note schema 的必填字段和枚举约束。",
+      "summary": "加载并编译 memory 相关 JSON Schema，验证合法样例通过且非法结构被拒绝。",
       "tags": [
         "test",
         "memory",
-        "schema"
+        "json-schema",
+        "validation"
       ],
       "complexity": "moderate"
-    },
-    {
-      "id": "file:loop-engineering/tests/runtime.test.ts",
-      "type": "file",
-      "name": "runtime.test.ts",
-      "filePath": "loop-engineering/tests/runtime.test.ts",
-      "summary": "覆盖工作区校验、dry-run、前端设计门禁、项目路由、orchestrator、模拟工件和外部 memory root 的集成测试。",
-      "tags": [
-        "test",
-        "runtime",
-        "integration"
-      ],
-      "complexity": "complex"
     },
     {
       "id": "config:workspace/budgets/default.budget.yaml",
       "type": "config",
       "name": "default.budget.yaml",
       "filePath": "workspace/budgets/default.budget.yaml",
-      "summary": "默认运行预算，限制令牌、成本、重试、并行度和墙钟时间，并配置超限停止与通知。",
+      "summary": "定义默认 Loop 运行预算，包括时长、token、工具调用、重试和超限处理策略。",
       "tags": [
         "configuration",
         "budget",
+        "limits",
         "governance"
       ],
       "complexity": "simple"
@@ -3458,24 +2947,29 @@
       "type": "config",
       "name": "frontend-delivery.loop.yaml",
       "filePath": "workspace/loops/frontend-delivery.loop.yaml",
-      "summary": "T-MAX 前端交付 Loop，定义动态目标路由、九阶段设计与实现流程、独立评审及人工设计批准门禁。",
+      "summary": "定义前端交付 Loop 的发现、编排、生成、验证、持久化、预算、人工门禁和完整 workflow 节点。",
       "tags": [
         "configuration",
+        "workflow",
         "frontend-delivery",
-        "workflow"
+        "human-gate",
+        "verification"
       ],
-      "complexity": "moderate"
+      "complexity": "moderate",
+      "languageNotes": "使用 YAML 声明可审计的多阶段 Loop，并显式配置各节点职责与门禁。"
     },
     {
       "id": "config:workspace/loops/morning-triage.loop.yaml",
       "type": "config",
       "name": "morning-triage.loop.yaml",
       "filePath": "workspace/loops/morning-triage.loop.yaml",
-      "summary": "每日晨间分诊 Loop，配置 CI、issue、commit 与 memory 发现源以及隔离交付、评审和合并门禁。",
+      "summary": "定义晨间分诊 Loop 的定时发现、编排、生成、验证、持久化、预算和人工确认规则。",
       "tags": [
         "configuration",
+        "workflow",
         "triage",
-        "workflow"
+        "schedule",
+        "human-gate"
       ],
       "complexity": "moderate"
     },
@@ -3484,11 +2978,12 @@
       "type": "file",
       "name": "findings.jsonl",
       "filePath": "workspace/memory/loops/frontend-delivery/findings.jsonl",
-      "summary": "前端交付 Loop 的追加式发现项日志，当前为空。",
+      "summary": "前端交付 Loop 的发现记录追加日志；当前文件为空，等待运行时写入。",
       "tags": [
         "memory",
+        "findings",
         "jsonl",
-        "findings"
+        "append-only"
       ],
       "complexity": "simple"
     },
@@ -3497,11 +2992,12 @@
       "type": "document",
       "name": "inbox.md",
       "filePath": "workspace/memory/loops/frontend-delivery/inbox.md",
-      "summary": "前端交付 Loop 的中英双语人工待确认事项，当前无待办。",
+      "summary": "维护前端交付 Loop 尚待确认的人工决策事项，并提供中英双语对照。",
       "tags": [
         "documentation",
         "memory",
-        "inbox"
+        "inbox",
+        "human-gate"
       ],
       "complexity": "simple"
     },
@@ -3510,11 +3006,12 @@
       "type": "file",
       "name": "metrics.jsonl",
       "filePath": "workspace/memory/loops/frontend-delivery/metrics.jsonl",
-      "summary": "前端交付 Loop 的追加式运行指标日志，当前为空。",
+      "summary": "前端交付 Loop 的指标追加日志；当前文件为空，等待运行时写入。",
       "tags": [
         "memory",
+        "metrics",
         "jsonl",
-        "metrics"
+        "observability"
       ],
       "complexity": "simple"
     },
@@ -3523,11 +3020,12 @@
       "type": "file",
       "name": "runs.jsonl",
       "filePath": "workspace/memory/loops/frontend-delivery/runs.jsonl",
-      "summary": "前端交付 Loop 的追加式运行记录，当前为空。",
+      "summary": "前端交付 Loop 的运行记录追加日志；当前文件为空，等待运行时写入。",
       "tags": [
         "memory",
+        "runs",
         "jsonl",
-        "run-log"
+        "audit-log"
       ],
       "complexity": "simple"
     },
@@ -3536,11 +3034,12 @@
       "type": "document",
       "name": "state.md",
       "filePath": "workspace/memory/loops/frontend-delivery/state.md",
-      "summary": "记录前端交付 Loop 当前为手动就绪，并明确设计文档落点、独立评审、人工批准和工程仓内容边界。",
+      "summary": "记录前端交付 Loop 的当前状态和运行规则，并以中英双语支持人工维护。",
       "tags": [
         "documentation",
         "memory",
-        "frontend-delivery"
+        "state",
+        "workflow"
       ],
       "complexity": "simple"
     },
@@ -3549,11 +3048,12 @@
       "type": "file",
       "name": "findings.jsonl",
       "filePath": "workspace/memory/loops/morning-triage/findings.jsonl",
-      "summary": "晨间分诊模拟产生的三条发现项日志，覆盖认证失败、结算 flaky 与过期会话回归。",
+      "summary": "保存晨间分诊 Loop 已发现事项的机器追加记录。",
       "tags": [
         "memory",
+        "findings",
         "jsonl",
-        "findings"
+        "triage"
       ],
       "complexity": "simple"
     },
@@ -3562,11 +3062,12 @@
       "type": "file",
       "name": "metrics.jsonl",
       "filePath": "workspace/memory/loops/morning-triage/metrics.jsonl",
-      "summary": "晨间分诊模拟的阶段数、发现数、生成器与评审运行数指标。",
+      "summary": "保存晨间分诊 Loop 的运行指标与观测数据。",
       "tags": [
         "memory",
+        "metrics",
         "jsonl",
-        "metrics"
+        "observability"
       ],
       "complexity": "simple"
     },
@@ -3575,11 +3076,12 @@
       "type": "file",
       "name": "runs.jsonl",
       "filePath": "workspace/memory/loops/morning-triage/runs.jsonl",
-      "summary": "晨间分诊模拟运行的完成状态、报告路径和时间戳记录。",
+      "summary": "保存晨间分诊 Loop 的历史运行事件，支持审计与复盘。",
       "tags": [
         "memory",
+        "runs",
         "jsonl",
-        "run-log"
+        "audit-log"
       ],
       "complexity": "simple"
     },
@@ -3588,11 +3090,12 @@
       "type": "document",
       "name": "README.md",
       "filePath": "workspace/memory/README.md",
-      "summary": "中英双语说明默认与 Obsidian memory root、推荐目录布局、人工维护文件、机器日志及常用命令。",
+      "summary": "说明 Loop memory 的目录结构、人工与机器文件边界、Obsidian 使用方式及跨终端共享约定。",
       "tags": [
         "documentation",
         "memory",
-        "obsidian"
+        "obsidian",
+        "architecture"
       ],
       "complexity": "moderate"
     },
@@ -3601,11 +3104,11 @@
       "type": "config",
       "name": "project.yaml",
       "filePath": "workspace/projects/app-a/.loop/project.yaml",
-      "summary": "注册示例 app-a 项目的根目录、默认分支与项目级 Skill。",
+      "summary": "登记示例 App A 项目的标识、根目录、默认分支和项目级 Skill 入口。",
       "tags": [
         "configuration",
         "project-registry",
-        "sample-project"
+        "routing"
       ],
       "complexity": "simple"
     },
@@ -3614,11 +3117,12 @@
       "type": "document",
       "name": "fix-tests.SKILL.md",
       "filePath": "workspace/projects/app-a/.loop/skills/fix-tests.SKILL.md",
-      "summary": "指导按失败簇诊断测试、检查近期提交并为回归增加聚焦覆盖的技能文档。",
+      "summary": "定义按失败簇隔离测试修复计划的规则，要求优先直接堆栈、检查近期提交并补充回归覆盖。",
       "tags": [
         "documentation",
         "skill",
-        "testing"
+        "test-repair",
+        "triage"
       ],
       "complexity": "simple"
     },
@@ -3627,11 +3131,12 @@
       "type": "document",
       "name": "triage.SKILL.md",
       "filePath": "workspace/projects/app-a/.loop/skills/triage.SKILL.md",
-      "summary": "定义晨间分诊输入、优先级、排除规则及 finding 输出字段的项目技能。",
+      "summary": "规定从 CI、issue、近期提交和 loop memory 中筛选当日行动项的输入、优先级、禁区与结构化输出。",
       "tags": [
         "documentation",
         "skill",
-        "triage"
+        "triage",
+        "risk-control"
       ],
       "complexity": "simple"
     },
@@ -3640,11 +3145,12 @@
       "type": "document",
       "name": "SKILL.md",
       "filePath": "workspace/projects/app-a/SKILL.md",
-      "summary": "规定 app-a 生成补丁应小而聚焦、补充回归测试，并对认证、支付和删除行为要求人工批准。",
+      "summary": "为示例 App A 设定小补丁、回归测试和敏感业务变更的人类审批规则。",
       "tags": [
         "documentation",
         "project-skill",
-        "governance"
+        "governance",
+        "safety"
       ],
       "complexity": "simple"
     },
@@ -3653,11 +3159,11 @@
       "type": "file",
       "name": "local.paths.yaml.example",
       "filePath": "workspace/projects/harmony-wardrobe/.loop/local.paths.yaml.example",
-      "summary": "Harmony Wardrobe 每台机器的背景仓与代码仓绝对路径配置模板。",
+      "summary": "提供 Harmony Wardrobe 背景与代码仓本机绝对路径的私有配置模板。",
       "tags": [
         "configuration-template",
         "local-paths",
-        "project-mount"
+        "mounting"
       ],
       "complexity": "simple"
     },
@@ -3666,11 +3172,11 @@
       "type": "config",
       "name": "project.yaml",
       "filePath": "workspace/projects/harmony-wardrobe/.loop/project.yaml",
-      "summary": "注册 Harmony Wardrobe 项目组、独立背景挂载、可写代码仓、默认分支与远端地址。",
+      "summary": "定义 Harmony Wardrobe 项目组、背景上下文、真实仓库、远端和本机挂载映射。",
       "tags": [
         "configuration",
         "project-registry",
-        "harmonyos"
+        "repository-mounts"
       ],
       "complexity": "simple"
     },
@@ -3679,26 +3185,30 @@
       "type": "config",
       "name": "harmonyos-samples-repositories.json",
       "filePath": "workspace/projects/harmony-wardrobe/background/harmonyos-samples-repositories.json",
-      "summary": "包含 425 个 HarmonyOS Samples 仓库及来源查询的只读背景目录，供实现模式检索而不作为可写项目挂载。",
+      "summary": "保存从 Gitee 公共页面汇总的 425 个 HarmonyOS Samples 仓库及来源，用作 Harmony Wardrobe 的只读实现参考背景。",
       "tags": [
         "configuration",
+        "reference-catalog",
         "harmonyos",
-        "repository-catalog"
+        "read-only"
       ],
-      "complexity": "complex"
+      "complexity": "complex",
+      "languageNotes": "JSON 记录多查询来源和匿名访问约束，明确禁止把样例仓登记为可写挂载仓。"
     },
     {
       "id": "file:workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs",
       "type": "file",
       "name": "fetch-harmonyos-samples.mjs",
       "filePath": "workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs",
-      "summary": "抓取 Gitee HarmonyOS Samples 公共页面，合并多种排序与语言查询后生成只读仓库目录 JSON。",
+      "summary": "分页抓取 Gitee HarmonyOS Samples 组织页面，解析并去重多语言与排序查询结果，生成只读仓库参考目录。",
       "tags": [
-        "script",
-        "data-pipeline",
-        "harmonyos"
+        "data-collection",
+        "repository-catalog",
+        "harmonyos",
+        "script"
       ],
-      "complexity": "complex"
+      "complexity": "moderate",
+      "languageNotes": "通过多个查询集合绕过匿名访问后段分页限制，并保留每个仓库的采集来源。"
     },
     {
       "id": "function:workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs:fetchText",
@@ -3709,11 +3219,11 @@
         29,
         43
       ],
-      "summary": "执行禁止自动重定向的 HTTP 请求并返回状态、正文与可选重定向地址。",
+      "summary": "发送不自动跟随重定向的 HTTP 请求并返回状态、正文或跳转地址。",
       "tags": [
         "http-client",
-        "data-pipeline",
-        "utility"
+        "data-collection",
+        "error-handling"
       ],
       "complexity": "simple"
     },
@@ -3726,11 +3236,11 @@
         69,
         92
       ],
-      "summary": "从 Gitee 页面脚本载荷提取仓库名称、路径、页面地址、clone 地址和查询来源。",
+      "summary": "从 Gitee 脚本化 HTML 载荷中提取 HarmonyOS Samples 仓库名、路径、页面 URL、clone URL 和来源。",
       "tags": [
-        "html-parsing",
+        "parser",
         "repository-catalog",
-        "data-pipeline"
+        "data-collection"
       ],
       "complexity": "moderate"
     },
@@ -3743,10 +3253,10 @@
         94,
         105
       ],
-      "summary": "根据查询参数和页码构建组织项目列表 URL。",
+      "summary": "根据语言、排序和页码参数构造组织仓库列表 URL。",
       "tags": [
         "url-builder",
-        "pagination",
+        "data-collection",
         "utility"
       ],
       "complexity": "simple"
@@ -3760,11 +3270,11 @@
         122,
         141
       ],
-      "summary": "抓取某组查询的分页结果，限制最大页数并节流后续请求。",
+      "summary": "抓取单个查询的最多 30 页结果，解析仓库并在分页请求间节流。",
       "tags": [
-        "http-client",
         "pagination",
-        "data-pipeline"
+        "http-client",
+        "data-collection"
       ],
       "complexity": "moderate"
     },
@@ -3777,11 +3287,11 @@
         143,
         173
       ],
-      "summary": "按仓库路径去重多组查询结果，合并来源并修复截断名称。",
+      "summary": "按仓库路径合并查询结果、保留更完整名称和全部来源，并稳定排序。",
       "tags": [
         "deduplication",
         "repository-catalog",
-        "aggregation"
+        "data-normalization"
       ],
       "complexity": "moderate"
     },
@@ -3794,10 +3304,10 @@
         175,
         215
       ],
-      "summary": "协调主页校验、查询抓取、目录合并和 JSON 工件写入。",
+      "summary": "编排主页校验、多查询抓取、仓库合并和 JSON 目录写入。",
       "tags": [
         "entry-point",
-        "data-pipeline",
+        "orchestration",
         "repository-catalog"
       ],
       "complexity": "moderate"
@@ -3807,11 +3317,11 @@
       "type": "file",
       "name": "mount-local.mjs",
       "filePath": "workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
-      "summary": "校验 Harmony Wardrobe 本机路径并以受保护的符号链接刷新背景与代码仓挂载。",
+      "summary": "读取 Harmony Wardrobe 项目与本机路径配置，校验目标后刷新背景和仓库软链接挂载。",
       "tags": [
-        "script",
-        "project-mount",
-        "symlink"
+        "repository-mounts",
+        "symlink",
+        "local-configuration"
       ],
       "complexity": "moderate"
     },
@@ -3824,11 +3334,11 @@
         64,
         75
       ],
-      "summary": "兼容字符串或对象形式读取本机项目路径。",
+      "summary": "读取并规范化本机路径，缺失时输出配置错误并终止脚本。",
       "tags": [
-        "configuration",
-        "path-resolution",
-        "utility"
+        "local-configuration",
+        "validation",
+        "path-resolution"
       ],
       "complexity": "simple"
     },
@@ -3841,11 +3351,11 @@
         77,
         86
       ],
-      "summary": "展开 home 与环境变量后规范化本机绝对路径。",
+      "summary": "展开用户目录和环境变量并解析为绝对本机路径。",
       "tags": [
         "path-resolution",
-        "environment",
-        "normalization"
+        "normalization",
+        "local-configuration"
       ],
       "complexity": "simple"
     },
@@ -3858,20 +3368,20 @@
         88,
         104
       ],
-      "summary": "只替换已有符号链接，拒绝覆盖普通路径，并按平台创建新挂载。",
+      "summary": "验证真实目标，移除既有软链接并创建新的目录型挂载链接。",
       "tags": [
         "symlink",
-        "file-system",
-        "safety"
+        "repository-mounts",
+        "filesystem"
       ],
-      "complexity": "simple"
+      "complexity": "moderate"
     },
     {
       "id": "file:workspace/projects/t-max/.loop/local.paths.yaml.example",
       "type": "file",
       "name": "local.paths.yaml.example",
       "filePath": "workspace/projects/t-max/.loop/local.paths.yaml.example",
-      "summary": "T-MAX 每台机器的 xiaoneng 背景与七个代码仓绝对路径配置模板。",
+      "summary": "列出小能背景和七个 T-MAX 仓库的本机绝对路径配置占位符。",
       "tags": [
         "configuration-template",
         "local-paths",
@@ -3884,37 +3394,26 @@
       "type": "config",
       "name": "project.yaml",
       "filePath": "workspace/projects/t-max/.loop/project.yaml",
-      "summary": "将 xiaoneng 注册为 T-MAX 共享背景，并映射七个独立本地代码仓、挂载点与远端地址。",
+      "summary": "定义 T-MAX 项目组、小能背景、七个业务仓库、远端地址及统一本机挂载位置。",
       "tags": [
         "configuration",
         "project-registry",
-        "t-max"
+        "t-max",
+        "repository-mounts"
       ],
       "complexity": "simple"
-    },
-    {
-      "id": "document:workspace/projects/t-max/README.md",
-      "type": "document",
-      "name": "README.md",
-      "filePath": "workspace/projects/t-max/README.md",
-      "summary": "中英双语说明 T-MAX 项目组的共享背景、仓库挂载布局、每机配置流程与禁止提交的本机状态。",
-      "tags": [
-        "documentation",
-        "t-max",
-        "project-mount"
-      ],
-      "complexity": "moderate"
     },
     {
       "id": "file:workspace/projects/t-max/scripts/mount-local.mjs",
       "type": "file",
       "name": "mount-local.mjs",
       "filePath": "workspace/projects/t-max/scripts/mount-local.mjs",
-      "summary": "校验 T-MAX 背景与仓库本机路径，清理过期背景软链并安全刷新全部挂载。",
+      "summary": "根据 T-MAX 项目映射和本机路径配置刷新背景及仓库软链接，并清理旧式背景挂载链接。",
       "tags": [
-        "script",
-        "project-mount",
-        "symlink"
+        "repository-mounts",
+        "symlink",
+        "t-max",
+        "migration"
       ],
       "complexity": "moderate"
     },
@@ -3927,11 +3426,11 @@
         66,
         77
       ],
-      "summary": "兼容字符串和带 path 字段对象的本机路径配置。",
+      "summary": "读取指定配置段的本机路径，规范化后返回或因缺失配置终止。",
       "tags": [
-        "configuration",
-        "path-resolution",
-        "utility"
+        "local-configuration",
+        "validation",
+        "path-resolution"
       ],
       "complexity": "simple"
     },
@@ -3944,11 +3443,11 @@
         79,
         88
       ],
-      "summary": "展开 home 与环境变量并返回规范化绝对路径。",
+      "summary": "展开用户目录和环境变量并解析 T-MAX 本机绝对路径。",
       "tags": [
         "path-resolution",
-        "environment",
-        "normalization"
+        "normalization",
+        "local-configuration"
       ],
       "complexity": "simple"
     },
@@ -3961,13 +3460,13 @@
         90,
         107
       ],
-      "summary": "删除非目标背景软链，同时拒绝删除背景目录中的普通文件或目录。",
+      "summary": "删除背景挂载目录中除当前目标外的遗留软链接。",
       "tags": [
         "symlink",
         "cleanup",
-        "safety"
+        "migration"
       ],
-      "complexity": "simple"
+      "complexity": "moderate"
     },
     {
       "id": "function:workspace/projects/t-max/scripts/mount-local.mjs:refreshSymlink",
@@ -3978,24 +3477,11 @@
         109,
         125
       ],
-      "summary": "安全替换现有软链并创建平台兼容的目录挂载。",
+      "summary": "验证目标仓存在后替换挂载软链接，拒绝覆盖非软链接路径。",
       "tags": [
         "symlink",
-        "file-system",
-        "safety"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "document:workspace/projects/t-max/SKILL.md",
-      "type": "document",
-      "name": "SKILL.md",
-      "filePath": "workspace/projects/t-max/SKILL.md",
-      "summary": "定义 T-MAX 项目组的 xiaoneng 背景使用、独立仓边界、设计评审、人工批准及业务内容落点规则。",
-      "tags": [
-        "documentation",
-        "project-skill",
-        "t-max"
+        "repository-mounts",
+        "filesystem"
       ],
       "complexity": "moderate"
     },
@@ -4004,177 +3490,1340 @@
       "type": "file",
       "name": "workspace.local.yaml.example",
       "filePath": "workspace/workspace.local.yaml.example",
-      "summary": "工作区每机 memory root 及可选 Obsidian vault、学习根的配置示例。",
+      "summary": "提供可选的本机 memoryRoot、Obsidian vault 根目录和学习根名称配置示例。",
       "tags": [
         "configuration-template",
+        "memory-root",
+        "obsidian"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:loop-engineering/cli/loop.ts",
+      "type": "file",
+      "name": "loop.ts",
+      "filePath": "loop-engineering/cli/loop.ts",
+      "summary": "Loop Engineering 的命令行入口，负责路由 memory、validate、dry-run 与 simulate 命令，并以文本或 JSON 输出执行结果。",
+      "tags": [
+        "命令行",
+        "入口点",
+        "工作流",
+        "验证"
+      ],
+      "complexity": "complex",
+      "languageNotes": "TypeScript CLI 使用异步命令分派和显式退出码表达执行状态。"
+    },
+    {
+      "id": "function:loop-engineering/cli/loop.ts:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "loop-engineering/cli/loop.ts",
+      "lineRange": [
+        22,
+        108
+      ],
+      "summary": "解析顶层参数并分派 memory、校验、预演和模拟命令，同时统一处理校验失败与输出格式。",
+      "tags": [
+        "命令分派",
+        "入口点",
+        "异步流程",
+        "错误处理"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:loop-engineering/cli/loop.ts:parseArgs",
+      "type": "function",
+      "name": "parseArgs",
+      "filePath": "loop-engineering/cli/loop.ts",
+      "lineRange": [
+        119,
+        163
+      ],
+      "summary": "把命令行参数解析为 workspace、loop、目标仓库与 JSON 输出等结构化选项。",
+      "tags": [
+        "参数解析",
+        "命令行",
+        "配置",
+        "验证"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/loop.ts:printPlan",
+      "type": "function",
+      "name": "printPlan",
+      "filePath": "loop-engineering/cli/loop.ts",
+      "lineRange": [
+        173,
+        208
+      ],
+      "summary": "将 dry-run 计划中的预算、上下文、发现项、交接、评审和持久化信息渲染为可读文本。",
+      "tags": [
+        "格式化",
+        "预演",
+        "报告",
+        "命令行"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/loop.ts:printSimulation",
+      "type": "function",
+      "name": "printSimulation",
+      "filePath": "loop-engineering/cli/loop.ts",
+      "lineRange": [
+        210,
+        224
+      ],
+      "summary": "输出模拟运行的阶段、产物路径、finding 数量与持久化结果。",
+      "tags": [
+        "格式化",
+        "模拟",
+        "报告",
+        "命令行"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:loop-engineering/cli/memory.ts",
+      "type": "file",
+      "name": "memory.ts",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "summary": "Memory 子命令控制器，覆盖初始化、索引、搜索、上下文、校验、诊断、捕获、checkpoint、审计、晋升、报告和快照全流程。",
+      "tags": [
+        "命令行",
         "memory",
-        "local-state"
+        "索引",
+        "持久化",
+        "obsidian"
+      ],
+      "complexity": "complex",
+      "languageNotes": "以 preview、write 和 confirm 参数明确区分只读计划与实际写入。"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
+      "type": "function",
+      "name": "runMemoryCommand",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        47,
+        56
+      ],
+      "summary": "执行 Memory 子命令并根据参数选择 JSON 或人类可读输出，同时设置进程退出码。",
+      "tags": [
+        "入口点",
+        "命令行",
+        "memory",
+        "输出"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:executeMemoryCommand",
+      "type": "function",
+      "name": "executeMemoryCommand",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        58,
+        85
+      ],
+      "summary": "按命令名路由到具体 Memory 处理器，并将运行异常规范化为统一结果对象。",
+      "tags": [
+        "命令分派",
+        "memory",
+        "错误处理",
+        "控制器"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleCheckpoint",
+      "type": "function",
+      "name": "handleCheckpoint",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        87,
+        168
+      ],
+      "summary": "把双语工作摘要写成 case，刷新索引和上下文快照，并追加 checkpoint 审计日志；未启用写入时仅返回计划。",
+      "tags": [
+        "checkpoint",
+        "持久化",
+        "索引",
+        "审计",
+        "obsidian"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleAuditToday",
+      "type": "function",
+      "name": "handleAuditToday",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        170,
+        192
+      ],
+      "summary": "读取 checkpoint 日志并核验当天及可选 loop 是否存在已持久化记录。",
+      "tags": [
+        "审计",
+        "checkpoint",
+        "日志",
+        "验证"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:resolveCliMemoryPaths",
+      "type": "function",
+      "name": "resolveCliMemoryPaths",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        201,
+        213
+      ],
+      "summary": "合并 workspace 本机配置与命令行覆盖项，解析 vault、学习根、项目和 loop 的 Memory 协议路径。",
+      "tags": [
+        "路径解析",
+        "memory",
+        "配置",
+        "obsidian"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleInit",
+      "type": "function",
+      "name": "handleInit",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        227,
+        252
+      ],
+      "summary": "规划或写入 Memory 目录模板，并在已有 seed case 时避免重复生成带日期的种子案例。",
+      "tags": [
+        "初始化",
+        "模板",
+        "memory",
+        "安全写入"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleIndex",
+      "type": "function",
+      "name": "handleIndex",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        268,
+        287
+      ],
+      "summary": "构建项目 Memory 索引并报告项目、笔记、案例和模式数量，可选择原子写入索引。",
+      "tags": [
+        "索引",
+        "memory",
+        "统计",
+        "原子写入"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleSearch",
+      "type": "function",
+      "name": "handleSearch",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        289,
+        309
+      ],
+      "summary": "按查询词、项目、类型、标签和置信度搜索 Memory 索引，并返回带匹配字段和评分的结果。",
+      "tags": [
+        "搜索",
+        "索引",
+        "memory",
+        "过滤"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleContext",
+      "type": "function",
+      "name": "handleContext",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        311,
+        323
+      ],
+      "summary": "确保索引可用后，按项目、loop、查询和字符预算装载上下文包。",
+      "tags": [
+        "上下文",
+        "索引",
+        "memory",
+        "预算"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleValidate",
+      "type": "function",
+      "name": "handleValidate",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        325,
+        336
+      ],
+      "summary": "加载可用索引并校验 vault、学习根、全局索引和项目 Memory 结构。",
+      "tags": [
+        "验证",
+        "memory",
+        "索引",
+        "数据完整性"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleCapture",
+      "type": "function",
+      "name": "handleCapture",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        344,
+        369
+      ],
+      "summary": "规划或写入 Memory case，并在实际写入后重新构建原子索引。",
+      "tags": [
+        "知识捕获",
+        "case",
+        "memory",
+        "索引"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handlePromote",
+      "type": "function",
+      "name": "handlePromote",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        371,
+        397
+      ],
+      "summary": "从指定或首个 case 规划模式晋升，确认后写入 pattern 并刷新 Memory 索引。",
+      "tags": [
+        "模式晋升",
+        "case",
+        "memory",
+        "人工确认"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleReport",
+      "type": "function",
+      "name": "handleReport",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        399,
+        408
+      ],
+      "summary": "根据 Memory 诊断统计生成每日 Markdown 报告，并支持预览或实际落盘。",
+      "tags": [
+        "报告",
+        "诊断",
+        "memory",
+        "markdown"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:handleSnapshot",
+      "type": "function",
+      "name": "handleSnapshot",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        410,
+        458
+      ],
+      "summary": "从当前索引和上下文生成项目 Memory 快照，过滤 seed 与旧快照后可写入并刷新索引。",
+      "tags": [
+        "快照",
+        "上下文",
+        "memory",
+        "索引",
+        "obsidian"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:renderProjectMemorySnapshot",
+      "type": "function",
+      "name": "renderProjectMemorySnapshot",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        460,
+        485
+      ],
+      "summary": "将项目元信息、来源清单、摘要和完整上下文渲染为中英双语 Obsidian Markdown 快照。",
+      "tags": [
+        "渲染",
+        "快照",
+        "markdown",
+        "obsidian"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:ensureIndex",
+      "type": "function",
+      "name": "ensureIndex",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        499,
+        509
+      ],
+      "summary": "优先读取现有索引，否则从 vault 构建索引并在允许写入时原子保存。",
+      "tags": [
+        "索引",
+        "缓存",
+        "memory",
+        "原子写入"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:parseMemoryArgs",
+      "type": "function",
+      "name": "parseMemoryArgs",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        525,
+        553
+      ],
+      "summary": "解析 Memory 命令的写入、确认、vault、项目、查询、过滤与输出限制参数。",
+      "tags": [
+        "参数解析",
+        "命令行",
+        "memory",
+        "配置"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/cli/memory.ts:printHuman",
+      "type": "function",
+      "name": "printHuman",
+      "filePath": "loop-engineering/cli/memory.ts",
+      "lineRange": [
+        561,
+        573
+      ],
+      "summary": "以成功状态、错误、警告和序列化详情输出人类可读的 Memory 命令结果。",
+      "tags": [
+        "格式化",
+        "命令行",
+        "memory",
+        "错误输出"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:loop-engineering/tests/runtime.test.ts",
+      "type": "file",
+      "name": "runtime.test.ts",
+      "filePath": "loop-engineering/tests/runtime.test.ts",
+      "summary": "端到端运行时测试集，覆盖 workspace/schema 校验、dry-run 路由与设计门禁、挂载背景、模拟产物以及 Obsidian Memory 根解析。",
+      "tags": [
+        "test",
+        "运行时",
+        "工作流",
+        "memory",
+        "路由"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:loop-engineering/tests/memory-protocol.test.ts",
+      "type": "file",
+      "name": "memory-protocol.test.ts",
+      "filePath": "loop-engineering/tests/memory-protocol.test.ts",
+      "summary": "覆盖 memory 协议的路径安全、模板、Markdown/frontmatter 解析、索引、搜索和诊断行为，防止协议回归。",
+      "tags": [
+        "test",
+        "memory",
+        "protocol",
+        "regression"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts:defaultType",
+      "type": "function",
+      "name": "defaultType",
+      "filePath": "loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
+      "lineRange": [
+        235,
+        244
+      ],
+      "summary": "根据 memory 条目种类返回缺省业务类型。",
+      "tags": [
+        "memory",
+        "classification",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:loop-engineering/tests/memory-cli.test.ts",
+      "type": "file",
+      "name": "memory-cli.test.ts",
+      "filePath": "loop-engineering/tests/memory-cli.test.ts",
+      "summary": "端到端覆盖 memory CLI 的初始化、快照、checkpoint、索引迁移、搜索、上下文、案例提升、校验、doctor 和报告生命周期。",
+      "tags": [
+        "test",
+        "memory-cli",
+        "integration-test",
+        "regression"
+      ],
+      "complexity": "complex",
+      "languageNotes": "使用 node:test 和临时 workspace/vault 运行已编译 CLI，验证跨机器路径重定位与写入边界。"
+    },
+    {
+      "id": "function:loop-engineering/tests/memory-cli.test.ts:createTempWorkspace",
+      "type": "function",
+      "name": "createTempWorkspace",
+      "filePath": "loop-engineering/tests/memory-cli.test.ts",
+      "lineRange": [
+        13,
+        25
+      ],
+      "summary": "复制测试 workspace、创建临时 Obsidian vault，并写入本机 memoryRoot 配置。",
+      "tags": [
+        "test-fixture",
+        "filesystem",
+        "memory-cli"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "type": "file",
+      "name": "paths.ts",
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "summary": "解析 vault、学习根、项目 memory 和索引路径，并通过边界校验阻止写入越出允许目录。",
+      "tags": [
+        "memory",
+        "path-resolution",
+        "security",
+        "obsidian"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
+      "type": "function",
+      "name": "resolveMemoryProtocolPaths",
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "lineRange": [
+        8,
+        31
+      ],
+      "summary": "根据 workspace 配置解析 vault、学习根、项目 memory 与索引的规范绝对路径。",
+      "tags": [
+        "memory",
+        "path-resolution",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:assertVaultRootOutsideLearningRoot",
+      "type": "function",
+      "name": "assertVaultRootOutsideLearningRoot",
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "lineRange": [
+        33,
+        43
+      ],
+      "summary": "校验 vault 根与学习目录边界，防止形成危险的嵌套写入关系。",
+      "tags": [
+        "memory",
+        "path-security",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveSafeWritePath",
+      "type": "function",
+      "name": "resolveSafeWritePath",
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "lineRange": [
+        45,
+        53
+      ],
+      "summary": "解析并校验目标写入路径必须位于允许的 memory 根目录内。",
+      "tags": [
+        "memory",
+        "safe-write",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:vaultRelativePath",
+      "type": "function",
+      "name": "vaultRelativePath",
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "lineRange": [
+        55,
+        57
+      ],
+      "summary": "把绝对路径转换为相对 vault 的标准斜杠路径。",
+      "tags": [
+        "memory",
+        "path-resolution",
+        "obsidian"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:loop-engineering/packages/memory-protocol/src/paths.ts:buildObsidianLink",
+      "type": "function",
+      "name": "buildObsidianLink",
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "lineRange": [
+        59,
+        62
+      ],
+      "summary": "根据 vault 相对路径构造 Obsidian 可导航链接。",
+      "tags": [
+        "memory",
+        "obsidian",
+        "link-builder"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:AGENTS.md",
+      "type": "document",
+      "name": "AGENTS.md",
+      "filePath": "AGENTS.md",
+      "summary": "仓库级中英双语协作规范，定义工程边界、环境与安全证据、提交隔离、Memory 持久化、小改快路径、验证门禁和前端可见元素减法约束。",
+      "tags": [
+        "协作规范",
+        "工程治理",
+        "安全",
+        "memory",
+        "前端约束"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:SKILL.md",
+      "type": "document",
+      "name": "SKILL.md",
+      "filePath": "SKILL.md",
+      "summary": "仓库级实现 Skill，规定代码实现阶段的加载顺序、编码前思考、简洁优先、精准修改、目标驱动验证和 Loop 实现门禁。",
+      "tags": [
+        "skill",
+        "实现规范",
+        "工程治理",
+        "验证门禁"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "Node.js 工程清单，声明 loop CLI、构建与运行脚本、T-MAX 挂载、Memory 命令、TypeScript 测试链路及运行时依赖。",
+      "tags": [
+        "configuration",
+        "nodejs",
+        "命令行",
+        "build-system"
+      ],
+      "complexity": "simple",
+      "languageNotes": "私有 CommonJS 工程要求 Node.js 18 及以上版本。"
+    },
+    {
+      "id": "document:loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+      "type": "document",
+      "name": "xiaobai-evaluation-engineering-system.md",
+      "filePath": "loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+      "summary": "定义把小白作为完整 Loop Engineering 系统评价的中英双语标准，要求覆盖引擎、workspace、门禁、记忆、Git 交付及可归因的节点停留时间。",
+      "tags": [
+        "documentation",
+        "evaluation",
+        "observability",
+        "agent-ops"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "type": "config",
+      "name": "xiaobai.orchestrator.agent.yaml",
+      "filePath": "workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "summary": "小白顶层 orchestrator 配置，负责项目与 loop 路由、微补丁分类、前端交付编排、评价工程规则、人类门禁和长期 Memory 持久化决策。",
+      "tags": [
+        "configuration",
+        "orchestrator",
+        "工作流路由",
+        "人类门禁",
+        "memory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:.gitattributes",
+      "type": "file",
+      "name": ".gitattributes",
+      "filePath": ".gitattributes",
+      "summary": "定义仓库文本文件的 Git 属性，统一换行与文本处理行为。",
+      "tags": [
+        "git",
+        "configuration",
+        "repository",
+        "line-endings"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
+      "type": "document",
+      "name": "xiaoneng-page-preflight-2026-07-22.md",
+      "filePath": "workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
+      "summary": "记录小能页面预检架构的范围、门禁、验证、性能边界和 Git 边界。",
+      "tags": [
+        "documentation",
+        "page-preflight",
+        "architecture",
+        "verification"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:workspace/monitoring/dashboard.html",
+      "type": "file",
+      "name": "dashboard.html",
+      "filePath": "workspace/monitoring/dashboard.html",
+      "summary": "实现小白 Agent Ops 单页仪表盘，以总览、workflow、图谱和运行证据等视图展示本地监控快照。",
+      "tags": [
+        "component",
+        "monitoring",
+        "dashboard",
+        "knowledge-graph",
+        "agent-ops"
+      ],
+      "complexity": "complex",
+      "languageNotes": "单文件 HTML 内聚合样式和浏览器端交互逻辑，用于零构建启动本地监控界面。"
+    },
+    {
+      "id": "document:workspace/monitoring/README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "workspace/monitoring/README.md",
+      "summary": "说明小白 Agent Ops 的定位、数据真源、启动方式、节点停留时间、安全边界和聚焦验证方法。",
+      "tags": [
+        "documentation",
+        "monitoring",
+        "agent-ops",
+        "observability"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "type": "file",
+      "name": "generate-monitor-data.mjs",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "summary": "汇集 Git、agent、Loop、项目挂载、memory、知识图谱、connector、节点时间和评价数据，生成 Agent Ops 监控快照。",
+      "tags": [
+        "monitoring",
+        "data-pipeline",
+        "snapshot",
+        "agent-ops",
+        "observability"
+      ],
+      "complexity": "complex",
+      "languageNotes": "使用 Node.js ESM 同步读取本地真源，并把采集异常降级为可见 warnings。"
+    },
+    {
+      "id": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "type": "file",
+      "name": "start-dashboard.mjs",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "summary": "启动带随机访问令牌的本地 HTTP 服务，提供仪表盘、监控数据和刷新快照接口，并按需打开浏览器。",
+      "tags": [
+        "entry-point",
+        "monitoring",
+        "http-server",
+        "security",
+        "agent-ops"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "使用 Node.js 内置 HTTP 与子进程 API，无需额外 Web 框架。"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:parseAheadBehind",
+      "type": "function",
+      "name": "parseAheadBehind",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        45,
+        54
+      ],
+      "summary": "解析 Git 分支跟踪状态中的 ahead/behind 数量。",
+      "tags": [
+        "git",
+        "status-parser",
+        "monitoring"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectGit",
+      "type": "function",
+      "name": "collectGit",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        56,
+        67
+      ],
+      "summary": "采集当前分支、提交、工作区状态和远端同步差异。",
+      "tags": [
+        "git",
+        "monitoring",
+        "repository"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:loadStructuredFiles",
+      "type": "function",
+      "name": "loadStructuredFiles",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        69,
+        82
+      ],
+      "summary": "批量加载 YAML/JSON 配置，并把解析失败写入 warnings。",
+      "tags": [
+        "configuration",
+        "yaml",
+        "data-loader"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectAgents",
+      "type": "function",
+      "name": "collectAgents",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        84,
+        107
+      ],
+      "summary": "读取 agent 配置并归一化职责、工具和 evaluator 等监控字段。",
+      "tags": [
+        "agent-ops",
+        "agents",
+        "monitoring"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:normalizeStage",
+      "type": "function",
+      "name": "normalizeStage",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        109,
+        123
+      ],
+      "summary": "把 workflow 节点配置转换为统一的监控阶段结构。",
+      "tags": [
+        "workflow",
+        "normalization",
+        "monitoring"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectLoops",
+      "type": "function",
+      "name": "collectLoops",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        125,
+        164
+      ],
+      "summary": "读取 Loop 配置并汇总调度、角色、验证、门禁和 workflow 信息。",
+      "tags": [
+        "workflow",
+        "loop",
+        "monitoring"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectProjects",
+      "type": "function",
+      "name": "collectProjects",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        171,
+        208
+      ],
+      "summary": "解析项目与仓库挂载，采集各目标仓的存在性和 Git 状态。",
+      "tags": [
+        "projects",
+        "mounts",
+        "git"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:countJsonl",
+      "type": "function",
+      "name": "countJsonl",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        210,
+        223
+      ],
+      "summary": "统计 JSONL 的有效记录数，并将损坏行计入告警。",
+      "tags": [
+        "jsonl",
+        "metrics",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectMemory",
+      "type": "function",
+      "name": "collectMemory",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        225,
+        281
+      ],
+      "summary": "定位 memory 根并汇总每个 Loop 的 runs、findings、metrics 和状态文档。",
+      "tags": [
+        "memory",
+        "monitoring",
+        "aggregation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:summarizeTypes",
+      "type": "function",
+      "name": "summarizeTypes",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        283,
+        292
+      ],
+      "summary": "按节点或边类型计数并生成稳定排序的摘要。",
+      "tags": [
+        "knowledge-graph",
+        "aggregation",
+        "metrics"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectGraph",
+      "type": "function",
+      "name": "collectGraph",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        294,
+        347
+      ],
+      "summary": "读取知识图谱及元数据，汇总节点、关系、类型和快照新鲜度。",
+      "tags": [
+        "knowledge-graph",
+        "monitoring",
+        "freshness"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildTiming",
+      "type": "function",
+      "name": "buildTiming",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        359,
+        380
+      ],
+      "summary": "从 Loop workflow 生成节点停留时间视图，缺少运行事件时明确标记未测量。",
+      "tags": [
+        "workflow",
+        "timing",
+        "observability"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildEvaluation",
+      "type": "function",
+      "name": "buildEvaluation",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        382,
+        410
+      ],
+      "summary": "评估 evaluator、self-review、workflow 与时间采集门禁，输出观测缺口。",
+      "tags": [
+        "evaluation",
+        "governance",
+        "observability"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectInventory",
+      "type": "function",
+      "name": "collectInventory",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        412,
+        429
+      ],
+      "summary": "聚合 agent、Loop、项目、仓库、connector 与 memory 数量形成资产清单。",
+      "tags": [
+        "inventory",
+        "aggregation",
+        "agent-ops"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildSnapshot",
+      "type": "function",
+      "name": "buildSnapshot",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        431,
+        506
+      ],
+      "summary": "编排全部采集器并生成带时间戳、告警、评价和证据的 Agent Ops 快照。",
+      "tags": [
+        "snapshot",
+        "monitoring",
+        "orchestration"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:writeSnapshot",
+      "type": "function",
+      "name": "writeSnapshot",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        508,
+        512
+      ],
+      "summary": "创建目标目录并以格式化 JSON 写入监控快照。",
+      "tags": [
+        "snapshot",
+        "serialization",
+        "persistence"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:parseArgs",
+      "type": "function",
+      "name": "parseArgs",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        514,
+        524
+      ],
+      "summary": "解析命令行参数并校验端口、输出路径或运行模式。",
+      "tags": [
+        "cli",
+        "argument-parser",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "lineRange": [
+        526,
+        541
+      ],
+      "summary": "协调命令行入口的初始化、执行、输出和服务启动流程。",
+      "tags": [
+        "entry-point",
+        "orchestration",
+        "cli"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/start-dashboard.mjs:parseArgs",
+      "type": "function",
+      "name": "parseArgs",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "lineRange": [
+        20,
+        34
+      ],
+      "summary": "解析命令行参数并校验端口、输出路径或运行模式。",
+      "tags": [
+        "cli",
+        "argument-parser",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/start-dashboard.mjs:sendJson",
+      "type": "function",
+      "name": "sendJson",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "lineRange": [
+        36,
+        46
+      ],
+      "summary": "设置响应头和长度并返回 JSON HTTP 响应。",
+      "tags": [
+        "http-server",
+        "serialization",
+        "response-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/start-dashboard.mjs:sendFile",
+      "type": "function",
+      "name": "sendFile",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "lineRange": [
+        48,
+        63
+      ],
+      "summary": "校验静态文件存在后读取内容并返回指定 MIME 类型。",
+      "tags": [
+        "http-server",
+        "static-file",
+        "response-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/start-dashboard.mjs:createRequestHandler",
+      "type": "function",
+      "name": "createRequestHandler",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "lineRange": [
+        75,
+        114
+      ],
+      "summary": "处理仪表盘、数据读取和令牌保护的快照刷新路由。",
+      "tags": [
+        "http-server",
+        "routing",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/start-dashboard.mjs:listen",
+      "type": "function",
+      "name": "listen",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "lineRange": [
+        124,
+        138
+      ],
+      "summary": "监听指定端口，端口占用时递增重试并在就绪后回调。",
+      "tags": [
+        "http-server",
+        "port-retry",
+        "lifecycle"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/monitoring/scripts/start-dashboard.mjs:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "lineRange": [
+        140,
+        151
+      ],
+      "summary": "协调命令行入口的初始化、执行、输出和服务启动流程。",
+      "tags": [
+        "entry-point",
+        "orchestration",
+        "cli"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workspace/projects/t-max/README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "workspace/projects/t-max/README.md",
+      "summary": "中英双语说明小能背景与多个 T-MAX 本地仓的挂载目录、每机配置步骤和禁止提交的本机状态。",
+      "tags": [
+        "documentation",
+        "t-max",
+        "repository-mounts",
+        "setup"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workspace/projects/t-max/SKILL.md",
+      "type": "document",
+      "name": "SKILL.md",
+      "filePath": "workspace/projects/t-max/SKILL.md",
+      "summary": "中英双语规定 T-MAX 项目组的背景加载、真实仓路由、提交边界和小改快路径。",
+      "tags": [
+        "documentation",
+        "project-skill",
+        "t-max",
+        "governance"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:workspace/projects/trunkFeeder/.loop/local.paths.yaml.example",
+      "type": "file",
+      "name": "local.paths.yaml.example",
+      "filePath": "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example",
+      "summary": "提供 trunkFeeder 背景 Skill 与 UI 仓库的本机绝对路径配置模板。",
+      "tags": [
+        "configuration-template",
+        "local-paths",
+        "trunkfeeder"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:workspace/projects/trunkFeeder/.loop/project.yaml",
+      "type": "config",
+      "name": "project.yaml",
+      "filePath": "workspace/projects/trunkFeeder/.loop/project.yaml",
+      "summary": "登记 trunkFeeder 项目组、背景 Skill、UI 仓库和统一软链接挂载位置。",
+      "tags": [
+        "configuration",
+        "project-registry",
+        "trunkfeeder",
+        "repository-mounts"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:workspace/projects/trunkFeeder/README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "workspace/projects/trunkFeeder/README.md",
+      "summary": "中英双语说明 trunkFeeder 背景和 UI 仓的挂载布局、每机初始化方式与本机状态边界。",
+      "tags": [
+        "documentation",
+        "trunkfeeder",
+        "repository-mounts",
+        "setup"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "type": "file",
+      "name": "mount-local.mjs",
+      "filePath": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "summary": "读取 trunkFeeder 项目和本机路径配置，校验并刷新背景及 UI 仓软链接。",
+      "tags": [
+        "repository-mounts",
+        "symlink",
+        "trunkfeeder"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:workspace/projects/trunkFeeder/scripts/mount-local.mjs:readConfiguredPath",
+      "type": "function",
+      "name": "readConfiguredPath",
+      "filePath": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "lineRange": [
+        64,
+        75
+      ],
+      "summary": "读取 trunkFeeder 配置段中的本机路径并在缺失时终止。",
+      "tags": [
+        "local-configuration",
+        "validation",
+        "path-resolution"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/projects/trunkFeeder/scripts/mount-local.mjs:normalizeLocalPath",
+      "type": "function",
+      "name": "normalizeLocalPath",
+      "filePath": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "lineRange": [
+        77,
+        86
+      ],
+      "summary": "展开用户目录和环境变量并返回规范化绝对路径。",
+      "tags": [
+        "path-resolution",
+        "normalization",
+        "local-configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:workspace/projects/trunkFeeder/scripts/mount-local.mjs:refreshSymlink",
+      "type": "function",
+      "name": "refreshSymlink",
+      "filePath": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "lineRange": [
+        88,
+        104
+      ],
+      "summary": "验证目标后替换 trunkFeeder 挂载软链接，并保护非软链接路径。",
+      "tags": [
+        "symlink",
+        "repository-mounts",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:workspace/projects/trunkFeeder/SKILL.md",
+      "type": "document",
+      "name": "SKILL.md",
+      "filePath": "workspace/projects/trunkFeeder/SKILL.md",
+      "summary": "中英双语定义 trunkFeeder 项目的背景加载顺序、真实源码仓定位和本机挂载边界。",
+      "tags": [
+        "documentation",
+        "project-skill",
+        "trunkfeeder",
+        "governance"
       ],
       "complexity": "simple"
     }
   ],
   "edges": [
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "function:loop-engineering/cli/loop.ts:main",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "function:loop-engineering/cli/loop.ts:parseArgs",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "function:loop-engineering/cli/loop.ts:printPlan",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "function:loop-engineering/cli/loop.ts:printSimulation",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "function:loop-engineering/cli/loop.ts:printHelp",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:executeMemoryCommand",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleCheckpoint",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:resolveCliMemoryPaths",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleInit",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleIndex",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleSearch",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleContext",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleValidate",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleCapture",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handlePromote",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleReport",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:handleSnapshot",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:renderProjectMemorySnapshot",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:ensureIndex",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:parseMemoryArgs",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "function:loop-engineering/cli/memory.ts:printHuman",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
     {
       "source": "file:loop-engineering/packages/agent-runtime/src/agentRuntime.ts",
       "target": "class:loop-engineering/packages/agent-runtime/src/agentRuntime.ts:AgentRuntime",
@@ -4657,62 +5306,6 @@
       "type": "contains",
       "direction": "forward",
       "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveSafeWritePath",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveSafeWritePath",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:vaultRelativePath",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:vaultRelativePath",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:buildObsidianLink",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:buildObsidianLink",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
     },
     {
       "source": "file:loop-engineering/packages/memory-protocol/src/templates.ts",
@@ -5289,104 +5882,6 @@
       "weight": 1
     },
     {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "file:loop-engineering/cli/memory.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "file:loop-engineering/packages/loop-runtime/src/loopRuntime.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "file:loop-engineering/packages/shared/src/fs.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "file:loop-engineering/packages/shared/src/validation.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/loop.ts",
-      "target": "file:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/memory-capture/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/memory-context/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/memory-doctor/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/memory-indexer/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/memory-search/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/shared/src/fs.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/shared/src/memoryRoot.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/cli/memory.ts",
-      "target": "file:loop-engineering/packages/shared/src/types.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:loop-engineering/packages/agent-runtime/src/agentRuntime.ts",
       "target": "file:loop-engineering/packages/shared/src/fs.ts",
       "type": "imports",
@@ -5604,34 +6099,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:loop-engineering/packages/memory-capture/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-capture/src/caseTemplate.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-capture/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-capture/src/caseWriter.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-capture/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-capture/src/patternPromoter.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-capture/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-capture/src/slug.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:loop-engineering/packages/memory-capture/src/patternPromoter.ts",
       "target": "file:loop-engineering/packages/memory-capture/src/slug.ts",
       "type": "imports",
@@ -5655,27 +6122,6 @@
     {
       "source": "file:loop-engineering/packages/memory-context/src/budget.ts",
       "target": "file:loop-engineering/packages/memory-context/src/bundle.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-context/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-context/src/budget.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-context/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-context/src/bundle.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-context/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-context/src/memoryContextLoader.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -5718,34 +6164,6 @@
     {
       "source": "file:loop-engineering/packages/memory-doctor/src/doctorMemory.ts",
       "target": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-doctor/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-doctor/src/doctorMemory.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-doctor/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-doctor/src/indexFreshness.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-doctor/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-doctor/src/jsonl.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-doctor/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-doctor/src/validateMemory.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -5807,34 +6225,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:loop-engineering/packages/memory-indexer/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-indexer/src/indexSchema.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-indexer/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-indexer/src/indexWriter.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-indexer/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-indexer/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-indexer/src/noteClassifier.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:loop-engineering/packages/memory-indexer/src/indexWriter.ts",
       "target": "file:loop-engineering/packages/memory-protocol/src/index.ts",
       "type": "imports",
@@ -5884,48 +6274,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/frontmatter.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/hash.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/markdown.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/templates.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/types.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:loop-engineering/packages/memory-protocol/src/markdown.ts",
       "target": "file:loop-engineering/packages/memory-protocol/src/frontmatter.ts",
       "type": "imports",
@@ -5934,13 +6282,6 @@
     },
     {
       "source": "file:loop-engineering/packages/memory-protocol/src/markdown.ts",
-      "target": "file:loop-engineering/packages/memory-protocol/src/types.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
       "target": "file:loop-engineering/packages/memory-protocol/src/types.ts",
       "type": "imports",
       "direction": "forward",
@@ -5956,34 +6297,6 @@
     {
       "source": "file:loop-engineering/packages/memory-search/src/filters.ts",
       "target": "file:loop-engineering/packages/memory-protocol/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-search/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-search/src/filters.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-search/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-search/src/indexReader.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-search/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-search/src/memorySearch.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:loop-engineering/packages/memory-search/src/index.ts",
-      "target": "file:loop-engineering/packages/memory-search/src/scoring.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -6178,15 +6491,323 @@
       "weight": 0.7
     },
     {
-      "source": "file:loop-engineering/tests/memory-cli.test.ts",
+      "source": "function:loop-engineering/cli/loop.ts:main",
+      "target": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/cli/loop.ts:main",
+      "target": "function:loop-engineering/packages/shared/src/validation.ts:validateWorkspace",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/shared/src/validation.ts:validateWorkspace",
+      "target": "function:loop-engineering/packages/shared/src/memoryRoot.ts:resolveMemoryRoot",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/shared/src/validation.ts:validateWorkspace",
+      "target": "function:loop-engineering/packages/shared/src/memoryRoot.ts:resolveMemoryPath",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/packages/loop-runtime/src/loopRuntime.ts",
+      "target": "file:loop-engineering/tests/runtime.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:loop-engineering/packages/shared/src/fs.ts",
+      "target": "file:loop-engineering/tests/runtime.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:loop-engineering/packages/shared/src/types.ts",
+      "target": "file:loop-engineering/tests/runtime.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:loop-engineering/packages/shared/src/validation.ts",
+      "target": "file:loop-engineering/tests/runtime.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
+      "target": "file:loop-engineering/tests/runtime.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "function:loop-engineering/cli/loop.ts:main",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "function:loop-engineering/cli/loop.ts:parseArgs",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "function:loop-engineering/cli/loop.ts:printPlan",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "function:loop-engineering/cli/loop.ts:printSimulation",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:runMemoryCommand",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:executeMemoryCommand",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleCheckpoint",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleAuditToday",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:resolveCliMemoryPaths",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleInit",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleIndex",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleSearch",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleContext",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleValidate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleCapture",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handlePromote",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleReport",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:handleSnapshot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:renderProjectMemorySnapshot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:ensureIndex",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:parseMemoryArgs",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "function:loop-engineering/cli/memory.ts:printHuman",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "file:loop-engineering/cli/memory.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "file:loop-engineering/packages/loop-runtime/src/loopRuntime.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
       "target": "file:loop-engineering/packages/shared/src/fs.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
     },
     {
-      "source": "file:loop-engineering/tests/memory-protocol.test.ts",
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "file:loop-engineering/packages/shared/src/validation.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/loop.ts",
+      "target": "file:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/memory-capture/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/memory-context/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/memory-doctor/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/memory-indexer/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
       "target": "file:loop-engineering/packages/memory-protocol/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/memory-search/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/shared/src/fs.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/shared/src/memoryRoot.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/cli/memory.ts",
+      "target": "file:loop-engineering/packages/shared/src/types.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -6225,13 +6846,790 @@
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
+      "target": "function:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts:defaultType",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/tests/memory-protocol.test.ts",
+      "target": "file:loop-engineering/packages/memory-protocol/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts:readNote",
+      "target": "function:loop-engineering/packages/memory-indexer/src/noteClassifier.ts:classifyNote",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-search/src/memorySearch.ts:searchMemory",
+      "target": "function:loop-engineering/packages/memory-search/src/filters.ts:applyMemoryFilters",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-search/src/memorySearch.ts:searchMemory",
+      "target": "function:loop-engineering/packages/memory-search/src/scoring.ts:scoreMemoryNote",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/index.ts",
+      "target": "file:loop-engineering/tests/memory-protocol.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:loop-engineering/tests/memory-cli.test.ts",
+      "target": "function:loop-engineering/tests/memory-cli.test.ts:createTempWorkspace",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/tests/memory-cli.test.ts",
+      "target": "file:loop-engineering/packages/shared/src/fs.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-capture/src/caseWriter.ts:planCaseWrite",
+      "target": "function:loop-engineering/packages/memory-capture/src/caseTemplate.ts:renderCaseTemplate",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-capture/src/caseWriter.ts:planCaseWrite",
+      "target": "function:loop-engineering/packages/memory-capture/src/slug.ts:slugifyTitle",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-capture/src/caseWriter.ts:uniqueCasePath",
+      "target": "function:loop-engineering/packages/shared/src/fs.ts:pathExists",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-capture/src/patternPromoter.ts:renderPattern",
+      "target": "function:loop-engineering/packages/memory-capture/src/slug.ts:slugifyTitle",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-doctor/src/indexFreshness.ts:checkIndexFreshness",
+      "target": "function:loop-engineering/packages/shared/src/fs.ts:pathExists",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-doctor/src/jsonl.ts:validateJsonl",
+      "target": "function:loop-engineering/packages/shared/src/fs.ts:readText",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-doctor/src/validateMemory.ts:validateMemory",
+      "target": "function:loop-engineering/packages/memory-doctor/src/indexFreshness.ts:checkIndexFreshness",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-doctor/src/validateMemory.ts:validateMemory",
+      "target": "function:loop-engineering/packages/memory-doctor/src/jsonl.ts:validateJsonl",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-doctor/src/validateMemory.ts:validateMemory",
+      "target": "function:loop-engineering/packages/shared/src/fs.ts:pathExists",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "file:loop-engineering/packages/memory-protocol/src/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:assertVaultRootOutsideLearningRoot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveSafeWritePath",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveSafeWritePath",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:vaultRelativePath",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:vaultRelativePath",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:buildObsidianLink",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:buildObsidianLink",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-protocol/src/frontmatter.ts:parseFrontmatter",
+      "target": "function:loop-engineering/packages/memory-protocol/src/frontmatter.ts:normalizeStringArray",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-protocol/src/markdown.ts:extractMarkdown",
+      "target": "function:loop-engineering/packages/memory-protocol/src/markdown.ts:extractHeadings",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-protocol/src/markdown.ts:extractMarkdown",
+      "target": "function:loop-engineering/packages/memory-protocol/src/markdown.ts:extractLinks",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-protocol/src/markdown.ts:extractMarkdown",
+      "target": "function:loop-engineering/packages/memory-protocol/src/markdown.ts:extractKeywords",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:loop-engineering/packages/memory-protocol/src/paths.ts:resolveMemoryProtocolPaths",
+      "target": "function:loop-engineering/packages/memory-protocol/src/paths.ts:assertVaultRootOutsideLearningRoot",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "document:AGENTS.md",
+      "target": "document:SKILL.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:package.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "document:SKILL.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workbuddy-expert-skill-guide.md",
+      "target": "document:专家团使用与模型说明.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:专家团使用与模型说明.md",
+      "target": "document:专家评审团-项目评审报告.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:专家评审团-项目评审报告.md",
+      "target": "document:README.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:package.json",
+      "target": "config:tsconfig.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:loop-engineering/docs/obsidian-memory-migration.md",
+      "target": "document:loop-engineering/docs/obsidian-memory-architecture.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+      "target": "document:loop-engineering/docs/architecture.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/agents/coding.harness.yaml",
+      "target": "config:workspace/agents/generator.agent.yaml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/agents/coding.harness.yaml",
+      "target": "config:workspace/agents/evaluator.agent.yaml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/agents/frontend-delivery.harness.yaml",
+      "target": "config:workspace/agents/frontend-generator.agent.yaml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/agents/frontend-delivery.harness.yaml",
+      "target": "config:workspace/agents/frontend-evaluator.agent.yaml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "target": "config:workspace/agents/generator.agent.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "target": "config:workspace/agents/evaluator.agent.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "target": "config:workspace/agents/frontend-generator.agent.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "target": "config:workspace/agents/frontend-evaluator.agent.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "target": "config:workspace/agents/suagent.agent.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/agents/suagent.agent.yaml",
+      "target": "config:workspace/agents/evaluator.agent.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:parseAheadBehind",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectGit",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:loadStructuredFiles",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectAgents",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:normalizeStage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectLoops",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectProjects",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:countJsonl",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectMemory",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:summarizeTypes",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectGraph",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildTiming",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildEvaluation",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:collectInventory",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildSnapshot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:buildSnapshot",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:writeSnapshot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:writeSnapshot",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:parseArgs",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "target": "function:workspace/monitoring/scripts/generate-monitor-data.mjs:main",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "function:workspace/monitoring/scripts/start-dashboard.mjs:parseArgs",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "function:workspace/monitoring/scripts/start-dashboard.mjs:sendJson",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "function:workspace/monitoring/scripts/start-dashboard.mjs:sendFile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "function:workspace/monitoring/scripts/start-dashboard.mjs:createRequestHandler",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "function:workspace/monitoring/scripts/start-dashboard.mjs:listen",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "target": "function:workspace/monitoring/scripts/start-dashboard.mjs:main",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "config:data/index/cases-index.json",
+      "target": "document:data/cases/2026-06-28-loop-simulation-lifecycle.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:data/index/patterns-index.md",
+      "target": "document:workspace/memory/README.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/budgets/default.budget.yaml",
+      "target": "config:workspace/loops/frontend-delivery.loop.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/budgets/default.budget.yaml",
+      "target": "config:workspace/loops/morning-triage.loop.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:workspace/loops/frontend-delivery.loop.yaml",
+      "target": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/loops/morning-triage.loop.yaml",
+      "target": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "document:workspace/memory/loops/frontend-delivery/inbox.md",
+      "target": "config:workspace/loops/frontend-delivery.loop.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/memory/loops/frontend-delivery/state.md",
+      "target": "config:workspace/loops/frontend-delivery.loop.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:workspace/memory/loops/frontend-delivery/findings.jsonl",
+      "target": "document:workspace/memory/loops/frontend-delivery/state.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:workspace/memory/loops/frontend-delivery/metrics.jsonl",
+      "target": "document:workspace/memory/loops/frontend-delivery/state.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:workspace/memory/loops/frontend-delivery/runs.jsonl",
+      "target": "document:workspace/memory/loops/frontend-delivery/state.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/memory/README.md",
+      "target": "document:workspace/memory/loops/frontend-delivery/state.md",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
+      "target": "config:workspace/loops/frontend-delivery.loop.yaml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/monitoring/README.md",
+      "target": "file:workspace/monitoring/dashboard.html",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/monitoring/README.md",
+      "target": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/monitoring/README.md",
+      "target": "file:workspace/monitoring/scripts/start-dashboard.mjs",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:workspace/monitoring/dashboard.html",
+      "target": "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "target": "function:workspace/projects/trunkFeeder/scripts/mount-local.mjs:readConfiguredPath",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "target": "function:workspace/projects/trunkFeeder/scripts/mount-local.mjs:normalizeLocalPath",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "target": "function:workspace/projects/trunkFeeder/scripts/mount-local.mjs:refreshSymlink",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "config:workspace/projects/harmony-wardrobe/.loop/project.yaml",
+      "target": "file:workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/projects/t-max/.loop/project.yaml",
+      "target": "file:workspace/projects/t-max/scripts/mount-local.mjs",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/projects/trunkFeeder/.loop/project.yaml",
+      "target": "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:workspace/projects/harmony-wardrobe/background/harmonyos-samples-repositories.json",
+      "target": "file:workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/app-a/.loop/skills/fix-tests.SKILL.md",
+      "target": "config:workspace/projects/app-a/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/app-a/.loop/skills/triage.SKILL.md",
+      "target": "config:workspace/projects/app-a/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/app-a/SKILL.md",
+      "target": "config:workspace/projects/app-a/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/t-max/README.md",
+      "target": "config:workspace/projects/t-max/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/t-max/README.md",
+      "target": "file:workspace/projects/t-max/scripts/mount-local.mjs",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/t-max/SKILL.md",
+      "target": "config:workspace/projects/t-max/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/trunkFeeder/README.md",
+      "target": "config:workspace/projects/trunkFeeder/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/trunkFeeder/README.md",
+      "target": "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:workspace/projects/trunkFeeder/SKILL.md",
+      "target": "config:workspace/projects/trunkFeeder/.loop/project.yaml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
     }
   ],
   "layers": [
     {
       "id": "layer:engine-runtime",
       "name": "引擎运行时",
-      "description": "Loop CLI 与调度、路由、Agent、Harness、Evaluator、Connector、预算和模拟等可执行引擎能力。",
+      "description": "Loop CLI 与调度、路由、Agent、Harness、Evaluator、Connector、预算、模拟和共享基础能力组成的可执行引擎。",
       "nodeIds": [
         "file:loop-engineering/cli/loop.ts",
         "file:loop-engineering/cli/memory.ts",
@@ -6257,7 +7655,7 @@
     {
       "id": "layer:memory-system",
       "name": "Memory 子系统",
-      "description": "Obsidian 兼容的记忆协议、索引、搜索、诊断、捕获、上下文装载，以及 Workspace 运行记忆。",
+      "description": "提供 Obsidian 兼容的记忆协议、索引、搜索、诊断、捕获、上下文装载，以及 Workspace 运行记忆。",
       "nodeIds": [
         "document:workspace/memory/README.md",
         "document:workspace/memory/loops/frontend-delivery/inbox.md",
@@ -6308,7 +7706,7 @@
     {
       "id": "layer:contracts-templates",
       "name": "契约与模板",
-      "description": "Loop Engineering 的 JSON Schema、Agent/Loop 模板与结构化契约基线。",
+      "description": "维护 Loop Engineering 的 JSON Schema、Agent/Loop 模板与项目 Skill 模板，形成结构化契约基线。",
       "nodeIds": [
         "config:loop-engineering/schemas/agent.schema.json",
         "config:loop-engineering/schemas/budget.schema.json",
@@ -6326,7 +7724,7 @@
     {
       "id": "layer:workspace-control-plane",
       "name": "Workspace 控制面",
-      "description": "具体 Loop、Agent、Harness、Connector 与预算配置，负责把引擎能力编排为可运行工作流。",
+      "description": "通过 Loop、Agent、Harness、Connector 与预算配置，把引擎能力编排为可验证的具体工作流。",
       "nodeIds": [
         "config:workspace/agents/coding.harness.yaml",
         "config:workspace/agents/evaluator.agent.yaml",
@@ -6350,12 +7748,13 @@
     {
       "id": "layer:project-integrations",
       "name": "项目适配层",
-      "description": "T-MAX、Harmony Wardrobe 与示例项目的路由、Skill、背景资料和本机挂载适配。",
+      "description": "承载 App A、Harmony Wardrobe、T-MAX 与 trunkFeeder 的项目路由、Skill、背景资料和本机挂载适配。",
       "nodeIds": [
         "config:workspace/projects/app-a/.loop/project.yaml",
         "config:workspace/projects/harmony-wardrobe/.loop/project.yaml",
         "config:workspace/projects/harmony-wardrobe/background/harmonyos-samples-repositories.json",
         "config:workspace/projects/t-max/.loop/project.yaml",
+        "config:workspace/projects/trunkFeeder/.loop/project.yaml",
         "document:workspace/projects/app-a/.loop/skills/fix-tests.SKILL.md",
         "document:workspace/projects/app-a/.loop/skills/triage.SKILL.md",
         "document:workspace/projects/app-a/SKILL.md",
@@ -6368,17 +7767,33 @@
         "document:workspace/projects/t-max/.loop/skills/frontend-repository-design.SKILL.md",
         "document:workspace/projects/t-max/README.md",
         "document:workspace/projects/t-max/SKILL.md",
+        "document:workspace/projects/trunkFeeder/README.md",
+        "document:workspace/projects/trunkFeeder/SKILL.md",
         "file:workspace/projects/harmony-wardrobe/.loop/local.paths.yaml.example",
         "file:workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs",
         "file:workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
         "file:workspace/projects/t-max/.loop/local.paths.yaml.example",
-        "file:workspace/projects/t-max/scripts/mount-local.mjs"
+        "file:workspace/projects/t-max/scripts/mount-local.mjs",
+        "file:workspace/projects/trunkFeeder/.loop/local.paths.yaml.example",
+        "file:workspace/projects/trunkFeeder/scripts/mount-local.mjs"
+      ]
+    },
+    {
+      "id": "layer:agent-ops-observability",
+      "name": "Agent Ops 与可观测性",
+      "description": "提供小白运行监控仪表盘、快照聚合、本地安全服务，以及覆盖节点停留时间的系统评价标准。",
+      "nodeIds": [
+        "document:loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+        "document:workspace/monitoring/README.md",
+        "file:workspace/monitoring/dashboard.html",
+        "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+        "file:workspace/monitoring/scripts/start-dashboard.mjs"
       ]
     },
     {
       "id": "layer:tests-quality",
       "name": "测试与质量",
-      "description": "覆盖 runtime、Memory、Schema 与 CLI 行为的自动化测试和交付质量证据。",
+      "description": "覆盖 runtime、Memory、Schema、CLI 和项目路由行为的自动化测试与回归证据。",
       "nodeIds": [
         "file:loop-engineering/tests/memory-cli.test.ts",
         "file:loop-engineering/tests/memory-protocol.test.ts",
@@ -6389,7 +7804,7 @@
     {
       "id": "layer:documentation-knowledge",
       "name": "文档与知识资产",
-      "description": "架构标准、产品规范、实施计划、案例索引、评审报告和项目使用说明。",
+      "description": "汇集架构标准、产品规范、实施计划、案例索引、评审报告、协作规则和知识沉淀文档。",
       "nodeIds": [
         "config:data/index/cases-index.json",
         "document:.aliyun/pull_request_template.md",
@@ -6407,6 +7822,7 @@
         "document:loop-engineering/docs/obsidian-memory-migration.md",
         "document:loop-engineering/docs/product-requirement-platform-standards.md",
         "document:workbuddy-expert-skill-guide.md",
+        "document:workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
         "document:专家团使用与模型说明.md",
         "document:专家评审团-项目评审报告.md"
       ]
@@ -6414,10 +7830,11 @@
     {
       "id": "layer:project-configuration",
       "name": "工程配置",
-      "description": "仓库根级构建、TypeScript、包管理与本机配置示例，支撑整个工程骨架。",
+      "description": "维护仓库根级包管理、TypeScript、Git 属性和本机 Workspace 配置示例，支撑工程构建与迁移。",
       "nodeIds": [
         "config:package.json",
         "config:tsconfig.json",
+        "file:.gitattributes",
         "file:workspace/workspace.local.yaml.example"
       ]
     }
@@ -6425,92 +7842,100 @@
   "tour": [
     {
       "order": 1,
-      "title": "工程定位与边界",
-      "description": "先从根 README 理解 Loop Engineering 如何把 Agent 工作流拆成可维护、可审计、可验证的系统能力。架构文档进一步划分 engine 与 workspace 的职责，为后续阅读建立边界意识。",
+      "title": "项目总览",
+      "description": "先从根 README 了解 Loop Engineering 的目标、目录边界和命令入口，再把后续内容放回“可维护、可审计、可验证”的工程骨架中。文档还说明 Memory、dry-run、模拟和当前能力边界，适合作为整条导览的地图。",
       "nodeIds": [
-        "document:README.md",
-        "document:loop-engineering/docs/architecture.md"
+        "document:README.md"
       ]
     },
     {
       "order": 2,
-      "title": "CLI 与运行入口",
-      "description": "CLI 负责解析 validate、dry-run、simulate 和 memory 命令，并把请求交给对应 runtime。LoopRuntime 当前主要组装计划而非执行真实 Agent，是判断现有能力边界的关键入口。",
+      "title": "入口与编排",
+      "description": "从代码入口开始看系统如何把命令路由到 Loop 运行时和项目注册表：CLI 负责接收目标，LoopRuntime 负责组织一次运行，ProjectRegistry 负责确定项目与仓库上下文。拓扑分析识别出的 Memory 捕获 barrel 也放在这一站，帮助理解包级公共入口如何暴露能力。",
       "nodeIds": [
         "file:loop-engineering/cli/loop.ts",
-        "file:loop-engineering/packages/loop-runtime/src/loopRuntime.ts"
+        "file:loop-engineering/packages/loop-runtime/src/loopRuntime.ts",
+        "file:loop-engineering/packages/project-registry/src/projectRegistry.ts",
+        "file:loop-engineering/packages/memory-capture/src/index.ts"
       ],
-      "languageLesson": "TypeScript 的类型化 options 与 RuntimePlan 让 CLI 输入和规划输出保持显式契约。"
+      "languageLesson": "TypeScript 的 barrel 入口通过统一导出隐藏内部文件路径；调用方依赖稳定的公共 API，而不是耦合到包内实现细节。"
     },
     {
       "order": 3,
-      "title": "核心类型与校验",
-      "description": "共享类型定义 LoopSpec、ProjectSpec、RuntimePlan 等跨包契约。JSON Schema 与 AJV 校验把 YAML 配置约束落为机器门禁，并验证被引用的 Agent、Harness、Skill 和 Connector 文件是否存在。",
+      "title": "结构化契约",
+      "description": "Loop、Agent 和 Harness schema 把调度、发现、handoff、工具边界、完成条件和失败策略写成可校验契约。理解这三份 JSON Schema 后，后面的 YAML 配置不再是松散约定，而是受到未知字段拒绝和结构验证保护的控制面输入。",
       "nodeIds": [
-        "file:loop-engineering/packages/shared/src/types.ts",
-        "file:loop-engineering/packages/shared/src/validation.ts",
-        "config:loop-engineering/schemas/loop.schema.json"
+        "config:loop-engineering/schemas/loop.schema.json",
+        "config:loop-engineering/schemas/agent.schema.json",
+        "config:loop-engineering/schemas/harness.schema.json"
       ],
-      "languageLesson": "TypeScript 接口负责编译期约束，JSON Schema 与 AJV 补足运行时配置校验。"
+      "languageLesson": "JSON Schema 用结构和类型约束配置；把校验放在运行前，可以尽早发现漏字段、错字段和不受支持的扩展。"
     },
     {
       "order": 4,
       "title": "Workspace 控制面",
-      "description": "Workspace 将通用引擎配置为具体的前端交付 Loop，并由小白 orchestrator 汇总发现、项目路由、生成与评审计划。这里可以直接看到当前九阶段交付流程和全局 human gate。",
+      "description": "顶层 orchestrator 把用户目标路由到项目和 Loop，并决定微补丁、前端交付、评价工程与长期 Memory 的边界。晨间分诊 Loop 提供一条具体编排样例，独立 evaluator 则说明生成者结论不能替代真实验证。",
       "nodeIds": [
-        "config:workspace/loops/frontend-delivery.loop.yaml",
         "config:workspace/agents/xiaobai.orchestrator.agent.yaml",
-        "config:workspace/agents/frontend-delivery.harness.yaml"
-      ]
+        "config:workspace/loops/morning-triage.loop.yaml",
+        "config:workspace/agents/evaluator.agent.yaml"
+      ],
+      "languageLesson": "YAML 依靠缩进表达嵌套关系；在 Loop/Agent 配置中，层级直接对应运行时的调度、角色和门禁结构。"
     },
     {
       "order": 5,
-      "title": "T-MAX 项目路由",
-      "description": "T-MAX ProjectGroup 把七个前端仓库和 xiaoneng 背景挂载到统一的本机路径结构。项目级 Skill 再叠加 T-MAX 的仓库选择、设计与交付约束，是平台控制面连接领域交付能力的位置。",
+      "title": "共享基础能力",
+      "description": "共享 types.ts 定义 Loop、项目路由、Connector、预算和运行计划的共同词汇，fs.ts 提供路径、YAML 与文件读写原语，validation.ts 则把这些输入变成可拒绝的错误。它们是高 fan-in 基础节点，先理解这里能减少阅读各个 runtime 时的重复认知成本。",
       "nodeIds": [
-        "config:workspace/projects/t-max/.loop/project.yaml",
-        "document:workspace/projects/t-max/SKILL.md",
-        "document:workspace/projects/t-max/README.md"
+        "file:loop-engineering/packages/shared/src/types.ts",
+        "file:loop-engineering/packages/shared/src/fs.ts",
+        "file:loop-engineering/packages/shared/src/validation.ts"
       ]
     },
     {
       "order": 6,
-      "title": "Memory 协议与索引",
-      "description": "Memory 协议统一 Obsidian 路径、Frontmatter 与内容格式，Indexer 将人类维护笔记和机器日志转成可搜索索引。它们共同构成长周期、跨终端记忆的基础数据层。",
+      "title": "Memory 生命周期",
+      "description": "Memory CLI 将初始化、索引、搜索、上下文、校验、捕获和 checkpoint 暴露为可操作入口；memoryIndexer 扫描 Markdown 并建立项目、笔记、标签、链接和哈希索引；memory-protocol/index.ts 则统一协议公共 API。结合 memoryContextLoader，可以看到运行前如何装载受预算约束的上下文，而不是把全部历史直接塞进 prompt。",
       "nodeIds": [
-        "file:loop-engineering/packages/memory-protocol/src/paths.ts",
+        "file:loop-engineering/cli/memory.ts",
         "file:loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
-        "document:workspace/memory/README.md"
-      ]
+        "file:loop-engineering/packages/memory-protocol/src/index.ts",
+        "file:loop-engineering/packages/memory-context/src/memoryContextLoader.ts"
+      ],
+      "languageLesson": "Memory 文件同时保留人类可读 Markdown 和机器可检索索引；稳定 ID、内容哈希与路径归一化共同支撑跨终端迁移和新鲜度检查。"
     },
     {
       "order": 7,
-      "title": "Memory 上下文与诊断",
-      "description": "Context Loader 按预算选择与当前项目和 Loop 相关的记忆，Doctor 则检查目录、索引与日志健康度。两者把“长期存储”转化为运行时可消费、可诊断的上下文。",
+      "title": "运行证据与监控",
+      "description": "simulationRuntime 在 dry-run 计划之上生成确定性阶段报告、Memory 日志和索引产物，展示一次运行如何留下可复核证据。Agent Ops 采集器再把 Git、Loop、Memory、知识图谱、节点时间和评价汇成快照，dashboard.html 负责把这些事实呈现为总览、workflow、图谱和运行证据视图。",
       "nodeIds": [
-        "file:loop-engineering/packages/memory-context/src/memoryContextLoader.ts",
-        "file:loop-engineering/packages/memory-doctor/src/doctorMemory.ts",
-        "file:loop-engineering/packages/memory-search/src/memorySearch.ts"
-      ]
+        "file:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
+        "file:workspace/monitoring/scripts/generate-monitor-data.mjs",
+        "file:workspace/monitoring/dashboard.html"
+      ],
+      "languageLesson": "JavaScript 的 async/await 让多来源采集保持顺序化编排；监控层将读取失败写入 warnings，而不是把缺失事实伪装成成功结果。"
     },
     {
       "order": 8,
-      "title": "模拟与知识沉淀",
-      "description": "SimulationRuntime 用可重复的模拟运行验证 Loop 生命周期，并生成报告、状态、指标和案例。案例文档展示这些产物如何进入知识索引，形成从执行证据到可复用经验的闭环。",
+      "title": "项目适配与挂载",
+      "description": "项目配置把通用引擎落到 Harmony Wardrobe、T-MAX 等真实项目组，声明背景、仓库、分支和远端，而本机路径模板留在 ignored 状态。mount-local 脚本通过软链接访问真实 worktree，保持外部源码不进入本工程提交边界；这一步连接了抽象控制面与具体开发环境。",
       "nodeIds": [
-        "file:loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
-        "document:data/cases/2026-06-28-loop-simulation-lifecycle.md",
-        "file:loop-engineering/packages/memory-capture/src/caseWriter.ts"
-      ]
+        "config:workspace/projects/harmony-wardrobe/.loop/project.yaml",
+        "file:workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
+        "config:workspace/projects/t-max/.loop/project.yaml",
+        "file:workspace/projects/t-max/scripts/mount-local.mjs"
+      ],
+      "languageLesson": "YAML 配置与本机路径模板分离，避免把机器绝对路径提交到仓库；脚本只维护挂载链接，真实业务代码仍由目标仓库独立管理。"
     },
     {
       "order": 9,
-      "title": "测试与验收边界",
-      "description": "runtime 测试验证项目路由、工作流计划和 human gate，Memory 测试验证协议与持久化行为。阅读这些测试可以确认哪些行为已由自动化守护，以及真实 Agent 执行仍不在当前实现范围内。",
+      "title": "评价与质量闭环",
+      "description": "最后阅读小白评价工程标准，确认评价对象是完整系统而不是一次回复，并关注 evaluator、human gate、远端交付证据和节点停留时间。runtime 与 Memory CLI 测试提供回归证据，architecture 文档则把责任边界和安全默认值收束成可检查的完成标准。",
       "nodeIds": [
+        "document:loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
         "file:loop-engineering/tests/runtime.test.ts",
-        "file:loop-engineering/tests/memory-protocol.test.ts",
-        "file:loop-engineering/tests/memory-schema.test.ts"
+        "file:loop-engineering/tests/memory-cli.test.ts",
+        "document:loop-engineering/docs/architecture.md"
       ]
     }
   ]

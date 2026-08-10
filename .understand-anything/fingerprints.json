@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "0e8a1369f05ff1ffac2c01aa12f1376708545272",
-  "generatedAt": "2026-07-31T14:07:33.051Z",
+  "gitCommitHash": "ddec6bf79c03b6ae7c3b0f11e9fd38c4d7a5f121",
+  "generatedAt": "2026-08-10T09:00:02.360Z",
   "files": {
     ".aliyun/pull_request_template.md": {
       "filePath": ".aliyun/pull_request_template.md",
@@ -13,14 +13,24 @@
       "totalLines": 34,
       "hasStructuralAnalysis": true
     },
-    "AGENTS.md": {
-      "filePath": "AGENTS.md",
-      "contentHash": "46eab2cb3fe0052d582a01147ece65128aefaed36ed920d343ee298cf8d1ae34",
+    ".gitattributes": {
+      "filePath": ".gitattributes",
+      "contentHash": "5a756ccd6214c26534a29f4daecebf005f9a2d60d5379a382c4ace62ba0cb28b",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 256,
+      "totalLines": 3,
+      "hasStructuralAnalysis": false
+    },
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "520ec01d058671f4b4b2e8840d3cf01e110058d2509136444a558e4de3745de9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 396,
       "hasStructuralAnalysis": true
     },
     "data/cases/2026-06-28-loop-simulation-lifecycle.md": {
@@ -85,7 +95,7 @@
     },
     "loop-engineering/cli/loop.ts": {
       "filePath": "loop-engineering/cli/loop.ts",
-      "contentHash": "a008b9165c145fa682723297b49ee0d8e7a7aeb3441f57502ba7ed0bd1a16637",
+      "contentHash": "340cd1c81d72ba67b0d9af914a7478a76bdba1c4f2da659b4a00d6dbde0caf42",
       "functions": [
         {
           "name": "main",
@@ -203,7 +213,7 @@
     },
     "loop-engineering/cli/memory.ts": {
       "filePath": "loop-engineering/cli/memory.ts",
-      "contentHash": "3734f7c07abc979b0db344ca579980673455613e38097b1cbb4937054834e9c4",
+      "contentHash": "55a42f779043e54bbddbd57399717b1da7cb7711ce69e26d9ae75816d0e32149",
       "functions": [
         {
           "name": "runMemoryCommand",
@@ -221,7 +231,7 @@
           ],
           "returnType": "Promise<MemoryCommandResult>",
           "exported": false,
-          "lineCount": 27
+          "lineCount": 28
         },
         {
           "name": "handleCheckpoint",
@@ -233,7 +243,27 @@
           ],
           "returnType": "Promise<MemoryCommandResult>",
           "exported": false,
-          "lineCount": 69
+          "lineCount": 82
+        },
+        {
+          "name": "handleAuditToday",
+          "params": [
+            "command",
+            "paths",
+            "args"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "formatLocalDate",
+          "params": [
+            "date"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
         },
         {
           "name": "resolveCliMemoryPaths",
@@ -496,6 +526,7 @@
         {
           "source": "node:fs/promises",
           "specifiers": [
+            "appendFile",
             "mkdir",
             "readdir",
             "writeFile"
@@ -577,7 +608,7 @@
       "exports": [
         "runMemoryCommand"
       ],
-      "totalLines": 529,
+      "totalLines": 574,
       "hasStructuralAnalysis": true
     },
     "loop-engineering/docs/architecture.md": {
@@ -630,6 +661,16 @@
       "totalLines": 522,
       "hasStructuralAnalysis": true
     },
+    "loop-engineering/docs/xiaobai-evaluation-engineering-system.md": {
+      "filePath": "loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+      "contentHash": "c194a533b7fb1bdf5d53c43e8eeb3c77acd76f2a44d40ac043645fa60a4ce53a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
     "loop-engineering/packages/agent-runtime/src/agentRuntime.ts": {
       "filePath": "loop-engineering/packages/agent-runtime/src/agentRuntime.ts",
       "contentHash": "6a3214b1ed2ddca100022df7a43f7c584f7ef8d891d130103bb904427269290a",
@@ -638,6 +679,7 @@
         {
           "name": "AgentRuntime",
           "methods": [
+            "constructor",
             "loadAgent"
           ],
           "properties": [],
@@ -679,6 +721,7 @@
         {
           "name": "BudgetGuard",
           "methods": [
+            "constructor",
             "check"
           ],
           "properties": [],
@@ -708,6 +751,7 @@
         {
           "name": "ConnectorRuntime",
           "methods": [
+            "constructor",
             "collect"
           ],
           "properties": [],
@@ -826,6 +870,7 @@
         {
           "name": "HarnessRuntime",
           "methods": [
+            "constructor",
             "load",
             "planGeneratorRuns"
           ],
@@ -871,6 +916,7 @@
         {
           "name": "HumanGate",
           "methods": [
+            "constructor",
             "plan"
           ],
           "properties": [],
@@ -1224,24 +1270,7 @@
       "contentHash": "6d109cb4ecde9e6fc198daabcbab013729d05373fac87d9831ec6938e52d7ddf",
       "functions": [],
       "classes": [],
-      "imports": [
-        {
-          "source": "./caseTemplate",
-          "specifiers": []
-        },
-        {
-          "source": "./caseWriter",
-          "specifiers": []
-        },
-        {
-          "source": "./patternPromoter",
-          "specifiers": []
-        },
-        {
-          "source": "./slug",
-          "specifiers": []
-        }
-      ],
+      "imports": [],
       "exports": [],
       "totalLines": 5,
       "hasStructuralAnalysis": true
@@ -1402,20 +1431,7 @@
       "contentHash": "eb77d627d9664e81e6f3ee2af4a3de57560a0b128ab1f5b818d15e5511c3b3fc",
       "functions": [],
       "classes": [],
-      "imports": [
-        {
-          "source": "./budget",
-          "specifiers": []
-        },
-        {
-          "source": "./bundle",
-          "specifiers": []
-        },
-        {
-          "source": "./memoryContextLoader",
-          "specifiers": []
-        }
-      ],
+      "imports": [],
       "exports": [],
       "totalLines": 4,
       "hasStructuralAnalysis": true
@@ -1545,24 +1561,7 @@
       "contentHash": "3ed7fe5f7b529c907b60bcb6819a46e434ed759b0ba8e86f2973588274f79806",
       "functions": [],
       "classes": [],
-      "imports": [
-        {
-          "source": "./doctorMemory",
-          "specifiers": []
-        },
-        {
-          "source": "./indexFreshness",
-          "specifiers": []
-        },
-        {
-          "source": "./jsonl",
-          "specifiers": []
-        },
-        {
-          "source": "./validateMemory",
-          "specifiers": []
-        }
-      ],
+      "imports": [],
       "exports": [],
       "totalLines": 5,
       "hasStructuralAnalysis": true
@@ -1711,24 +1710,7 @@
       "contentHash": "8b57d9e42b00744ce5d16a9df0e45c6ea9351a27b891217da991f8db4cee7434",
       "functions": [],
       "classes": [],
-      "imports": [
-        {
-          "source": "./indexSchema",
-          "specifiers": []
-        },
-        {
-          "source": "./indexWriter",
-          "specifiers": []
-        },
-        {
-          "source": "./memoryIndexer",
-          "specifiers": []
-        },
-        {
-          "source": "./noteClassifier",
-          "specifiers": []
-        }
-      ],
+      "imports": [],
       "exports": [],
       "totalLines": 5,
       "hasStructuralAnalysis": true
@@ -2111,32 +2093,7 @@
       "contentHash": "32379495f223779be96354fd957bf1c30e704301279ce6048de1d4788e9ba177",
       "functions": [],
       "classes": [],
-      "imports": [
-        {
-          "source": "./frontmatter",
-          "specifiers": []
-        },
-        {
-          "source": "./hash",
-          "specifiers": []
-        },
-        {
-          "source": "./markdown",
-          "specifiers": []
-        },
-        {
-          "source": "./paths",
-          "specifiers": []
-        },
-        {
-          "source": "./templates",
-          "specifiers": []
-        },
-        {
-          "source": "./types",
-          "specifiers": []
-        }
-      ],
+      "imports": [],
       "exports": [],
       "totalLines": 7,
       "hasStructuralAnalysis": true
@@ -2232,7 +2189,7 @@
     },
     "loop-engineering/packages/memory-protocol/src/paths.ts": {
       "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "contentHash": "abdb46eb005937ab28a5b0b0a78030bee9d4a8f014dd8bb964c9727781c32bf8",
+      "contentHash": "fde814dafc3c5fba66c6488017747f3549eef5d8274facf1215548133e23d574",
       "functions": [
         {
           "name": "resolveMemoryProtocolPaths",
@@ -2241,7 +2198,17 @@
           ],
           "returnType": "MemoryProtocolPaths",
           "exported": true,
-          "lineCount": 22
+          "lineCount": 24
+        },
+        {
+          "name": "assertVaultRootOutsideLearningRoot",
+          "params": [
+            "vaultRoot",
+            "learningRootName"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 11
         },
         {
           "name": "resolveSafeWritePath",
@@ -2296,7 +2263,7 @@
         "vaultRelativePath",
         "buildObsidianLink"
       ],
-      "totalLines": 49,
+      "totalLines": 63,
       "hasStructuralAnalysis": true
     },
     "loop-engineering/packages/memory-protocol/src/templates.ts": {
@@ -2385,24 +2352,7 @@
       "contentHash": "66b9d8367c9ce14cf33c3dd9234525bac1e87e0f465366564d4ff86a91ce24f5",
       "functions": [],
       "classes": [],
-      "imports": [
-        {
-          "source": "./filters",
-          "specifiers": []
-        },
-        {
-          "source": "./indexReader",
-          "specifiers": []
-        },
-        {
-          "source": "./memorySearch",
-          "specifiers": []
-        },
-        {
-          "source": "./scoring",
-          "specifiers": []
-        }
-      ],
+      "imports": [],
       "exports": [],
       "totalLines": 5,
       "hasStructuralAnalysis": true
@@ -2601,6 +2551,7 @@
         {
           "name": "MemoryStore",
           "methods": [
+            "constructor",
             "stateFile",
             "inboxFile",
             "runLog",
@@ -2867,6 +2818,7 @@
         {
           "name": "Scheduler",
           "methods": [
+            "constructor",
             "plan"
           ],
           "properties": [],
@@ -3494,6 +3446,7 @@
         {
           "name": "SkillRuntime",
           "methods": [
+            "constructor",
             "loadDiscoverySkill",
             "selectFindings"
           ],
@@ -3540,6 +3493,7 @@
         {
           "name": "WorktreeManager",
           "methods": [
+            "constructor",
             "plan"
           ],
           "properties": [],
@@ -3681,7 +3635,7 @@
     },
     "loop-engineering/tests/memory-cli.test.ts": {
       "filePath": "loop-engineering/tests/memory-cli.test.ts",
-      "contentHash": "06e861a0a04f04e4e1b1abb4c1a02019abf049972e23788a62d81a8bad12c977",
+      "contentHash": "7f65d7fee5f963152776a484957c4974db3012940f24ab55ebbe45b6ec69cdbc",
       "functions": [
         {
           "name": "createTempWorkspace",
@@ -3696,6 +3650,14 @@
           ],
           "exported": false,
           "lineCount": 7
+        },
+        {
+          "name": "runLoopFailure",
+          "params": [
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 9
         }
       ],
       "classes": [],
@@ -3753,12 +3715,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 388,
+      "totalLines": 414,
       "hasStructuralAnalysis": true
     },
     "loop-engineering/tests/memory-protocol.test.ts": {
       "filePath": "loop-engineering/tests/memory-protocol.test.ts",
-      "contentHash": "056ad588dcbc8ccc81ce598840d5e297ea0012a2894294f28b2b7356be8eb77c",
+      "contentHash": "9fec98cc3af123d73dc27aa85306689cdff1be59a092d679c76e9a4a3bf591b3",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3809,7 +3771,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 168,
+      "totalLines": 188,
       "hasStructuralAnalysis": true
     },
     "loop-engineering/tests/memory-schema.test.ts": {
@@ -3864,7 +3826,7 @@
     },
     "loop-engineering/tests/runtime.test.ts": {
       "filePath": "loop-engineering/tests/runtime.test.ts",
-      "contentHash": "e04dd970b1c64a1098a86d4fc17d46a9c00ca8d141012b6b9929c01554b836bc",
+      "contentHash": "fa4954e4dd7d048519c692ad44359c7afd62b4c55b35ab6d19f35b195858530f",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3947,17 +3909,17 @@
         }
       ],
       "exports": [],
-      "totalLines": 516,
+      "totalLines": 570,
       "hasStructuralAnalysis": true
     },
     "package.json": {
       "filePath": "package.json",
-      "contentHash": "326267b11bb7425ed3049863ce564ff7950636b5306285fe79e59839477d29e2",
+      "contentHash": "6e264c0808d6d9e1e491ce49f2219af0cc7ad31e62b152f30726568b94287c35",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 32,
+      "totalLines": 36,
       "hasStructuralAnalysis": true
     },
     "README.md": {
@@ -3972,7 +3934,7 @@
     },
     "SKILL.md": {
       "filePath": "SKILL.md",
-      "contentHash": "a67cee03881392b164655e516b7ed019220c728a64bfa1f991cbd4d9793db7ea",
+      "contentHash": "dee094019975101e502ca8db86b7ebe877c573803380063ef36687b12bfa3405",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -4072,12 +4034,12 @@
     },
     "workspace/agents/xiaobai.orchestrator.agent.yaml": {
       "filePath": "workspace/agents/xiaobai.orchestrator.agent.yaml",
-      "contentHash": "dabe963c92c8410d0ffe8a75eff5997c30c976e4f833a9d6fe1bbd5626c6ea0b",
+      "contentHash": "2e77bea512f519c7c687f7186c673ccc039d0a904cf560a445f4f1ec391e1992",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 26,
+      "totalLines": 30,
       "hasStructuralAnalysis": true
     },
     "workspace/budgets/default.budget.yaml": {
@@ -4290,6 +4252,415 @@
       "totalLines": 130,
       "hasStructuralAnalysis": true
     },
+    "workspace/memory/xiaoneng-page-preflight-2026-07-22.md": {
+      "filePath": "workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
+      "contentHash": "13c0ab9a8826b477aba2b3cf8d2dcc02e7fb8553f349730a385b7496cc0c49fe",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/monitoring/dashboard.html": {
+      "filePath": "workspace/monitoring/dashboard.html",
+      "contentHash": "4c9997bee683c6e98351a554cf78e1d82d857e5f9bba74d121859ab119a20087",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1724,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/monitoring/README.md": {
+      "filePath": "workspace/monitoring/README.md",
+      "contentHash": "615b3fc8541d28fcf0983a4ceb2e460f0e04016ac39557eb82f9fea8aaf6249e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 144,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/monitoring/scripts/generate-monitor-data.mjs": {
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "contentHash": "7db41c72080e1bc11ca5268bfdef794b37d153e539a6891bbbe4bb461e552f2c",
+      "functions": [
+        {
+          "name": "relativeToProject",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "readText",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "readJson",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "readYaml",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "listFiles",
+          "params": [
+            "directory"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "runGit",
+          "params": [
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseAheadBehind",
+          "params": [],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "collectGit",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "loadStructuredFiles",
+          "params": [
+            "files",
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "collectAgents",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "normalizeStage",
+          "params": [
+            "stage",
+            "loopFile"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "collectLoops",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "resolveMount",
+          "params": [
+            "projectDirectory",
+            "configuredPath"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "collectProjects",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 38
+        },
+        {
+          "name": "countJsonl",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "collectMemory",
+          "params": [
+            "loopIds",
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 57
+        },
+        {
+          "name": "summarizeTypes",
+          "params": [
+            "items",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "collectGraph",
+          "params": [
+            "git",
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 54
+        },
+        {
+          "name": "collectConnectors",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "buildTiming",
+          "params": [
+            "loops"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "buildEvaluation",
+          "params": [
+            "loops",
+            "agents",
+            "timing"
+          ],
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "collectInventory",
+          "params": [],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "buildSnapshot",
+          "params": [],
+          "exported": true,
+          "lineCount": 76
+        },
+        {
+          "name": "writeSnapshot",
+          "params": [
+            "snapshot"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "parseArgs",
+          "params": [
+            "argv"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath",
+            "pathToFileURL"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "parseYaml"
+          ]
+        }
+      ],
+      "exports": [
+        "buildSnapshot",
+        "writeSnapshot"
+      ],
+      "totalLines": 547,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/monitoring/scripts/start-dashboard.mjs": {
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "contentHash": "75c95330faae02e722506a826314674d09cee5b3287733240136cbc5a45ab996",
+      "functions": [
+        {
+          "name": "parseArgs",
+          "params": [
+            "argv"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "sendJson",
+          "params": [
+            "response",
+            "statusCode",
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "sendFile",
+          "params": [
+            "response",
+            "filePath",
+            "contentType"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "hasValidToken",
+          "params": [
+            "url"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "refreshSnapshot",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "createRequestHandler",
+          "params": [],
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "openUrl",
+          "params": [
+            "url"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "listen",
+          "params": [
+            "server",
+            "port",
+            "onReady"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "crypto"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawn"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./generate-monitor-data.mjs",
+          "specifiers": [
+            "buildSnapshot",
+            "writeSnapshot"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 154,
+      "hasStructuralAnalysis": true
+    },
     "workspace/projects/app-a/.loop/project.yaml": {
       "filePath": "workspace/projects/app-a/.loop/project.yaml",
       "contentHash": "2411e11e0e61bc67311f0045f76263082e4f077f68b7785481c4b8bee8ed7fdc",
@@ -4387,8 +4758,7 @@
         {
           "name": "fetchText",
           "params": [
-            "url",
-            "headers"
+            "url"
           ],
           "exported": false,
           "lineCount": 15
@@ -4648,7 +5018,7 @@
     },
     "workspace/projects/t-max/README.md": {
       "filePath": "workspace/projects/t-max/README.md",
-      "contentHash": "0191f1a00dea7fbc4cfdc723ec32a481a3039dad2bed4da68b6b92bc9f16839d",
+      "contentHash": "c3ebf8263b5fd937997a617a59bbb277d39ffad5500201350a7255f8c8723b81",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -4742,12 +5112,128 @@
     },
     "workspace/projects/t-max/SKILL.md": {
       "filePath": "workspace/projects/t-max/SKILL.md",
-      "contentHash": "cb17c205aafdb7e334bec909fbce522b5125b45624aaac3a4e1e45918d97ff4a",
+      "contentHash": "b7a9a8640fcc98fa8d45223742202cef03c35f89aabf02b6722e33278dbf0112",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 68,
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example": {
+      "filePath": "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example",
+      "contentHash": "b79b7d376a1536096a05ebc39dd709a359b5af529d9c37eda19d8016f8441fc5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/projects/trunkFeeder/.loop/project.yaml": {
+      "filePath": "workspace/projects/trunkFeeder/.loop/project.yaml",
+      "contentHash": "455f2bcbc83054a85676f3833e47991720fc440a33d9a2777daca420b6ee0ed7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/README.md": {
+      "filePath": "workspace/projects/trunkFeeder/README.md",
+      "contentHash": "cc844f08c0c3d1e8c609d3360ace40a710e5e4e7ab0eb16742884cb8d9b05faf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 56,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/scripts/mount-local.mjs": {
+      "filePath": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "contentHash": "a806a7945cda82b2e403819cb508f0753b17645f6690b734ffc1be705114a635",
+      "functions": [
+        {
+          "name": "readYaml",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "readConfiguredPath",
+          "params": [
+            "section",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "normalizeLocalPath",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "refreshSymlink",
+          "params": [
+            "target",
+            "mount"
+          ],
+          "exported": false,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "YAML"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/SKILL.md": {
+      "filePath": "workspace/projects/trunkFeeder/SKILL.md",
+      "contentHash": "e89c60e78ed26900e12a506067961b4bac98d816a35a6eed1cec8860304307c3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 54,
       "hasStructuralAnalysis": true
     },
     "workspace/workspace.local.yaml.example": {

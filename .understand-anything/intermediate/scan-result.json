@@ -1,13 +1,15 @@
 {
   "name": "xiaobaicode-loop-engineering",
-  "description": "Loop Engineering 工程骨架，将 Agent 工作流的发现、交付、验证、持久化与调度拆分为可维护、可审计、可验证的引擎层和运行空间。注意：本项目包含超过 100 个源文件，完整分析采用全仓范围。",
+  "description": "Loop Engineering 工程骨架，将 Agent 工作流的发现、交付、验证、持久化与调度拆分为可维护、可审计、可扩展的引擎层和运行空间。注意：本项目包含超过 100 个源文件，完整分析可能耗时较长。",
   "languages": [
     "example",
+    "html",
     "javascript",
     "json",
     "jsonl",
     "markdown",
     "typescript",
+    "unknown",
     "yaml"
   ],
   "frameworks": [],
@@ -19,9 +21,15 @@
       "fileCategory": "docs"
     },
     {
+      "path": ".gitattributes",
+      "language": "unknown",
+      "sizeLines": 2,
+      "fileCategory": "code"
+    },
+    {
       "path": "AGENTS.md",
       "language": "markdown",
-      "sizeLines": 255,
+      "sizeLines": 395,
       "fileCategory": "docs"
     },
     {
@@ -69,7 +77,7 @@
     {
       "path": "loop-engineering/cli/memory.ts",
       "language": "typescript",
-      "sizeLines": 528,
+      "sizeLines": 573,
       "fileCategory": "code"
     },
     {
@@ -100,6 +108,12 @@
       "path": "loop-engineering/docs/product-requirement-platform-standards.md",
       "language": "markdown",
       "sizeLines": 521,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+      "language": "markdown",
+      "sizeLines": 157,
       "fileCategory": "docs"
     },
     {
@@ -291,7 +305,7 @@
     {
       "path": "loop-engineering/packages/memory-protocol/src/paths.ts",
       "language": "typescript",
-      "sizeLines": 48,
+      "sizeLines": 62,
       "fileCategory": "code"
     },
     {
@@ -465,13 +479,13 @@
     {
       "path": "loop-engineering/tests/memory-cli.test.ts",
       "language": "typescript",
-      "sizeLines": 387,
+      "sizeLines": 413,
       "fileCategory": "code"
     },
     {
       "path": "loop-engineering/tests/memory-protocol.test.ts",
       "language": "typescript",
-      "sizeLines": 167,
+      "sizeLines": 187,
       "fileCategory": "code"
     },
     {
@@ -483,13 +497,13 @@
     {
       "path": "loop-engineering/tests/runtime.test.ts",
       "language": "typescript",
-      "sizeLines": 515,
+      "sizeLines": 569,
       "fileCategory": "code"
     },
     {
       "path": "package.json",
       "language": "json",
-      "sizeLines": 31,
+      "sizeLines": 35,
       "fileCategory": "config"
     },
     {
@@ -561,7 +575,7 @@
     {
       "path": "workspace/agents/xiaobai.orchestrator.agent.yaml",
       "language": "yaml",
-      "sizeLines": 25,
+      "sizeLines": 29,
       "fileCategory": "config"
     },
     {
@@ -691,6 +705,36 @@
       "fileCategory": "docs"
     },
     {
+      "path": "workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
+      "language": "markdown",
+      "sizeLines": 57,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "workspace/monitoring/dashboard.html",
+      "language": "html",
+      "sizeLines": 1723,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "workspace/monitoring/README.md",
+      "language": "markdown",
+      "sizeLines": 143,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "language": "javascript",
+      "sizeLines": 546,
+      "fileCategory": "code"
+    },
+    {
+      "path": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "language": "javascript",
+      "sizeLines": 153,
+      "fileCategory": "code"
+    },
+    {
       "path": "workspace/projects/app-a/.loop/project.yaml",
       "language": "yaml",
       "sizeLines": 6,
@@ -813,7 +857,37 @@
     {
       "path": "workspace/projects/t-max/SKILL.md",
       "language": "markdown",
-      "sizeLines": 67,
+      "sizeLines": 87,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example",
+      "language": "example",
+      "sizeLines": 6,
+      "fileCategory": "code"
+    },
+    {
+      "path": "workspace/projects/trunkFeeder/.loop/project.yaml",
+      "language": "yaml",
+      "sizeLines": 18,
+      "fileCategory": "config"
+    },
+    {
+      "path": "workspace/projects/trunkFeeder/README.md",
+      "language": "markdown",
+      "sizeLines": 55,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "language": "javascript",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "workspace/projects/trunkFeeder/SKILL.md",
+      "language": "markdown",
+      "sizeLines": 53,
       "fileCategory": "docs"
     },
     {
@@ -835,11 +909,12 @@
       "fileCategory": "docs"
     }
   ],
-  "totalFiles": 137,
-  "filteredByIgnore": 4,
+  "totalFiles": 149,
+  "filteredByIgnore": 57,
   "estimatedComplexity": "moderate",
   "importMap": {
     ".aliyun/pull_request_template.md": [],
+    ".gitattributes": [],
     "AGENTS.md": [],
     "data/cases/2026-06-28-loop-simulation-lifecycle.md": [],
     "data/index/cases-index.json": [],
@@ -870,6 +945,7 @@
     "loop-engineering/docs/obsidian-memory-architecture.md": [],
     "loop-engineering/docs/obsidian-memory-migration.md": [],
     "loop-engineering/docs/product-requirement-platform-standards.md": [],
+    "loop-engineering/docs/xiaobai-evaluation-engineering-system.md": [],
     "loop-engineering/packages/agent-runtime/src/agentRuntime.ts": [
       "loop-engineering/packages/shared/src/fs.ts",
       "loop-engineering/packages/shared/src/types.ts"
@@ -920,12 +996,7 @@
       "loop-engineering/packages/memory-capture/src/slug.ts",
       "loop-engineering/packages/shared/src/fs.ts"
     ],
-    "loop-engineering/packages/memory-capture/src/index.ts": [
-      "loop-engineering/packages/memory-capture/src/caseTemplate.ts",
-      "loop-engineering/packages/memory-capture/src/caseWriter.ts",
-      "loop-engineering/packages/memory-capture/src/patternPromoter.ts",
-      "loop-engineering/packages/memory-capture/src/slug.ts"
-    ],
+    "loop-engineering/packages/memory-capture/src/index.ts": [],
     "loop-engineering/packages/memory-capture/src/patternPromoter.ts": [
       "loop-engineering/packages/memory-capture/src/slug.ts",
       "loop-engineering/packages/memory-protocol/src/index.ts",
@@ -936,11 +1007,7 @@
       "loop-engineering/packages/memory-context/src/bundle.ts"
     ],
     "loop-engineering/packages/memory-context/src/bundle.ts": [],
-    "loop-engineering/packages/memory-context/src/index.ts": [
-      "loop-engineering/packages/memory-context/src/budget.ts",
-      "loop-engineering/packages/memory-context/src/bundle.ts",
-      "loop-engineering/packages/memory-context/src/memoryContextLoader.ts"
-    ],
+    "loop-engineering/packages/memory-context/src/index.ts": [],
     "loop-engineering/packages/memory-context/src/memoryContextLoader.ts": [
       "loop-engineering/packages/memory-context/src/budget.ts",
       "loop-engineering/packages/memory-context/src/bundle.ts",
@@ -951,12 +1018,7 @@
     "loop-engineering/packages/memory-doctor/src/doctorMemory.ts": [
       "loop-engineering/packages/memory-protocol/src/index.ts"
     ],
-    "loop-engineering/packages/memory-doctor/src/index.ts": [
-      "loop-engineering/packages/memory-doctor/src/doctorMemory.ts",
-      "loop-engineering/packages/memory-doctor/src/indexFreshness.ts",
-      "loop-engineering/packages/memory-doctor/src/jsonl.ts",
-      "loop-engineering/packages/memory-doctor/src/validateMemory.ts"
-    ],
+    "loop-engineering/packages/memory-doctor/src/index.ts": [],
     "loop-engineering/packages/memory-doctor/src/indexFreshness.ts": [
       "loop-engineering/packages/memory-protocol/src/index.ts",
       "loop-engineering/packages/shared/src/fs.ts"
@@ -971,12 +1033,7 @@
       "loop-engineering/packages/memory-protocol/src/index.ts",
       "loop-engineering/packages/shared/src/fs.ts"
     ],
-    "loop-engineering/packages/memory-indexer/src/index.ts": [
-      "loop-engineering/packages/memory-indexer/src/indexSchema.ts",
-      "loop-engineering/packages/memory-indexer/src/indexWriter.ts",
-      "loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
-      "loop-engineering/packages/memory-indexer/src/noteClassifier.ts"
-    ],
+    "loop-engineering/packages/memory-indexer/src/index.ts": [],
     "loop-engineering/packages/memory-indexer/src/indexSchema.ts": [],
     "loop-engineering/packages/memory-indexer/src/indexWriter.ts": [
       "loop-engineering/packages/memory-protocol/src/index.ts",
@@ -994,14 +1051,7 @@
       "loop-engineering/packages/memory-protocol/src/types.ts"
     ],
     "loop-engineering/packages/memory-protocol/src/hash.ts": [],
-    "loop-engineering/packages/memory-protocol/src/index.ts": [
-      "loop-engineering/packages/memory-protocol/src/frontmatter.ts",
-      "loop-engineering/packages/memory-protocol/src/hash.ts",
-      "loop-engineering/packages/memory-protocol/src/markdown.ts",
-      "loop-engineering/packages/memory-protocol/src/paths.ts",
-      "loop-engineering/packages/memory-protocol/src/templates.ts",
-      "loop-engineering/packages/memory-protocol/src/types.ts"
-    ],
+    "loop-engineering/packages/memory-protocol/src/index.ts": [],
     "loop-engineering/packages/memory-protocol/src/markdown.ts": [
       "loop-engineering/packages/memory-protocol/src/frontmatter.ts",
       "loop-engineering/packages/memory-protocol/src/types.ts"
@@ -1016,12 +1066,7 @@
     "loop-engineering/packages/memory-search/src/filters.ts": [
       "loop-engineering/packages/memory-protocol/src/index.ts"
     ],
-    "loop-engineering/packages/memory-search/src/index.ts": [
-      "loop-engineering/packages/memory-search/src/filters.ts",
-      "loop-engineering/packages/memory-search/src/indexReader.ts",
-      "loop-engineering/packages/memory-search/src/memorySearch.ts",
-      "loop-engineering/packages/memory-search/src/scoring.ts"
-    ],
+    "loop-engineering/packages/memory-search/src/index.ts": [],
     "loop-engineering/packages/memory-search/src/indexReader.ts": [
       "loop-engineering/packages/memory-protocol/src/index.ts",
       "loop-engineering/packages/shared/src/fs.ts"
@@ -1132,6 +1177,13 @@
     "workspace/memory/loops/morning-triage/runs.jsonl": [],
     "workspace/memory/loops/morning-triage/state.md": [],
     "workspace/memory/README.md": [],
+    "workspace/memory/xiaoneng-page-preflight-2026-07-22.md": [],
+    "workspace/monitoring/dashboard.html": [],
+    "workspace/monitoring/README.md": [],
+    "workspace/monitoring/scripts/generate-monitor-data.mjs": [],
+    "workspace/monitoring/scripts/start-dashboard.mjs": [
+      "workspace/monitoring/scripts/generate-monitor-data.mjs"
+    ],
     "workspace/projects/app-a/.loop/project.yaml": [],
     "workspace/projects/app-a/.loop/skills/fix-tests.SKILL.md": [],
     "workspace/projects/app-a/.loop/skills/triage.SKILL.md": [],
@@ -1153,6 +1205,11 @@
     "workspace/projects/t-max/README.md": [],
     "workspace/projects/t-max/scripts/mount-local.mjs": [],
     "workspace/projects/t-max/SKILL.md": [],
+    "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example": [],
+    "workspace/projects/trunkFeeder/.loop/project.yaml": [],
+    "workspace/projects/trunkFeeder/README.md": [],
+    "workspace/projects/trunkFeeder/scripts/mount-local.mjs": [],
+    "workspace/projects/trunkFeeder/SKILL.md": [],
     "workspace/workspace.local.yaml.example": [],
     "专家团使用与模型说明.md": [],
     "专家评审团-项目评审报告.md": []

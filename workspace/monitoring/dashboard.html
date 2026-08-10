@@ -1179,6 +1179,35 @@
           return labels[loop.id] || loop.name;
         }
 
+        function stageLabel(stageId) {
+          const labels = {
+            'requirement-intake': '需求接入',
+            'target-repository-resolution': '目标仓库解析',
+            'frontend-master-design': '前端总体设计',
+            'frontend-repository-design': '仓库级设计',
+            'frontend-design-review': '前端设计评审',
+            'human-design-approval': '人工设计审批',
+            'frontend-implementation': '前端编码实现',
+            'implementation-verification': '实现结果验证',
+            'pr-readiness': '合并请求准备',
+          };
+          return labels[stageId] || stageId;
+        }
+
+        function objectLabel(objectId) {
+          const labels = {
+            evaluator: '通用评价器',
+            'frontend-evaluator': '前端评价器',
+            'frontend-generator': '前端生成器',
+            generator: '通用生成器',
+            suagent: '监督评价器',
+            xiaobai: '小白编排器',
+            'coding-harness': '编码执行框架',
+            'frontend-delivery-harness': '前端交付执行框架',
+          };
+          return labels[objectId] || objectId;
+        }
+
         function statusClass(value) {
           const normalized = String(value || '').toLowerCase();
           if (['ok', 'clean', 'available', 'mounted', 'passed', 'completed'].includes(normalized)) return 'ok';
@@ -1360,7 +1389,10 @@
                 <tbody>
                   ${loop.stages.map((stage) => `
                     <tr>
-                      <td><span class="cell-title">${escapeHtml(stage.id)}</span></td>
+                      <td>
+                        <div class="cell-title">${escapeHtml(stageLabel(stage.id))}</div>
+                        <div class="cell-meta">${escapeHtml(stage.id)}</div>
+                      </td>
                       <td>${escapeHtml(displayLabel(stage.kind))}</td>
                       <td>${status(stage.gate, stage.gate)}</td>
                       <td>${escapeHtml(stage.owner)}</td>
@@ -1383,7 +1415,10 @@
           $('#agent-fact').textContent = `${data.agents.length} 个智能体 · ${data.harnesses.length} 个执行框架 · ${data.evaluation.evaluatorCount} 个评价器`;
           $('#agent-rows').innerHTML = rows.map((item) => `
             <tr>
-              <td><div class="cell-title">${escapeHtml(item.id)}</div><div class="cell-meta">${escapeHtml(item.file)}</div></td>
+              <td>
+                <div class="cell-title">${escapeHtml(objectLabel(item.id))}</div>
+                <div class="cell-meta">${escapeHtml(item.id)} · ${escapeHtml(item.file)}</div>
+              </td>
               <td>${status(item.category === 'Harness' ? 'manual' : 'info', displayLabel(item.category))}</td>
               <td>${escapeHtml([item.role, item.stance].filter(Boolean).map(displayLabel).join(' / ') || '--')}</td>
               <td class="numeric">${formatNumber(item.allowedTools)}</td>
@@ -1465,7 +1500,10 @@
                 <tbody>
                   ${stages.map((stage) => `
                     <tr>
-                      <td class="nowrap"><span class="cell-title">${escapeHtml(stage.stageId)}</span></td>
+                      <td class="nowrap">
+                        <div class="cell-title">${escapeHtml(stageLabel(stage.stageId))}</div>
+                        <div class="cell-meta">${escapeHtml(stage.stageId)}</div>
+                      </td>
                       <td>${escapeHtml(displayLabel(stage.stageKind))}</td>
                       <td>${escapeHtml(stage.owner)}</td>
                       <td>${status(stage.status, displayLabel(stage.status))}</td>
