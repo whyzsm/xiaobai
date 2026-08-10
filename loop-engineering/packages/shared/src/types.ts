@@ -50,6 +50,7 @@ export interface LoopSpec {
   humanGate: {
     requiredBefore: string[];
     reviewers: string[];
+    gates: HumanGateDefinition[];
   };
   workflow?: {
     stages: LoopWorkflowStage[];
@@ -63,7 +64,9 @@ export interface LoopWorkflowStage {
   agent?: string;
   harness?: string;
   evaluator?: string;
+  dependsOn?: string[];
   requiredChecks?: string[];
+  requiredGates?: string[];
   requiredBefore?: string[];
   outputs?: string[];
 }
@@ -257,6 +260,68 @@ export interface AgentRunPlan {
   expectedOutput: string[];
 }
 
+export type HarnessEvidenceType =
+  | 'command'
+  | 'file'
+  | 'diff'
+  | 'test'
+  | 'browser'
+  | 'review'
+  | 'human-approval'
+  | 'other';
+
+export interface HarnessRunEvidence {
+  checkId: string;
+  type: HarnessEvidenceType;
+  value: string;
+}
+
+export interface HarnessRunSubmission {
+  runId: string;
+  taskId: string;
+  agentId: string;
+  harnessId: string;
+  startedAt: string;
+  finishedAt: string;
+  loadedContext: string[];
+  contextCharactersUsed: number;
+  toolsUsed: string[];
+  completedConditions: string[];
+  output: JsonRecord;
+  evidence: HarnessRunEvidence[];
+}
+
+export interface HarnessRunResult {
+  runId: string;
+  taskId: string;
+  agentId: string;
+  harnessId: string;
+  status: 'passed' | 'failed';
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  checks: {
+    identity: boolean;
+    context: boolean;
+    tools: boolean;
+    completion: boolean;
+    output: boolean;
+    evidence: boolean;
+  };
+  violations: {
+    submissionErrors: string[];
+    identityErrors: string[];
+    missingContextLoaders: string[];
+    contextLimitExceeded: boolean;
+    deniedTools: string[];
+    unallowedTools: string[];
+    missingConditions: string[];
+    unknownConditions: string[];
+    missingOutputs: string[];
+    missingEvidence: string[];
+  };
+}
+
 export interface EvaluationPlan {
   taskId: string;
   evaluatorId: string;
@@ -268,6 +333,69 @@ export interface EvaluationPlan {
 export interface HumanGatePlan {
   protectedActions: string[];
   reviewers: string[];
+  gates: HumanGateDefinition[];
+}
+
+export interface HumanGateDefinition {
+  id: string;
+  requiredBefore: string;
+  reviewers: string[];
+  subjectFields: string[];
+  requiredEvidenceTypes: HarnessEvidenceType[];
+  maxAgeMinutes: number;
+}
+
+export interface GatePassEvidence {
+  type: HarnessEvidenceType;
+  value: string;
+}
+
+export interface GatePassEvent {
+  kind: 'GatePass';
+  version: 1;
+  id: string;
+  passId: string;
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stageId?: string;
+  gateId: string;
+  action: string;
+  status: 'granted' | 'revoked';
+  issuer: string;
+  subjectDigest: string;
+  evidence: GatePassEvidence[];
+  issuedAt: string;
+  expiresAt?: string;
+  reason?: string;
+}
+
+export interface GateGrantInput {
+  runId: string;
+  taskId: string;
+  stageId?: string;
+  gateId: string;
+  issuer: string;
+  subjectDigest: string;
+  evidence: GatePassEvidence[];
+  now?: Date;
+}
+
+export interface GateCheckInput {
+  runId: string;
+  taskId: string;
+  stageId?: string;
+  action?: string;
+  subjectDigest: string;
+  now?: Date;
+}
+
+export interface GateDecision {
+  status: 'passed' | 'blocked';
+  requiredGates: string[];
+  satisfiedGates: string[];
+  blockingReasons: string[];
+  passes: GatePassEvent[];
 }
 
 export interface ProjectRoutePlan {
@@ -313,7 +441,9 @@ export interface WorkflowStagePlan {
   agent?: string;
   harness?: string;
   evaluator?: string;
+  dependsOn: string[];
   requiredChecks: string[];
+  requiredGates: string[];
   requiredBefore: string[];
   outputs: string[];
 }

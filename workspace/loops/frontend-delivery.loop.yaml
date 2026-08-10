@@ -64,7 +64,6 @@ budget:
   maxParallelTasks: 4
 humanGate:
   requiredBefore:
-    - human-design-approval
     - coding
     - merge
     - release
@@ -73,6 +72,84 @@ humanGate:
     - destructive-file-change
   reviewers:
     - owner
+  gates:
+    - id: human-design-approval
+      requiredBefore: coding
+      reviewers:
+        - owner
+      subjectFields:
+        - requirementBrief
+        - sourceTrace
+        - targetRepositories
+        - masterDesignPath
+        - repositoryDesignPaths
+      requiredEvidenceTypes:
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+    - id: merge-approval
+      requiredBefore: merge
+      reviewers:
+        - owner
+      subjectFields:
+        - changedFiles
+        - testResult
+        - uiQaResult
+        - pullRequestPlan
+      requiredEvidenceTypes:
+        - test
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+    - id: release-approval
+      requiredBefore: release
+      reviewers:
+        - owner
+      subjectFields:
+        - commitSha
+        - remoteSha
+        - releaseVerification
+      requiredEvidenceTypes:
+        - test
+        - human-approval
+      maxAgeMinutes: 240
+    - id: external-api-contract-change-approval
+      requiredBefore: external-api-contract-change
+      reviewers:
+        - owner
+      subjectFields:
+        - apiContract
+        - affectedRepositories
+        - migrationPlan
+      requiredEvidenceTypes:
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+    - id: major-dependency-upgrade-approval
+      requiredBefore: major-dependency-upgrade
+      reviewers:
+        - owner
+      subjectFields:
+        - dependencyDiff
+        - compatibilityReport
+        - rollbackPlan
+      requiredEvidenceTypes:
+        - test
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+    - id: destructive-file-change-approval
+      requiredBefore: destructive-file-change
+      reviewers:
+        - owner
+      subjectFields:
+        - deletedFiles
+        - impactAnalysis
+        - rollbackPlan
+      requiredEvidenceTypes:
+        - review
+        - human-approval
+      maxAgeMinutes: 240
 workflow:
   stages:
     - id: requirement-intake
@@ -91,6 +168,8 @@ workflow:
       gate: automatic
       agent: frontend-generator.agent.yaml
       harness: frontend-delivery.harness.yaml
+      dependsOn:
+        - requirement-intake
       requiredChecks:
         - requirement-complete
         - target-repository-ready
@@ -102,6 +181,8 @@ workflow:
       gate: automatic
       agent: frontend-generator.agent.yaml
       harness: frontend-delivery.harness.yaml
+      dependsOn:
+        - target-repository-resolution
       requiredChecks:
         - design-doc-location-resolved
       outputs:
@@ -111,6 +192,8 @@ workflow:
       gate: automatic
       agent: frontend-generator.agent.yaml
       harness: frontend-delivery.harness.yaml
+      dependsOn:
+        - target-repository-resolution
       requiredChecks:
         - design-doc-location-resolved
       outputs:
@@ -119,6 +202,9 @@ workflow:
       kind: review
       gate: automatic
       evaluator: frontend-evaluator.agent.yaml
+      dependsOn:
+        - frontend-master-design
+        - frontend-repository-design
       requiredChecks:
         - frontend-design-review-passed
       outputs:
@@ -126,6 +212,8 @@ workflow:
     - id: human-design-approval
       kind: human-gate
       gate: manual
+      dependsOn:
+        - frontend-design-review
       requiredBefore:
         - coding
       requiredChecks:
@@ -137,6 +225,10 @@ workflow:
       gate: automatic
       agent: frontend-generator.agent.yaml
       harness: frontend-delivery.harness.yaml
+      dependsOn:
+        - human-design-approval
+      requiredGates:
+        - human-design-approval
       requiredBefore:
         - human-design-approval
       outputs:
@@ -145,6 +237,8 @@ workflow:
       kind: review
       gate: automatic
       evaluator: frontend-evaluator.agent.yaml
+      dependsOn:
+        - frontend-implementation
       requiredChecks:
         - implementation-verification-passed
         - independent-code-review-passed
@@ -157,6 +251,8 @@ workflow:
       kind: pr-readiness
       gate: automatic
       evaluator: frontend-evaluator.agent.yaml
+      dependsOn:
+        - implementation-verification
       requiredChecks:
         - pr-ready
       outputs:

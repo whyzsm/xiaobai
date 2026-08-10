@@ -256,7 +256,9 @@ function buildWorkflowPlan(loop: LoopSpec): WorkflowPlan | undefined {
       agent: stage.agent,
       harness: stage.harness,
       evaluator: stage.evaluator,
+      dependsOn: stage.dependsOn ?? [],
       requiredChecks: stage.requiredChecks ?? [],
+      requiredGates: stage.requiredGates ?? [],
       requiredBefore: stage.requiredBefore ?? [],
       outputs: stage.outputs ?? []
     }))

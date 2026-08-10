@@ -115,7 +115,9 @@ function normalizeStage(stage, loopFile) {
     agent: stage?.agent || null,
     evaluator: stage?.evaluator || null,
     harness: stage?.harness || null,
+    dependsOn: Array.isArray(stage?.dependsOn) ? stage.dependsOn : [],
     requiredChecks: Array.isArray(stage?.requiredChecks) ? stage.requiredChecks : [],
+    requiredGates: Array.isArray(stage?.requiredGates) ? stage.requiredGates : [],
     requiredBefore: Array.isArray(stage?.requiredBefore) ? stage.requiredBefore : [],
     outputs: Array.isArray(stage?.outputs) ? stage.outputs : [],
     evidence: `${loopFile}#${stage?.id || 'unnamed-stage'}`,
@@ -152,6 +154,7 @@ function collectLoops(warnings) {
       humanGates: Array.isArray(value?.humanGate?.requiredBefore)
         ? value.humanGate.requiredBefore
         : [],
+      gateDefinitions: Array.isArray(value?.humanGate?.gates) ? value.humanGate.gates : [],
       budget: {
         maxTokensPerRun: value?.budget?.maxTokensPerRun ?? null,
         maxRunsPerDay: value?.budget?.maxRunsPerDay ?? null,

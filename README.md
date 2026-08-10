@@ -217,6 +217,10 @@ V2 通过 `workflow.stages[]` 显式表达九个阶段：`requirement-intake`、
 
 V2 explicitly represents nine stages through `workflow.stages[]`: `requirement-intake`, `target-repository-resolution`, `frontend-master-design`, `frontend-repository-design`, `frontend-design-review`, `human-design-approval`, `frontend-implementation`, `implementation-verification`, and `pr-readiness`. In dry-run output, `status: planned` means planned only; it does not mean Yuque API calls, branch creation, target repository writes, or PR creation have happened. The Yuque connector `config.baseUrl` and `auth.tokenEnv` fields are API configuration shape only, and the repository must not store token values.
 
+`morning-triage` 通过 `workflow.stages[]` 显式表达六个阶段：`triage-discovery`、`finding-isolation`、`finding-implementation`、`finding-verification`、`pr-readiness` 和 `merge-approval`。每个自动节点必须声明一个 agent 或 evaluator，每个人工节点必须是无 agent/evaluator 的 `human-gate`；`dependsOn` 只能引用已经声明的前置节点，所有全局 verification check 都必须分配到至少一个节点。
+
+`morning-triage` explicitly represents six stages through `workflow.stages[]`: `triage-discovery`, `finding-isolation`, `finding-implementation`, `finding-verification`, `pr-readiness`, and `merge-approval`. Every automatic stage must declare one agent or evaluator, and every manual stage must be an ownerless `human-gate`. A `dependsOn` entry may reference only a previously declared stage, and every loop-level verification check must be assigned to at least one stage.
+
 ### Harness Spec
 
 入口文件：
@@ -233,6 +237,85 @@ workspace/agents/coding.harness.yaml
 - 完成条件
 - 失败处理策略
 - 输出字段要求
+
+`harness-check` 接收外部 agent executor 产生的结构化 run result，并以 fail-closed 方式检查 agent/harness 身份、上下文加载与字符上限、工具白名单/黑名单、完成条件、必需输出和逐项证据。检查失败时命令返回非零退出码；它不会自行调用模型、执行工具或修改业务仓。
+
+```bash
+npm run loop -- harness-check --loop morning-triage --result /path/to/run-result.json --json
+```
+
+run result 必须包含 `runId`、`taskId`、`agentId`、`harnessId`、`startedAt`、`finishedAt`、`loadedContext`、`contextCharactersUsed`、`toolsUsed`、`completedConditions`、`output` 和 `evidence`。每个已完成条件都必须有对应 `checkId` 的证据记录。
+
+`harness-check` accepts a structured run result produced by an external agent executor. It fails closed when the agent or harness identity is wrong, required context is missing or oversized, a tool violates the allow/deny policy, completion conditions or required outputs are missing, or a claimed condition has no evidence. A failed check returns a non-zero exit code. The command does not call a model, execute tools, or modify a business repository by itself.
+
+The run result must contain `runId`, `taskId`, `agentId`, `harnessId`, `startedAt`, `finishedAt`, `loadedContext`, `contextCharactersUsed`, `toolsUsed`, `completedConditions`, `output`, and `evidence`. Every completed condition must have an evidence record with a matching `checkId`.
+
+### Gate 与 GatePass / Gates And GatePasses
+
+`humanGate.gates[]` 把人工门禁定义为可校验配置。每个 gate 都声明唯一 `id`、受保护动作 `requiredBefore`、允许审批的 `reviewers`、参与摘要计算的 `subjectFields`、必需证据类型 `requiredEvidenceTypes` 和有效期 `maxAgeMinutes`。Loop 顶层 `humanGate.requiredBefore` 与 `humanGate.reviewers` 是 gate 定义的汇总，校验器会阻止两者漂移；manual `human-gate` workflow 节点必须存在同名 gate 定义，自动节点的 `requiredGates` 也只能引用已定义 gate。
+
+`humanGate.gates[]` represents human gates as enforceable configuration. Each gate declares a unique `id`, its protected `requiredBefore` action, authorized `reviewers`, the `subjectFields` included in the subject digest, required `requiredEvidenceTypes`, and `maxAgeMinutes`. The loop-level `humanGate.requiredBefore` and `humanGate.reviewers` fields summarize the gate definitions, and validation rejects drift between them. A manual `human-gate` workflow stage must have a same-ID gate definition, and an automatic stage may reference only defined gates through `requiredGates`.
+
+查看门禁不会写文件：
+
+Listing gates does not write files:
+
+```bash
+npm run loop -- gate list --loop frontend-delivery --json
+```
+
+审批命令校验审批人和证据后，把一条 `granted` 事件追加到 `<memoryRoot>/loops/<loop-id>/passes.jsonl`。`--stage` 表示通行证只允许进入该受保护 workflow 节点；传入的节点必须显式声明对应 `requiredGates`。`--subject-digest` 必须是 `sha256:` 加 64 位小写十六进制字符，并由外部 executor 根据 gate 声明的 `subjectFields` 对稳定序列化后的审批对象计算。
+
+The approval command validates the issuer and evidence, then appends a `granted` event to `<memoryRoot>/loops/<loop-id>/passes.jsonl`. `--stage` binds the pass to one protected workflow stage, which must explicitly declare the gate in `requiredGates`. `--subject-digest` must contain `sha256:` followed by 64 lowercase hexadecimal characters. The external executor computes it from a stable serialization of the approved object fields listed in the gate's `subjectFields`.
+
+```bash
+npm run loop -- gate approve \
+  --loop frontend-delivery \
+  --gate human-design-approval \
+  --run-id run-001 \
+  --task-id task-001 \
+  --stage frontend-implementation \
+  --subject-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --issuer wusheng \
+  --evidence review:reports/design-review.md \
+  --evidence human-approval:approval-record-001 \
+  --json
+```
+
+外部 executor 在执行受保护节点或动作之前必须调用 `gate check`。检查结果只有 `passed` 才返回成功退出码；缺少通行证、run/task 不匹配、stage 不匹配、审批对象摘要变化、证据策略变化、审批人失去权限、过期、撤销或损坏的 JSONL 事件都会 fail-closed。没有真实 executor 的当前骨架不会假装自动执行受保护动作。
+
+An external executor must call `gate check` before entering a protected stage or performing a protected action. Only a `passed` decision returns a successful exit code. A missing pass, run/task mismatch, stage mismatch, changed subject digest, changed evidence policy, no-longer-authorized issuer, expiration, revocation, or malformed JSONL event fails closed. This scaffold has no real executor and does not pretend to perform protected actions automatically.
+
+```bash
+npm run loop -- gate check \
+  --loop frontend-delivery \
+  --run-id run-001 \
+  --task-id task-001 \
+  --stage frontend-implementation \
+  --subject-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --json
+
+npm run loop -- gate check \
+  --loop morning-triage \
+  --run-id run-001 \
+  --task-id task-001 \
+  --action merge \
+  --subject-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --json
+```
+
+撤销不会改写或删除原始授权，而是追加同一 `passId` 的 `revoked` 事件。`gate list` 与 `gate check` 是只读命令；`gate approve` 与 `gate revoke` 是追加写命令。
+
+Revocation never rewrites or deletes the original grant. It appends a `revoked` event with the same `passId`. `gate list` and `gate check` are read-only; `gate approve` and `gate revoke` append events.
+
+```bash
+npm run loop -- gate revoke \
+  --loop frontend-delivery \
+  --pass-id <pass-id> \
+  --issuer wusheng \
+  --reason "requirements changed" \
+  --json
+```
 
 ### Skill
 

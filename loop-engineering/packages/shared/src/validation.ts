@@ -104,11 +104,21 @@ export async function validateWorkspace(
   if (await pathExists(generatorPath)) {
     const generator = await readYamlFile<AgentSpec>(generatorPath);
     errors.push(...(await validateObject(ajv, 'agent', path.relative(workspaceRoot, generatorPath), generator)));
+    if (generator.role !== 'maker') {
+      errors.push(`Generator agent must use role: maker (${generatorPath})`);
+    }
   }
 
   if (await pathExists(evaluatorPath)) {
     const evaluator = await readYamlFile<AgentSpec>(evaluatorPath);
     errors.push(...(await validateObject(ajv, 'agent', path.relative(workspaceRoot, evaluatorPath), evaluator)));
+    if (evaluator.role !== 'checker') {
+      errors.push(`Evaluator agent must use role: checker (${evaluatorPath})`);
+    }
+  }
+
+  if (path.resolve(generatorPath) === path.resolve(evaluatorPath) || loop.verification.allowSelfReview) {
+    errors.push('Generator and evaluator must remain independent and allowSelfReview must be false');
   }
 
   if (await pathExists(harnessPath)) {
@@ -121,12 +131,82 @@ export async function validateWorkspace(
     errors.push(...(await validateObject(ajv, 'budget', path.relative(workspaceRoot, budgetPath), budget)));
   }
 
+  const gateDefinitions = loop.humanGate.gates ?? [];
+  const gateIds = new Set<string>();
+  const gateActions = new Set<string>();
+  const gateReviewers = new Set<string>();
+  for (const gate of gateDefinitions) {
+    if (gateIds.has(gate.id)) {
+      errors.push(`Duplicate human gate id: ${gate.id}`);
+    }
+    gateIds.add(gate.id);
+    gateActions.add(gate.requiredBefore);
+    for (const reviewer of gate.reviewers) gateReviewers.add(reviewer);
+  }
+
+  for (const action of loop.humanGate.requiredBefore) {
+    if (!gateActions.has(action)) {
+      errors.push(`Human gate protected action is not defined by a gate: ${action}`);
+    }
+  }
+  for (const action of gateActions) {
+    if (!loop.humanGate.requiredBefore.includes(action)) {
+      errors.push(`Human gate definition action is not declared in requiredBefore: ${action}`);
+    }
+  }
+  for (const reviewer of loop.humanGate.reviewers) {
+    if (!gateReviewers.has(reviewer)) {
+      errors.push(`Human gate reviewer is not used by any gate definition: ${reviewer}`);
+    }
+  }
+  for (const reviewer of gateReviewers) {
+    if (!loop.humanGate.reviewers.includes(reviewer)) {
+      errors.push(`Human gate definition reviewer is not declared in reviewers: ${reviewer}`);
+    }
+  }
+
   const workflowStageIds = new Set<string>();
+  const assignedChecks = new Set<string>();
   for (const stage of loop.workflow?.stages ?? []) {
     if (workflowStageIds.has(stage.id)) {
       errors.push(`Duplicate workflow stage id: ${stage.id}`);
     }
+
+    for (const dependency of stage.dependsOn ?? []) {
+      if (!workflowStageIds.has(dependency)) {
+        errors.push(`Workflow stage ${stage.id} depends on an unknown or non-prior stage: ${dependency}`);
+      }
+    }
     workflowStageIds.add(stage.id);
+
+    for (const requiredCheck of stage.requiredChecks ?? []) {
+      assignedChecks.add(requiredCheck);
+      if (!loop.verification.requiredChecks.includes(requiredCheck)) {
+        errors.push(`Workflow stage ${stage.id} uses undeclared verification check: ${requiredCheck}`);
+      }
+    }
+    for (const requiredGate of stage.requiredGates ?? []) {
+      if (!gateIds.has(requiredGate)) {
+        errors.push(`Workflow stage ${stage.id} requires an undefined human gate: ${requiredGate}`);
+      }
+    }
+
+    const ownerCount = Number(Boolean(stage.agent)) + Number(Boolean(stage.evaluator));
+    if (stage.gate === 'manual') {
+      if (stage.kind !== 'human-gate' || ownerCount !== 0) {
+        errors.push(`Manual workflow stage must be an ownerless human-gate: ${stage.id}`);
+      }
+      const gate = gateDefinitions.find((item) => item.id === stage.id);
+      if (!gate) {
+        errors.push(`Manual workflow stage has no matching human gate definition: ${stage.id}`);
+      } else if (!(stage.requiredBefore ?? []).includes(gate.requiredBefore)) {
+        errors.push(
+          `Manual workflow stage ${stage.id} does not declare its protected action: ${gate.requiredBefore}`
+        );
+      }
+    } else if (ownerCount !== 1) {
+      errors.push(`Automatic workflow stage must declare exactly one agent or evaluator: ${stage.id}`);
+    }
 
     if (stage.agent) {
       const stageAgentPath = path.join(workspaceRoot, 'agents', stage.agent);
@@ -157,6 +237,14 @@ export async function validateWorkspace(
       } else {
         const stageHarness = await readYamlFile<HarnessSpec>(stageHarnessPath);
         errors.push(...(await validateObject(ajv, 'harness', path.relative(workspaceRoot, stageHarnessPath), stageHarness)));
+      }
+    }
+  }
+
+  if (loop.workflow) {
+    for (const requiredCheck of loop.verification.requiredChecks) {
+      if (!assignedChecks.has(requiredCheck)) {
+        errors.push(`Verification check is not assigned to any workflow stage: ${requiredCheck}`);
       }
     }
   }

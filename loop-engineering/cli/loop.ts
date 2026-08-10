@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
+import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
-import { findLoopSpec, formatJson } from '../packages/shared/src/fs';
+import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
+import { GatePassEvidence, HarnessEvidenceType, LoopSpec } from '../packages/shared/src/types';
+import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
 
@@ -16,6 +20,7 @@ interface CliOptions {
   targetRepository?: string;
   targetCwd?: string;
   targetRemote?: string;
+  resultPath?: string;
   rest: string[];
 }
 
@@ -59,6 +64,36 @@ async function main(argv: string[]): Promise<void> {
   }
 
   const loopPath = await findLoopSpec(workspaceRoot, options.loop);
+
+  if (options.command === 'gate') {
+    await runGateCommand(options, workspaceRoot, loopPath);
+    return;
+  }
+
+  if (options.command === 'harness-check') {
+    const validation = await validateWorkspace(workspaceRoot, loopPath);
+    if (!validation.ok) {
+      process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+      process.exitCode = 1;
+      return;
+    }
+    if (!options.resultPath) {
+      throw new Error('harness-check requires --result <json-file>');
+    }
+
+    const loop = await readYamlFile<LoopSpec>(loopPath);
+    const harnessRuntime = new HarnessRuntime(workspaceRoot);
+    const harness = await harnessRuntime.load(loop);
+    const submission = JSON.parse(await readFile(path.resolve(process.cwd(), options.resultPath), 'utf8')) as unknown;
+    const result = harnessRuntime.evaluateRun(loop, harness, submission);
+    if (options.json) {
+      process.stdout.write(formatJson(result));
+    } else {
+      printHarnessResult(result);
+    }
+    process.exitCode = result.status === 'passed' ? 0 : 1;
+    return;
+  }
 
   if (options.command === 'dry-run') {
     const validation = await validateWorkspace(workspaceRoot, loopPath);
@@ -152,6 +187,9 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--target-remote') {
       options.targetRemote = requireValue(rest, index, arg);
       index += 1;
+    } else if (arg === '--result') {
+      options.resultPath = requireValue(rest, index, arg);
+      index += 1;
     } else if (arg === '--json') {
       options.json = true;
     } else {
@@ -160,6 +198,141 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return options;
+}
+
+async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const [subcommand = 'help', ...args] = options.rest;
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const humanGate = new HumanGate(loop);
+  const store = new GatePassStore(await resolveMemoryRoot(workspaceRoot), loop.metadata.id);
+
+  if (subcommand === 'list') {
+    const flags = parseGateFlags(args, []);
+    assertNoGateFlags(flags, subcommand);
+    const result = {
+      loopId: loop.metadata.id,
+      passLog: store.filePath(),
+      ...humanGate.plan()
+    };
+    if (options.json) process.stdout.write(formatJson(result));
+    else printGateList(result);
+    return;
+  }
+
+  if (subcommand === 'approve') {
+    const flags = parseGateFlags(args, [
+      'gate',
+      'run-id',
+      'task-id',
+      'stage',
+      'subject-digest',
+      'issuer',
+      'evidence'
+    ]);
+    const event = humanGate.grant({
+      gateId: requireGateFlag(flags, 'gate'),
+      runId: requireGateFlag(flags, 'run-id'),
+      taskId: requireGateFlag(flags, 'task-id'),
+      stageId: optionalGateFlag(flags, 'stage'),
+      subjectDigest: requireGateFlag(flags, 'subject-digest'),
+      issuer: requireGateFlag(flags, 'issuer'),
+      evidence: (flags.get('evidence') ?? []).map(parseGateEvidence)
+    });
+    await store.append(event);
+    if (options.json) process.stdout.write(formatJson(event));
+    else printGateEvent(event);
+    return;
+  }
+
+  if (subcommand === 'check') {
+    const flags = parseGateFlags(args, ['run-id', 'task-id', 'stage', 'action', 'subject-digest']);
+    const stageId = optionalGateFlag(flags, 'stage');
+    const action = optionalGateFlag(flags, 'action');
+    if (Boolean(stageId) === Boolean(action)) {
+      throw new Error('gate check requires exactly one of --stage or --action');
+    }
+    const result = humanGate.check(
+      {
+        runId: requireGateFlag(flags, 'run-id'),
+        taskId: requireGateFlag(flags, 'task-id'),
+        stageId,
+        action,
+        subjectDigest: requireGateFlag(flags, 'subject-digest')
+      },
+      await store.readAll()
+    );
+    if (options.json) process.stdout.write(formatJson(result));
+    else printGateDecision(result);
+    process.exitCode = result.status === 'passed' ? 0 : 1;
+    return;
+  }
+
+  if (subcommand === 'revoke') {
+    const flags = parseGateFlags(args, ['pass-id', 'issuer', 'reason']);
+    const passId = requireGateFlag(flags, 'pass-id');
+    const current = await store.current(passId);
+    if (!current) throw new Error(`Unknown GatePass: ${passId}`);
+    const event = humanGate.revoke(
+      current,
+      requireGateFlag(flags, 'issuer'),
+      requireGateFlag(flags, 'reason')
+    );
+    await store.append(event);
+    if (options.json) process.stdout.write(formatJson(event));
+    else printGateEvent(event);
+    return;
+  }
+
+  throw new Error('gate requires one of: list, approve, check, revoke');
+}
+
+function parseGateFlags(args: string[], allowed: string[]): Map<string, string[]> {
+  const allowedFlags = new Set(allowed);
+  const values = new Map<string, string[]>();
+  for (let index = 0; index < args.length; index += 2) {
+    const flag = args[index];
+    if (!flag?.startsWith('--')) throw new Error(`Unexpected gate argument: ${flag ?? ''}`);
+    const name = flag.slice(2);
+    if (!allowedFlags.has(name)) throw new Error(`Unknown gate option: ${flag}`);
+    const value = args[index + 1];
+    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${flag}`);
+    values.set(name, [...(values.get(name) ?? []), value]);
+  }
+  return values;
+}
+
+function assertNoGateFlags(flags: Map<string, string[]>, command: string): void {
+  if (flags.size > 0) throw new Error(`gate ${command} does not accept options`);
+}
+
+function requireGateFlag(flags: Map<string, string[]>, name: string): string {
+  const value = optionalGateFlag(flags, name);
+  if (!value) throw new Error(`Missing value for --${name}`);
+  return value;
+}
+
+function optionalGateFlag(flags: Map<string, string[]>, name: string): string | undefined {
+  const values = flags.get(name) ?? [];
+  if (values.length > 1 && name !== 'evidence') throw new Error(`Gate option may only be provided once: --${name}`);
+  return values[0];
+}
+
+function parseGateEvidence(value: string): GatePassEvidence {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1) {
+    throw new Error('Gate evidence must use <type>:<value>');
+  }
+  return {
+    type: value.slice(0, separator) as HarnessEvidenceType,
+    value: value.slice(separator + 1)
+  };
 }
 
 function requireValue(args: string[], index: number, flag: string): string {
@@ -223,9 +396,61 @@ function printSimulation(result: Awaited<ReturnType<SimulationRuntime['simulate'
   process.stdout.write(`Case: ${path.relative(process.cwd(), result.artifacts.casePath)}\n`);
 }
 
+function printHarnessResult(result: ReturnType<HarnessRuntime['evaluateRun']>): void {
+  process.stdout.write(`Harness run: ${result.runId}\n`);
+  process.stdout.write(`Task: ${result.taskId}\n`);
+  process.stdout.write(`Agent: ${result.agentId}\n`);
+  process.stdout.write(`Harness: ${result.harnessId}\n`);
+  process.stdout.write(`Status: ${result.status}\n`);
+  process.stdout.write(`Duration: ${result.durationMs === null ? 'unmeasured' : `${result.durationMs}ms`}\n`);
+  for (const [name, passed] of Object.entries(result.checks)) {
+    process.stdout.write(`- ${name}: ${passed ? 'passed' : 'failed'}\n`);
+  }
+  const violations = Object.entries(result.violations)
+    .filter(([, value]) => value === true || (Array.isArray(value) && value.length > 0));
+  if (violations.length > 0) {
+    process.stdout.write('Violations:\n');
+    for (const [name, value] of violations) {
+      process.stdout.write(`- ${name}: ${Array.isArray(value) ? value.join(', ') : String(value)}\n`);
+    }
+  }
+}
+
+function printGateList(result: ReturnType<HumanGate['plan']> & { loopId: string; passLog: string }): void {
+  process.stdout.write(`Loop: ${result.loopId}\n`);
+  process.stdout.write(`GatePass log: ${result.passLog}\n`);
+  for (const gate of result.gates) {
+    process.stdout.write(
+      `- ${gate.id}: before ${gate.requiredBefore}, reviewers ${gate.reviewers.join(', ')}, max age ${gate.maxAgeMinutes}m\n`
+    );
+  }
+}
+
+function printGateEvent(event: Awaited<ReturnType<GatePassStore['current']>> & {}): void {
+  if (!event) return;
+  process.stdout.write(`GatePass: ${event.passId}\n`);
+  process.stdout.write(`Gate: ${event.gateId}\n`);
+  process.stdout.write(`Status: ${event.status}\n`);
+  process.stdout.write(`Issuer: ${event.issuer}\n`);
+  if (event.expiresAt) process.stdout.write(`Expires: ${event.expiresAt}\n`);
+  if (event.reason) process.stdout.write(`Reason: ${event.reason}\n`);
+}
+
+function printGateDecision(result: ReturnType<HumanGate['check']>): void {
+  process.stdout.write(`Gate check: ${result.status}\n`);
+  process.stdout.write(`Required: ${result.requiredGates.join(', ') || 'none'}\n`);
+  process.stdout.write(`Satisfied: ${result.satisfiedGates.join(', ') || 'none'}\n`);
+  for (const reason of result.blockingReasons) process.stdout.write(`- ${reason}\n`);
+}
+
 function printHelp(): void {
   process.stdout.write(`Usage:
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
+  loop harness-check --loop <loop-id> --result <json-file> [--workspace workspace] [--json]
+  loop gate list --loop <loop-id> [--workspace workspace] [--json]
+  loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-digest <sha256:...> --issuer <reviewer> --evidence <type:value>... [--json]
+  loop gate check --loop <loop-id> --run-id <id> --task-id <id> <--stage <stage-id>|--action <action>> --subject-digest <sha256:...> [--json]
+  loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
