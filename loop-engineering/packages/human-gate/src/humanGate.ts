@@ -11,8 +11,11 @@ import {
   HarnessEvidenceType,
   HumanGateDefinition,
   HumanGatePlan,
-  LoopSpec
+  LegacyGatePassEvent,
+  LoopSpec,
+  StoredGatePassEvent
 } from '../../shared/src/types';
+import { createGatePolicyDigest, createGateSubject, gateCanonicalization } from './subjectDigest';
 
 const evidenceTypes = new Set<HarnessEvidenceType>([
   'command',
@@ -41,7 +44,6 @@ export class HumanGate {
     this.requireReviewer(gate, input.issuer);
     requireNonEmpty(input.runId, 'runId');
     requireNonEmpty(input.taskId, 'taskId');
-    requireDigest(input.subjectDigest);
     if (input.stageId !== undefined) {
       requireNonEmpty(input.stageId, 'stageId');
       const stage = this.loop.workflow?.stages.find((item) => item.id === input.stageId);
@@ -68,9 +70,11 @@ export class HumanGate {
 
     const now = input.now ?? new Date();
     const issuedAt = now.toISOString();
+    const subject = createGateSubject(gate, input.subject);
+    const policyDigest = createGatePolicyDigest(gate, resolveReviewers(this.loop, gate));
     return {
       kind: 'GatePass',
-      version: 1,
+      version: 2,
       id: randomUUID(),
       passId: randomUUID(),
       loopId: this.loop.metadata.id,
@@ -81,7 +85,9 @@ export class HumanGate {
       action: gate.requiredBefore,
       status: 'granted',
       issuer: input.issuer,
-      subjectDigest: input.subjectDigest,
+      canonicalization: subject.canonicalization,
+      subjectDigest: subject.subjectDigest,
+      policyDigest,
       evidence,
       issuedAt,
       expiresAt: new Date(now.getTime() + gate.maxAgeMinutes * 60_000).toISOString()
@@ -98,7 +104,7 @@ export class HumanGate {
 
     return {
       kind: 'GatePass',
-      version: 1,
+      version: 2,
       id: randomUUID(),
       passId: pass.passId,
       loopId: pass.loopId,
@@ -109,28 +115,30 @@ export class HumanGate {
       action: pass.action,
       status: 'revoked',
       issuer,
+      canonicalization: pass.canonicalization,
       subjectDigest: pass.subjectDigest,
+      policyDigest: pass.policyDigest,
       evidence: [],
       issuedAt: now.toISOString(),
       reason
     };
   }
 
-  check(input: GateCheckInput, events: GatePassEvent[]): GateDecision {
+  check(input: GateCheckInput, events: StoredGatePassEvent[]): GateDecision {
     const blockingReasons: string[] = [];
     try {
       requireNonEmpty(input.runId, 'runId');
       requireNonEmpty(input.taskId, 'taskId');
-      requireDigest(input.subjectDigest);
     } catch (error) {
       blockingReasons.push(error instanceof Error ? error.message : String(error));
     }
 
-    const requiredGates = this.requiredGateIds(input, blockingReasons);
+    const requirements = this.requiredGateIds(input, blockingReasons);
+    const requiredGates = requirements.ids;
     const satisfiedGates: string[] = [];
     const passes: GatePassEvent[] = [];
     const now = input.now ?? new Date();
-    const validEvents = events.filter(isGatePassEvent);
+    const validEvents = events.filter(isStoredGatePassEvent);
     if (validEvents.length !== events.length) {
       blockingReasons.push(`GatePass event log contains ${events.length - validEvents.length} invalid event(s)`);
     }
@@ -138,6 +146,16 @@ export class HumanGate {
 
     for (const gateId of requiredGates) {
       const gate = this.requireGate(gateId);
+      const authorizedReviewers = resolveReviewers(this.loop, gate);
+      let subjectDigest: string;
+      let policyDigest: string;
+      try {
+        subjectDigest = createGateSubject(gate, input.subject).subjectDigest;
+        policyDigest = createGatePolicyDigest(gate, authorizedReviewers);
+      } catch (error) {
+        blockingReasons.push(error instanceof Error ? error.message : String(error));
+        continue;
+      }
       const gateCandidates = latestEvents.filter(
         (event) =>
           event.loopId === this.loop.metadata.id &&
@@ -145,16 +163,19 @@ export class HumanGate {
           event.taskId === input.taskId &&
           event.gateId === gateId
       );
-      const candidates = input.stageId
+      const candidates = requirements.stageGateIds.has(gateId)
         ? gateCandidates.filter((event) => event.stageId === input.stageId)
-        : gateCandidates;
-      const authorizedReviewers = resolveReviewers(this.loop, gate);
-      const granted = candidates.find(
+        : gateCandidates.filter((event) => event.stageId === undefined);
+      const currentCandidates = candidates.filter(isGatePassEvent);
+      const legacyCandidates = candidates.filter(isLegacyGatePassEvent);
+      const granted = currentCandidates.find(
         (event) =>
           event.status === 'granted' &&
           event.action === gate.requiredBefore &&
           authorizedReviewers.includes(event.issuer) &&
-          event.subjectDigest === input.subjectDigest &&
+          event.canonicalization === gateCanonicalization &&
+          event.subjectDigest === subjectDigest &&
+          event.policyDigest === policyDigest &&
           gate.requiredEvidenceTypes.every((type) => event.evidence.some((item) => item.type === type)) &&
           Date.parse(event.issuedAt) <= now.getTime() &&
           Boolean(event.expiresAt) &&
@@ -166,36 +187,40 @@ export class HumanGate {
         passes.push(granted);
         continue;
       }
-      if (input.stageId && gateCandidates.length > 0 && candidates.length === 0) {
+      if (requirements.stageGateIds.has(gateId) && gateCandidates.length > 0 && candidates.length === 0) {
         blockingReasons.push(`Gate ${gateId} has no pass for workflow stage ${input.stageId}`);
-      } else if (candidates.some((event) => event.status === 'revoked')) {
+      } else if (currentCandidates.some((event) => event.status === 'revoked')) {
         blockingReasons.push(`Gate ${gateId} is revoked`);
-      } else if (candidates.some((event) => event.status === 'granted' && event.subjectDigest !== input.subjectDigest)) {
-        blockingReasons.push(`Gate ${gateId} subject digest changed`);
-      } else if (candidates.some((event) => event.status === 'granted' && event.action !== gate.requiredBefore)) {
+      } else if (currentCandidates.some((event) => event.status === 'granted' && event.policyDigest !== policyDigest)) {
+        blockingReasons.push(`Gate ${gateId} policy changed`);
+      } else if (currentCandidates.some((event) => event.status === 'granted' && event.subjectDigest !== subjectDigest)) {
+        blockingReasons.push(`Gate ${gateId} subject changed`);
+      } else if (currentCandidates.some((event) => event.status === 'granted' && event.action !== gate.requiredBefore)) {
         blockingReasons.push(`Gate ${gateId} protected action changed`);
       } else if (
-        candidates.some(
+        currentCandidates.some(
           (event) => event.status === 'granted' && event.expiresAt && Date.parse(event.expiresAt) <= now.getTime()
         )
       ) {
         blockingReasons.push(`Gate ${gateId} is expired`);
       } else if (
-        candidates.some((event) => event.status === 'granted' && Date.parse(event.issuedAt) > now.getTime())
+        currentCandidates.some((event) => event.status === 'granted' && Date.parse(event.issuedAt) > now.getTime())
       ) {
         blockingReasons.push(`Gate ${gateId} was issued in the future`);
       } else if (
-        candidates.some((event) => event.status === 'granted' && !authorizedReviewers.includes(event.issuer))
+        currentCandidates.some((event) => event.status === 'granted' && !authorizedReviewers.includes(event.issuer))
       ) {
         blockingReasons.push(`Gate ${gateId} issuer is no longer authorized`);
       } else if (
-        candidates.some(
+        currentCandidates.some(
           (event) =>
             event.status === 'granted' &&
             !gate.requiredEvidenceTypes.every((type) => event.evidence.some((item) => item.type === type))
         )
       ) {
         blockingReasons.push(`Gate ${gateId} no longer satisfies its evidence policy`);
+      } else if (legacyCandidates.length > 0) {
+        blockingReasons.push(`Gate ${gateId} only has legacy passes that cannot authorize execution`);
       } else {
         blockingReasons.push(`Gate ${gateId} has no active pass`);
       }
@@ -210,27 +235,38 @@ export class HumanGate {
     };
   }
 
-  private requiredGateIds(input: GateCheckInput, errors: string[]): string[] {
+  private requiredGateIds(
+    input: GateCheckInput,
+    errors: string[]
+  ): { ids: string[]; stageGateIds: Set<string> } {
     const required = new Set<string>();
+    const stageGateIds = new Set<string>();
     if (input.stageId) {
       const stage = this.loop.workflow?.stages.find((item) => item.id === input.stageId);
       if (!stage) {
         errors.push(`Unknown workflow stage: ${input.stageId}`);
       } else {
-        for (const gateId of stage.requiredGates ?? []) required.add(gateId);
+        for (const gateId of stage.requiredGates ?? []) {
+          required.add(gateId);
+          stageGateIds.add(gateId);
+        }
       }
     }
-    if (input.action) {
-      const actionGates = this.loop.humanGate.gates.filter((gate) => gate.requiredBefore === input.action);
+    const actions = Array.isArray(input.actions) ? input.actions : [];
+    if (actions.some((action) => typeof action !== 'string' || action.trim().length === 0)) {
+      errors.push('Gate check actions must be non-empty strings');
+    }
+    for (const action of actions) {
+      const actionGates = this.loop.humanGate.gates.filter((gate) => gate.requiredBefore === action);
       if (actionGates.length === 0) {
-        errors.push(`Action is not protected by a gate: ${input.action}`);
+        errors.push(`Action is not protected by a gate: ${action}`);
       }
       for (const gate of actionGates) required.add(gate.id);
     }
-    if (!input.stageId && !input.action) {
-      errors.push('Gate check requires stageId or action');
+    if (!input.stageId && actions.length === 0) {
+      errors.push('Gate check requires stageId or at least one action');
     }
-    return [...required];
+    return { ids: [...required], stageGateIds };
   }
 
   private requireGate(gateId: string): HumanGateDefinition {
@@ -258,7 +294,7 @@ export class GatePassStore {
     return resolveMemoryPath(this.memoryRoot, `memory/loops/${this.loopId}/passes.jsonl`);
   }
 
-  async readAll(): Promise<GatePassEvent[]> {
+  async readAll(): Promise<StoredGatePassEvent[]> {
     const filePath = this.filePath();
     if (!(await pathExists(filePath))) return [];
     const lines = (await readText(filePath)).split(/\r?\n/).filter((line) => line.trim().length > 0);
@@ -269,7 +305,7 @@ export class GatePassStore {
       } catch {
         throw new Error(`Invalid GatePass JSONL at ${filePath}:${index + 1}`);
       }
-      if (!isGatePassEvent(value)) {
+      if (!isStoredGatePassEvent(value)) {
         throw new Error(`Invalid GatePass event at ${filePath}:${index + 1}`);
       }
       return value;
@@ -285,22 +321,16 @@ export class GatePassStore {
     await appendFile(filePath, `${JSON.stringify(event)}\n`, 'utf8');
   }
 
-  async current(passId: string): Promise<GatePassEvent | undefined> {
+  async current(passId: string): Promise<StoredGatePassEvent | undefined> {
     const events = await this.readAll();
     return [...events].reverse().find((event) => event.passId === passId);
   }
 }
 
-function latestPassEvents(events: GatePassEvent[]): GatePassEvent[] {
-  const latest = new Map<string, GatePassEvent>();
+function latestPassEvents(events: StoredGatePassEvent[]): StoredGatePassEvent[] {
+  const latest = new Map<string, StoredGatePassEvent>();
   for (const event of events) latest.set(event.passId, event);
   return [...latest.values()];
-}
-
-function requireDigest(value: string): void {
-  if (!/^sha256:[a-f0-9]{64}$/.test(value)) {
-    throw new Error('subjectDigest must use sha256:<64 lowercase hex characters>');
-  }
 }
 
 function requireNonEmpty(value: string, field: string): void {
@@ -309,9 +339,25 @@ function requireNonEmpty(value: string, field: string): void {
 
 function isGatePassEvent(value: unknown): value is GatePassEvent {
   if (!isRecord(value)) return false;
+  return (
+    value.version === 2 &&
+    value.canonicalization === gateCanonicalization &&
+    isDigest(value.policyDigest) &&
+    hasValidGatePassFields(value)
+  );
+}
+
+function isLegacyGatePassEvent(value: unknown): value is LegacyGatePassEvent {
+  return isRecord(value) && value.version === 1 && hasValidGatePassFields(value);
+}
+
+function isStoredGatePassEvent(value: unknown): value is StoredGatePassEvent {
+  return isGatePassEvent(value) || isLegacyGatePassEvent(value);
+}
+
+function hasValidGatePassFields(value: Record<string, unknown>): boolean {
   if (
     value.kind !== 'GatePass' ||
-    value.version !== 1 ||
     !isNonEmptyString(value.id) ||
     !isNonEmptyString(value.passId) ||
     !isNonEmptyString(value.loopId) ||
@@ -322,8 +368,7 @@ function isGatePassEvent(value: unknown): value is GatePassEvent {
     !isNonEmptyString(value.action) ||
     (value.status !== 'granted' && value.status !== 'revoked') ||
     !isNonEmptyString(value.issuer) ||
-    typeof value.subjectDigest !== 'string' ||
-    !/^sha256:[a-f0-9]{64}$/.test(value.subjectDigest) ||
+    !isDigest(value.subjectDigest) ||
     !Array.isArray(value.evidence) ||
     !value.evidence.every(isGatePassEvidence) ||
     !isIsoTimestamp(value.issuedAt)
@@ -343,6 +388,10 @@ function isGatePassEvent(value: unknown): value is GatePassEvent {
     );
   }
   return evidence.length === 0 && value.expiresAt === undefined && isNonEmptyString(value.reason);
+}
+
+function isDigest(value: unknown): value is string {
+  return typeof value === 'string' && /^sha256:[a-f0-9]{64}$/.test(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

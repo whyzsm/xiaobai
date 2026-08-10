@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
+    <link rel="icon" href="data:," />
     <title>小白智能体运维</title>
     <style>
       :root {
@@ -486,6 +487,14 @@
 
       .table-wrap-spaced {
         margin-top: 16px;
+      }
+
+      #timing-content table {
+        min-width: 1680px;
+      }
+
+      #timing-content td {
+        white-space: nowrap;
       }
 
       table {
@@ -1130,6 +1139,11 @@
             mounted: '已挂载',
             passed: '已通过',
             completed: '已完成',
+            measured: '已采集',
+            partial: '部分采集',
+            running: '执行中',
+            waiting: '等待中',
+            skipped: '已跳过',
             attention: '需关注',
             unmeasured: '未采集',
             manual: '人工',
@@ -1166,6 +1180,7 @@
             contains: '包含',
             exports: '导出',
             'local-override': '本机覆盖',
+            'command-override': '命令指定',
             missing_instrumentation: '缺少采集机制',
           };
           return labels[String(value)] || String(value ?? '--');
@@ -1210,8 +1225,8 @@
 
         function statusClass(value) {
           const normalized = String(value || '').toLowerCase();
-          if (['ok', 'clean', 'available', 'mounted', 'passed', 'completed'].includes(normalized)) return 'ok';
-          if (['attention', 'unmeasured', 'manual', 'stale', 'warning'].includes(normalized)) return 'attention';
+          if (['ok', 'clean', 'available', 'mounted', 'passed', 'completed', 'measured'].includes(normalized)) return 'ok';
+          if (['attention', 'unmeasured', 'manual', 'stale', 'warning', 'partial', 'waiting'].includes(normalized)) return 'attention';
           if (['missing', 'invalid', 'failed', 'dirty', 'blocked'].includes(normalized)) return 'error';
           return 'info';
         }
@@ -1234,6 +1249,7 @@
           const labels = {
             knowledge_graph_stale: '知识图谱需要刷新',
             missing_stage_timing_instrumentation: '节点计时尚未采集',
+            invalid_stage_timing_events: '节点计时事件无效',
             missing_workflow_stage_contract: '工作流缺少阶段契约',
             memory_root_unavailable: '记忆根目录不可用',
             memory_config_unreadable: '记忆本机配置不可读',
@@ -1246,6 +1262,7 @@
         function gapLabel(code) {
           const labels = {
             missing_stage_timing_instrumentation: '缺少节点计时运行时事件',
+            invalid_stage_timing_events: '节点计时事件流无效',
             missing_workflow_stage_contract: '缺少工作流阶段契约',
           };
           return labels[code] || code;
@@ -1463,10 +1480,15 @@
             renderTiming();
           });
           const stages = data.timing.stages.filter((stage) => stage.loopId === loop.id);
-          $('#timing-fact').textContent = data.timing.instrumented
-            ? `${loopLabel(loop)} · ${stages.length} 个已采集节点`
+          const source = data.timing.sources?.find((item) => item.loopId === loop.id);
+          const measuredStages = stages.filter((stage) => stage.valid).length;
+          $('#timing-fact').textContent = source?.selectedRunId
+            ? `${loopLabel(loop)} · ${source.selectedRunId} · ${measuredStages}/${stages.length} 个节点有效`
             : `${loopLabel(loop)} · 缺少运行时节点计时事件`;
-          $('#timing-status').textContent = displayLabel(data.timing.status);
+          const timingStatus = $('#timing-status');
+          const loopTimingStatus = source?.status || data.timing.status;
+          timingStatus.className = `status ${statusClass(loopTimingStatus)}`;
+          timingStatus.textContent = displayLabel(loopTimingStatus);
 
           if (!stages.length) {
             $('#timing-content').innerHTML = `
@@ -1484,6 +1506,8 @@
                 <thead>
                   <tr>
                     <th>阶段</th>
+                    <th>任务</th>
+                    <th>尝试</th>
                     <th>类型</th>
                     <th>负责人</th>
                     <th>状态</th>
@@ -1504,6 +1528,8 @@
                         <div class="cell-title">${escapeHtml(stageLabel(stage.stageId))}</div>
                         <div class="cell-meta">${escapeHtml(stage.stageId)}</div>
                       </td>
+                      <td><code>${escapeHtml(stage.taskId || '--')}</code></td>
+                      <td class="numeric">${escapeHtml(stage.attempt ?? '--')}</td>
                       <td>${escapeHtml(displayLabel(stage.stageKind))}</td>
                       <td>${escapeHtml(stage.owner)}</td>
                       <td>${status(stage.status, displayLabel(stage.status))}</td>

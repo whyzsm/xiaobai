@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 
@@ -8,6 +9,8 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '../../..');
 const WORKSPACE_ROOT = path.join(PROJECT_ROOT, 'workspace');
 const DEFAULT_OUTPUT = path.join(WORKSPACE_ROOT, '.local/monitoring/monitor-data.json');
+const require = createRequire(import.meta.url);
+let timingProjector;
 
 function relativeToProject(filePath) {
   return path.relative(PROJECT_ROOT, filePath).split(path.sep).join('/');
@@ -106,12 +109,13 @@ function collectAgents(warnings) {
   return { agents, harnesses };
 }
 
-function normalizeStage(stage, loopFile) {
+function normalizeStage(stage, loopFile, loopOwner) {
+  const owner = stage?.agent || stage?.evaluator || loopOwner || 'unassigned';
   return {
     id: stage?.id || 'unnamed-stage',
     kind: stage?.kind || 'unspecified',
     gate: stage?.gate || 'unspecified',
-    owner: stage?.agent || stage?.evaluator || (stage?.gate === 'manual' ? 'human' : 'unassigned'),
+    owner: owner.replace(/\.agent\.yaml$/, ''),
     agent: stage?.agent || null,
     evaluator: stage?.evaluator || null,
     harness: stage?.harness || null,
@@ -130,7 +134,7 @@ function collectLoops(warnings) {
   return loadStructuredFiles(files, warnings).map(({ filePath, value }) => {
     const file = relativeToProject(filePath);
     const stages = Array.isArray(value?.workflow?.stages)
-      ? value.workflow.stages.map((stage) => normalizeStage(stage, file))
+      ? value.workflow.stages.map((stage) => normalizeStage(stage, file, value?.metadata?.owner))
       : [];
     return {
       id: value?.metadata?.id || path.basename(filePath, '.loop.yaml'),
@@ -225,16 +229,19 @@ function countJsonl(filePath) {
   return { count: lines.length, last };
 }
 
-function collectMemory(loopIds, warnings) {
+function resolveMonitorMemoryRoot(warnings, override) {
   const localConfigPath = path.join(WORKSPACE_ROOT, 'workspace.local.yaml');
   let memoryRoot = path.join(WORKSPACE_ROOT, 'memory');
   let source = 'workspace-default';
 
-  if (fs.existsSync(localConfigPath)) {
+  if (override) {
+    memoryRoot = path.resolve(override);
+    source = 'command-override';
+  } else if (fs.existsSync(localConfigPath)) {
     try {
       const localConfig = readYaml(localConfigPath);
       if (typeof localConfig?.memoryRoot === 'string' && localConfig.memoryRoot.length > 0) {
-        memoryRoot = path.resolve(localConfig.memoryRoot);
+        memoryRoot = path.resolve(WORKSPACE_ROOT, localConfig.memoryRoot);
         source = 'local-override';
       }
     } catch {
@@ -245,6 +252,12 @@ function collectMemory(loopIds, warnings) {
       });
     }
   }
+
+  return { memoryRoot, source };
+}
+
+function collectMemory(loopIds, memoryLocation) {
+  const { memoryRoot, source } = memoryLocation;
 
   const rootAvailable = fs.existsSync(memoryRoot);
   const loopDirectory = path.join(memoryRoot, 'loops');
@@ -359,26 +372,188 @@ function collectConnectors(warnings) {
   }));
 }
 
-function buildTiming(loops) {
+function loadTimingProjector() {
+  if (timingProjector !== undefined) return timingProjector;
+  const modulePath = path.join(
+    PROJECT_ROOT,
+    'dist/loop-engineering/packages/execution-runtime/src/stageEvents.js',
+  );
+  if (!fs.existsSync(modulePath)) {
+    timingProjector = null;
+    return timingProjector;
+  }
+  const module = require(modulePath);
+  timingProjector = typeof module.projectStageTiming === 'function' ? module.projectStageTiming : null;
+  return timingProjector;
+}
+
+function readStageEventSource(loopId, memoryRoot) {
+  const evidence = `memory/loops/${loopId}/stage-events.jsonl`;
+  const filePath = path.join(memoryRoot, 'loops', loopId, 'stage-events.jsonl');
+  if (!fs.existsSync(filePath)) {
+    return { loopId, evidence, available: false, eventCount: 0, events: [], errors: [] };
+  }
+
+  const lines = readText(filePath).split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const events = [];
+  const errors = [];
+  lines.forEach((line, index) => {
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      errors.push(`Line ${index + 1}: invalid JSON`);
+      return;
+    }
+    if (!isScopedStageEvent(event, loopId)) {
+      errors.push(`Line ${index + 1}: event identity cannot be scoped to this loop`);
+      return;
+    }
+    events.push(event);
+  });
+  return { loopId, evidence, available: true, eventCount: lines.length, events, errors };
+}
+
+function isScopedStageEvent(event, loopId) {
+  return event !== null
+    && typeof event === 'object'
+    && event.loopId === loopId
+    && [event.runId, event.taskId, event.stageId].every((value) => typeof value === 'string' && value.length > 0)
+    && Number.isInteger(event.attempt)
+    && event.attempt > 0;
+}
+
+function selectLatestRun(events) {
+  const runs = new Map();
+  events.forEach((event, index) => {
+    const timestamp = Date.parse(event.occurredAt);
+    const candidate = { runId: event.runId, timestamp: Number.isFinite(timestamp) ? timestamp : -1, index };
+    const current = runs.get(event.runId);
+    if (!current || candidate.timestamp > current.timestamp || candidate.index > current.index) {
+      runs.set(event.runId, candidate);
+    }
+  });
+  return [...runs.values()]
+    .sort((left, right) => right.timestamp - left.timestamp || right.index - left.index)[0]?.runId ?? null;
+}
+
+function unmeasuredStage(loop, stage, source, input = {}) {
   return {
-    instrumented: false,
+    loopId: loop.id,
+    runId: input.runId ?? null,
+    taskId: input.taskId ?? null,
+    stageId: stage.id,
+    attempt: input.attempt ?? null,
+    stageKind: stage.kind,
+    owner: stage.owner,
     status: 'unmeasured',
-    waitingReason: 'missing_instrumentation',
-    stages: loops.flatMap((loop) => loop.stages.map((stage) => ({
+    valid: false,
+    enteredAt: null,
+    firstActionAt: null,
+    exitedAt: null,
+    durationMs: null,
+    activeMs: null,
+    waitingMs: null,
+    waitingReason: input.waitingReason ?? 'missing_instrumentation',
+    evidence: source.evidence,
+    errors: input.errors ?? ['No stage events were recorded'],
+  };
+}
+
+function projectLoopTiming(loop, memoryRoot) {
+  const source = readStageEventSource(loop.id, memoryRoot);
+  const projector = loadTimingProjector();
+  if (source.eventCount > 0 && !projector) {
+    source.errors.push('Engine timing projector is unavailable; run the TypeScript build before monitoring');
+  }
+
+  const selectedRunId = selectLatestRun(source.events);
+  if (!selectedRunId) {
+    const stages = loop.stages.map((stage) => unmeasuredStage(loop, stage, source, {
+      errors: source.errors.length ? source.errors : undefined,
+    }));
+    return {
+      source: {
+        ...source,
+        events: undefined,
+        selectedRunId: null,
+        taskIds: [],
+        status: source.errors.length > 0 ? 'invalid' : 'unmeasured',
+      },
+      stages,
+    };
+  }
+
+  const selectedEvents = source.events.filter((event) => event.runId === selectedRunId);
+  const taskIds = [...new Set(selectedEvents.map((event) => event.taskId))].sort();
+  const sourceErrors = source.errors;
+  const stages = taskIds.flatMap((taskId) => loop.stages.map((stage) => {
+    const stageEvents = selectedEvents.filter((event) => event.taskId === taskId && event.stageId === stage.id);
+    const attempt = stageEvents.reduce((maximum, event) => Math.max(maximum, event.attempt), 0) || 1;
+    if (sourceErrors.length > 0 || stageEvents.length === 0 || !projector) {
+      return unmeasuredStage(loop, stage, source, {
+        runId: selectedRunId,
+        taskId,
+        attempt,
+        errors: sourceErrors.length > 0 ? sourceErrors : undefined,
+      });
+    }
+
+    const projection = projector(stageEvents, {
       loopId: loop.id,
+      runId: selectedRunId,
+      taskId,
       stageId: stage.id,
+      attempt,
       stageKind: stage.kind,
       owner: stage.owner,
-      status: 'unmeasured',
-      enteredAt: null,
-      firstActionAt: null,
-      exitedAt: null,
-      durationMs: null,
-      activeMs: null,
-      waitingMs: null,
-      waitingReason: 'missing_instrumentation',
-      evidence: stage.evidence,
-    }))),
+    });
+    return { ...projection, evidence: source.evidence };
+  }));
+
+  const validStages = stages.filter((stage) => stage.valid).length;
+  const status = validStages === stages.length && stages.length > 0
+    ? 'measured'
+    : validStages > 0
+      ? 'partial'
+      : source.errors.length > 0
+        ? 'invalid'
+        : 'unmeasured';
+  return {
+    source: {
+      loopId: source.loopId,
+      evidence: source.evidence,
+      available: source.available,
+      eventCount: source.eventCount,
+      errors: source.errors,
+      selectedRunId,
+      taskIds,
+      status,
+    },
+    stages,
+  };
+}
+
+export function buildTiming(loops, memoryRoot) {
+  const projections = loops.map((loop) => projectLoopTiming(loop, memoryRoot));
+  const sources = projections.map((projection) => projection.source);
+  const stages = projections.flatMap((projection) => projection.stages);
+  const measured = stages.filter((stage) => stage.valid);
+  const status = measured.length === stages.length && stages.length > 0
+    ? 'measured'
+    : measured.length > 0
+      ? 'partial'
+      : sources.some((source) => source.errors.length > 0)
+        ? 'invalid'
+        : 'unmeasured';
+  return {
+    instrumented: sources.some((source) => source.eventCount > 0),
+    status,
+    waitingReason: stages.some((stage) => stage.waitingReason === 'missing_instrumentation')
+      ? 'missing_instrumentation'
+      : null,
+    sources,
+    stages,
   };
 }
 
@@ -387,12 +562,18 @@ function buildEvaluation(loops, agents, timing) {
   const selfReviewViolations = loops.filter((loop) => loop.allowSelfReview).map((loop) => loop.id);
   const missingStageContracts = loops.filter((loop) => loop.stages.length === 0).map((loop) => loop.id);
   const observabilityGaps = [];
-  if (!timing.instrumented) {
-    observabilityGaps.push({
-      code: 'missing_stage_timing_instrumentation',
-      status: 'unmeasured',
-      nextAction: 'Add runtime-local append-only stage timing events before reporting efficiency.',
-    });
+  for (const source of timing.sources) {
+    const incomplete = timing.stages.some((stage) => stage.loopId === source.loopId && !stage.valid);
+    if (source.eventCount === 0 || source.errors.length > 0 || incomplete) {
+      observabilityGaps.push({
+        code: source.errors.length > 0 ? 'invalid_stage_timing_events' : 'missing_stage_timing_instrumentation',
+        status: source.errors.length > 0 ? 'invalid' : 'unmeasured',
+        loopId: source.loopId,
+        nextAction: source.errors.length > 0
+          ? 'Repair the append-only stage event stream before reporting dwell time.'
+          : 'Execute the missing workflow stages through ExecutionRuntime before reporting efficiency.',
+      });
+    }
   }
   for (const loopId of missingStageContracts) {
     observabilityGaps.push({
@@ -431,16 +612,17 @@ function collectInventory({ loops, agents, harnesses, connectors, projects, memo
   };
 }
 
-export function buildSnapshot() {
+export function buildSnapshot(options = {}) {
   const warnings = [];
   const git = collectGit();
   const { agents, harnesses } = collectAgents(warnings);
   const loops = collectLoops(warnings);
   const projects = collectProjects(warnings);
   const connectors = collectConnectors(warnings);
-  const memory = collectMemory(loops.map((loop) => loop.id), warnings);
+  const memoryLocation = resolveMonitorMemoryRoot(warnings, options.memoryRoot);
+  const memory = collectMemory(loops.map((loop) => loop.id), memoryLocation);
   const graph = collectGraph(git, warnings);
-  const timing = buildTiming(loops);
+  const timing = buildTiming(loops, memoryLocation.memoryRoot);
   const evaluation = buildEvaluation(loops, agents, timing);
 
   if (!memory.rootAvailable) {
@@ -476,7 +658,7 @@ export function buildSnapshot() {
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     generatedBy: 'workspace/monitoring/scripts/generate-monitor-data.mjs',
     system: {
@@ -515,11 +697,15 @@ export function writeSnapshot(snapshot, outputPath = DEFAULT_OUTPUT) {
 }
 
 function parseArgs(argv) {
-  const args = { output: DEFAULT_OUTPUT, stdout: false };
+  const args = { output: DEFAULT_OUTPUT, stdout: false, memoryRoot: undefined };
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === '--stdout') args.stdout = true;
     if (argv[index] === '--output' && argv[index + 1]) {
       args.output = path.resolve(argv[index + 1]);
+      index += 1;
+    }
+    if (argv[index] === '--memory-root' && argv[index + 1]) {
+      args.memoryRoot = path.resolve(argv[index + 1]);
       index += 1;
     }
   }
@@ -528,7 +714,7 @@ function parseArgs(argv) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  const snapshot = buildSnapshot();
+  const snapshot = buildSnapshot({ memoryRoot: args.memoryRoot });
   if (args.stdout) {
     process.stdout.write(`${JSON.stringify(snapshot, null, 2)}\n`);
     return;

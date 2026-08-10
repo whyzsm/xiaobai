@@ -350,7 +350,7 @@ export interface GatePassEvidence {
   value: string;
 }
 
-export interface GatePassEvent {
+export interface LegacyGatePassEvent {
   kind: 'GatePass';
   version: 1;
   id: string;
@@ -370,13 +370,21 @@ export interface GatePassEvent {
   reason?: string;
 }
 
+export interface GatePassEvent extends Omit<LegacyGatePassEvent, 'version'> {
+  version: 2;
+  canonicalization: 'jcs-v1';
+  policyDigest: string;
+}
+
+export type StoredGatePassEvent = LegacyGatePassEvent | GatePassEvent;
+
 export interface GateGrantInput {
   runId: string;
   taskId: string;
   stageId?: string;
   gateId: string;
   issuer: string;
-  subjectDigest: string;
+  subject: JsonRecord;
   evidence: GatePassEvidence[];
   now?: Date;
 }
@@ -385,8 +393,8 @@ export interface GateCheckInput {
   runId: string;
   taskId: string;
   stageId?: string;
-  action?: string;
-  subjectDigest: string;
+  actions?: string[];
+  subject: JsonRecord;
   now?: Date;
 }
 
@@ -396,6 +404,118 @@ export interface GateDecision {
   satisfiedGates: string[];
   blockingReasons: string[];
   passes: GatePassEvent[];
+}
+
+export type StageEventType =
+  | 'entered'
+  | 'first_action'
+  | 'waiting_started'
+  | 'waiting_ended'
+  | 'passed'
+  | 'failed'
+  | 'blocked'
+  | 'skipped';
+
+export type StageWaitingReason =
+  | 'human_input'
+  | 'tool_running'
+  | 'external_api'
+  | 'missing_context'
+  | 'approval_required'
+  | 'error_blocker';
+
+export interface StageEventKey {
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stageId: string;
+  attempt: number;
+}
+
+export interface StageEvent extends StageEventKey {
+  kind: 'StageEvent';
+  version: 1;
+  id: string;
+  stageKind: string;
+  owner: string;
+  eventType: StageEventType;
+  occurredAt: string;
+  waitingReason?: StageWaitingReason;
+  evidence: GatePassEvidence[];
+}
+
+export interface StageEventInput extends StageEventKey {
+  stageKind: string;
+  owner: string;
+  eventType: StageEventType;
+  occurredAt?: string;
+  waitingReason?: StageWaitingReason;
+  evidence?: GatePassEvidence[];
+}
+
+export interface StageTimingProjection extends StageEventKey {
+  stageKind: string;
+  owner: string;
+  status: 'running' | 'waiting' | 'passed' | 'failed' | 'blocked' | 'skipped' | 'unmeasured';
+  valid: boolean;
+  enteredAt: string | null;
+  firstActionAt: string | null;
+  exitedAt: string | null;
+  durationMs: number | null;
+  activeMs: number | null;
+  waitingMs: number | null;
+  waitingReason: StageWaitingReason | 'missing_instrumentation' | null;
+  evidence: GatePassEvidence[];
+  errors: string[];
+}
+
+export interface ExecutorAdapterInput {
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stage: WorkflowStagePlan;
+  attempt: number;
+  actions: string[];
+  subject: JsonRecord;
+  workspaceRoot: string;
+  worktreePath?: string;
+}
+
+export interface ExecutorAdapterResult {
+  status: 'completed' | 'failed' | 'blocked';
+  submission?: unknown;
+  evidence: GatePassEvidence[];
+  reason?: string;
+}
+
+export interface ExecutorAdapter {
+  id: string;
+  execute(input: ExecutorAdapterInput): Promise<ExecutorAdapterResult>;
+}
+
+export interface ExecutionStageInput {
+  runId: string;
+  taskId: string;
+  stageId: string;
+  attempt?: number;
+  actions?: string[];
+  subject: JsonRecord;
+  worktreePath?: string;
+}
+
+export interface ExecutionAuthority {
+  scope: 'local_single_executor';
+  executorInstance: string;
+}
+
+export interface ExecutionStageResult {
+  status: 'passed' | 'failed' | 'blocked';
+  adapterId: string;
+  authority: ExecutionAuthority;
+  reasons: string[];
+  gateDecision: GateDecision | null;
+  harnessResult: HarnessRunResult | null;
+  stageEvents: StageEvent[];
 }
 
 export interface ProjectRoutePlan {
@@ -511,6 +631,38 @@ export interface SimulationStage {
   outputs: string[];
 }
 
+export interface SimulationExecutionStage {
+  id: string;
+  kind: string;
+  owner: string;
+  gate: 'automatic' | 'manual';
+  harness?: string;
+  dependsOn: string[];
+  requiredGates: string[];
+  actions: string[];
+  status: 'not_executed';
+  timing: {
+    source: 'simulation_only';
+    status: 'unmeasured';
+    enteredAt: null;
+    firstActionAt: null;
+    exitedAt: null;
+    durationMs: null;
+    activeMs: null;
+    waitingMs: null;
+    waitingReason: 'missing_instrumentation';
+  };
+}
+
+export interface SimulationExecutionContract {
+  authority: 'simulation_only';
+  adapterInvoked: false;
+  gateChecks: 'not_executed';
+  harnessChecks: 'not_executed';
+  stageEventsWritten: false;
+  workflowStages: SimulationExecutionStage[];
+}
+
 export interface SimulationArtifact {
   reportPath: string;
   statePath: string;
@@ -529,6 +681,7 @@ export interface SimulationResult {
   loopWorkCount: number;
   mode: 'simulation';
   stages: SimulationStage[];
+  executionContract: SimulationExecutionContract;
   artifacts: SimulationArtifact;
   summary: {
     findings: number;

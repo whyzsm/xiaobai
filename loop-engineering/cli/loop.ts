@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
+import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
+import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
 import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
-import { GatePassEvidence, HarnessEvidenceType, LoopSpec } from '../packages/shared/src/types';
+import { GatePassEvidence, HarnessEvidenceType, JsonRecord, LoopSpec } from '../packages/shared/src/types';
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
@@ -67,6 +69,11 @@ async function main(argv: string[]): Promise<void> {
 
   if (options.command === 'gate') {
     await runGateCommand(options, workspaceRoot, loopPath);
+    return;
+  }
+
+  if (options.command === 'execute') {
+    await runExecuteCommand(options, workspaceRoot, loopPath);
     return;
   }
 
@@ -232,7 +239,7 @@ async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPa
       'run-id',
       'task-id',
       'stage',
-      'subject-digest',
+      'subject-file',
       'issuer',
       'evidence'
     ]);
@@ -241,7 +248,7 @@ async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPa
       runId: requireGateFlag(flags, 'run-id'),
       taskId: requireGateFlag(flags, 'task-id'),
       stageId: optionalGateFlag(flags, 'stage'),
-      subjectDigest: requireGateFlag(flags, 'subject-digest'),
+      subject: await readGateSubject(flags),
       issuer: requireGateFlag(flags, 'issuer'),
       evidence: (flags.get('evidence') ?? []).map(parseGateEvidence)
     });
@@ -252,19 +259,19 @@ async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPa
   }
 
   if (subcommand === 'check') {
-    const flags = parseGateFlags(args, ['run-id', 'task-id', 'stage', 'action', 'subject-digest']);
+    const flags = parseGateFlags(args, ['run-id', 'task-id', 'stage', 'action', 'subject-file']);
     const stageId = optionalGateFlag(flags, 'stage');
-    const action = optionalGateFlag(flags, 'action');
-    if (Boolean(stageId) === Boolean(action)) {
-      throw new Error('gate check requires exactly one of --stage or --action');
+    const actions = flags.get('action') ?? [];
+    if (!stageId && actions.length === 0) {
+      throw new Error('gate check requires --stage or at least one --action');
     }
     const result = humanGate.check(
       {
         runId: requireGateFlag(flags, 'run-id'),
         taskId: requireGateFlag(flags, 'task-id'),
         stageId,
-        action,
-        subjectDigest: requireGateFlag(flags, 'subject-digest')
+        actions,
+        subject: await readGateSubject(flags)
       },
       await store.readAll()
     );
@@ -279,6 +286,7 @@ async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPa
     const passId = requireGateFlag(flags, 'pass-id');
     const current = await store.current(passId);
     if (!current) throw new Error(`Unknown GatePass: ${passId}`);
+    if (current.version !== 2) throw new Error(`Legacy GatePass cannot be revoked: ${passId}`);
     const event = humanGate.revoke(
       current,
       requireGateFlag(flags, 'issuer'),
@@ -293,14 +301,64 @@ async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPa
   throw new Error('gate requires one of: list, approve, check, revoke');
 }
 
+async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const flags = parseCommandFlags(
+    options.rest,
+    ['run-id', 'task-id', 'stage', 'attempt', 'action', 'subject-file', 'codex-executable'],
+    'execute'
+  );
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetProject: options.targetProject,
+    targetRepository: options.targetRepository,
+    targetCwd: options.targetCwd,
+    targetRemote: options.targetRemote
+  });
+  const attemptValue = optionalGateFlag(flags, 'attempt');
+  const result = await new ExecutionRuntime({
+    workspaceRoot,
+    memoryRoot: await resolveMemoryRoot(workspaceRoot),
+    loop,
+    plan
+  }).execute(
+    {
+      runId: requireGateFlag(flags, 'run-id'),
+      taskId: requireGateFlag(flags, 'task-id'),
+      stageId: requireGateFlag(flags, 'stage'),
+      attempt: attemptValue === undefined ? 1 : Number(attemptValue),
+      actions: flags.get('action') ?? [],
+      subject: await readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'execution subject'),
+      worktreePath: options.targetCwd
+    },
+    new CodexCliAdapter({ executable: optionalGateFlag(flags, 'codex-executable') })
+  );
+
+  if (options.json) process.stdout.write(formatJson(result));
+  else printExecutionResult(result);
+  process.exitCode = result.status === 'passed' ? 0 : 1;
+}
+
 function parseGateFlags(args: string[], allowed: string[]): Map<string, string[]> {
+  return parseCommandFlags(args, allowed, 'gate');
+}
+
+function parseCommandFlags(args: string[], allowed: string[], command: string): Map<string, string[]> {
   const allowedFlags = new Set(allowed);
   const values = new Map<string, string[]>();
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index];
-    if (!flag?.startsWith('--')) throw new Error(`Unexpected gate argument: ${flag ?? ''}`);
+    if (!flag?.startsWith('--')) throw new Error(`Unexpected ${command} argument: ${flag ?? ''}`);
     const name = flag.slice(2);
-    if (!allowedFlags.has(name)) throw new Error(`Unknown gate option: ${flag}`);
+    if (!allowedFlags.has(name)) throw new Error(`Unknown ${command} option: ${flag}`);
     const value = args[index + 1];
     if (!value || value.startsWith('--')) throw new Error(`Missing value for ${flag}`);
     values.set(name, [...(values.get(name) ?? []), value]);
@@ -320,7 +378,9 @@ function requireGateFlag(flags: Map<string, string[]>, name: string): string {
 
 function optionalGateFlag(flags: Map<string, string[]>, name: string): string | undefined {
   const values = flags.get(name) ?? [];
-  if (values.length > 1 && name !== 'evidence') throw new Error(`Gate option may only be provided once: --${name}`);
+  if (values.length > 1 && name !== 'evidence' && name !== 'action') {
+    throw new Error(`Gate option may only be provided once: --${name}`);
+  }
   return values[0];
 }
 
@@ -333,6 +393,24 @@ function parseGateEvidence(value: string): GatePassEvidence {
     type: value.slice(0, separator) as HarnessEvidenceType,
     value: value.slice(separator + 1)
   };
+}
+
+async function readGateSubject(flags: Map<string, string[]>): Promise<JsonRecord> {
+  return readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'gate subject');
+}
+
+async function readJsonObjectFile(inputPath: string, label: string): Promise<JsonRecord> {
+  const filePath = path.resolve(process.cwd(), inputPath);
+  let value: unknown;
+  try {
+    value = JSON.parse(await readFile(filePath, 'utf8')) as unknown;
+  } catch (error) {
+    throw new Error(`Cannot read ${label} JSON: ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be a JSON object: ${filePath}`);
+  }
+  return value as JsonRecord;
 }
 
 function requireValue(args: string[], index: number, flag: string): string {
@@ -416,6 +494,14 @@ function printHarnessResult(result: ReturnType<HarnessRuntime['evaluateRun']>): 
   }
 }
 
+function printExecutionResult(result: Awaited<ReturnType<ExecutionRuntime['execute']>>): void {
+  process.stdout.write(`Execution: ${result.status}\n`);
+  process.stdout.write(`Adapter: ${result.adapterId}\n`);
+  process.stdout.write(`Authority: ${result.authority.scope} (${result.authority.executorInstance})\n`);
+  process.stdout.write(`Events: ${result.stageEvents.length}\n`);
+  for (const reason of result.reasons) process.stdout.write(`- ${reason}\n`);
+}
+
 function printGateList(result: ReturnType<HumanGate['plan']> & { loopId: string; passLog: string }): void {
   process.stdout.write(`Loop: ${result.loopId}\n`);
   process.stdout.write(`GatePass log: ${result.passLog}\n`);
@@ -448,9 +534,10 @@ function printHelp(): void {
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
   loop harness-check --loop <loop-id> --result <json-file> [--workspace workspace] [--json]
   loop gate list --loop <loop-id> [--workspace workspace] [--json]
-  loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-digest <sha256:...> --issuer <reviewer> --evidence <type:value>... [--json]
-  loop gate check --loop <loop-id> --run-id <id> --task-id <id> <--stage <stage-id>|--action <action>> --subject-digest <sha256:...> [--json]
+  loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-file <json-file> --issuer <reviewer> --evidence <type:value>... [--json]
+  loop gate check --loop <loop-id> --run-id <id> --task-id <id> [--stage <stage-id>] [--action <action>]... --subject-file <json-file> [--json]
   loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
+  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--codex-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
