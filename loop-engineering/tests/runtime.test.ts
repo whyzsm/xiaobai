@@ -12,13 +12,20 @@ import {
 } from '../packages/execution-runtime/src/stageEvents';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
-import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { SkillContextResolver } from '../packages/skill-context-runtime/src/skillContextResolver';
+import { chmod, mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, pathExists, readText, readYamlFile } from '../packages/shared/src/fs';
-import { ConnectorSpec, HarnessRunSubmission, LegacyGatePassEvent, LoopSpec } from '../packages/shared/src/types';
+import {
+  BackgroundContextPlan,
+  ConnectorSpec,
+  HarnessRunSubmission,
+  LegacyGatePassEvent,
+  LoopSpec
+} from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
 
 const repoRoot = process.cwd();
@@ -58,6 +65,154 @@ async function createExecutionFixture(loopId: string) {
     memoryRoot: path.join(tempWorkspace, 'memory'),
     loop,
     plan
+  };
+}
+
+async function createSkillContextFixture() {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-skill-context-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  const sourceRoot = path.join(tempRoot, 'xiaoneng');
+  const mount = path.join(tempWorkspace, '.local', 't-max', 'mounts', 'background', 'xiaoneng');
+  await mkdir(path.dirname(mount), { recursive: true });
+  await mkdir(path.join(sourceRoot, 'xiaoneng-agent'), { recursive: true });
+  await mkdir(path.join(sourceRoot, 'harness', 'runtime'), { recursive: true });
+  await mkdir(path.join(sourceRoot, 'harness', 'contracts', 'runtime'), { recursive: true });
+  await mkdir(path.join(sourceRoot, 'skills', 'op-ship-ops'), { recursive: true });
+  await mkdir(path.join(sourceRoot, 'skills', 'op-ship-ops', 'references'), { recursive: true });
+  await symlink(sourceRoot, mount, 'dir');
+
+  await writeFile(
+    path.join(sourceRoot, 'xiaoneng-agent', 'SKILL.md'),
+    '# Xiaoneng Entry\n\nXIAONENG_ENTRY_CONTENT\n\n## FullWorkflow\n\nUse the manifest-selected owner and skills.\n',
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'skills', 'op-ship-ops', 'SKILL.md'),
+    '# Ship Ops\n\nOWNER_SKILL_CONTENT\n\n## References\n\n- `references/build-gate.md`\n',
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'skills', 'op-ship-ops', 'references', 'build-gate.md'),
+    '# Build Gate\n\nSELECTED_REFERENCE_CONTENT\n',
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'harness', 'runtime', 'manifest.yaml'),
+    `name: xiaoneng-harness
+version: 1.0.0
+mode: active
+activation: active
+contractResolution: ready
+skillContext:
+  contract:
+    path: contracts/runtime/skill-context.schema.json
+    version: 1.0.0
+  entryPath: xiaoneng-agent/SKILL.md
+  manifestPath: harness/runtime/manifest.yaml
+  hashAlgorithm: sha256
+orchestrator: xiaoneng-agent
+architecture:
+  singleOwnerPerStage: true
+executionModes:
+  defaultMode: auto_minimal
+  fullWorkflowTrigger: explicit_user_only
+  testTrigger: explicit_user_or_post_integration_confirmation
+  buildTrigger: explicit_user_only
+  selfCheckScope: lightweight_local_code_checks
+  selfCheckCannotClaim: []
+  modes:
+    FullWorkflow:
+      stateRef: full_workflow
+      ownerAgent: xiaoneng-agent
+      ownerSkills:
+        - op-ship-ops
+      requiresStageArtifacts: true
+      nextState: understand_requirement
+stageOrder:
+  - understand_requirement
+stages:
+  understand_requirement:
+    ownerAgent: xiaoneng-agent
+`,
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'harness', 'contracts', 'runtime', 'skill-context.schema.json'),
+    `${JSON.stringify(skillContextTestSchema(), null, 2)}\n`,
+    'utf8'
+  );
+  const outsideFile = path.join(tempRoot, 'outside-background.md');
+  await writeFile(outsideFile, 'MUST_NOT_BE_LOADED\n', 'utf8');
+  await symlink(outsideFile, path.join(sourceRoot, 'unregistered-link.md'));
+  await execFileAsync('git', ['init', '-q'], { cwd: sourceRoot });
+  await execFileAsync('git', ['add', '-A'], { cwd: sourceRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.name=Loop Test', '-c', 'user.email=loop-test@example.com', 'commit', '-q', '-m', 'fixture'],
+    { cwd: sourceRoot }
+  );
+
+  const plan: BackgroundContextPlan = {
+    status: 'planned',
+    kind: 'skill-context',
+    contractVersion: '1.0.0',
+    projectId: 't-max',
+    backgroundId: 'xiaoneng',
+    sourceMount: path.relative(tempWorkspace, mount),
+    manifestPath: 'harness/runtime/manifest.yaml',
+    contractPath: 'harness/contracts/runtime/skill-context.schema.json',
+    executionMode: 'FullWorkflow',
+    maxCharacters: 18_000
+  };
+  return { tempRoot, workspaceRoot: tempWorkspace, sourceRoot, plan };
+}
+
+function skillContextTestSchema() {
+  const digest = { type: 'string', pattern: '^[0-9a-f]{64}$' };
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'contractVersion',
+      'skillId',
+      'skillCommit',
+      'entryPath',
+      'entryHash',
+      'manifestPath',
+      'manifestDigest',
+      'executionMode',
+      'ownerAgent',
+      'ownerSkills',
+      'selectedReferences',
+      'contextDigest'
+    ],
+    properties: {
+      contractVersion: { const: '1.0.0' },
+      skillId: { type: 'string', minLength: 1 },
+      skillCommit: { type: 'string', pattern: '^[0-9a-f]{40}$' },
+      entryPath: { type: 'string', minLength: 1 },
+      entryHash: digest,
+      manifestPath: { type: 'string', minLength: 1 },
+      manifestDigest: digest,
+      executionMode: { type: 'string', minLength: 1 },
+      ownerAgent: { type: 'string', minLength: 1 },
+      ownerSkills: { type: 'array', items: { type: 'string', minLength: 1 } },
+      selectedReferences: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'path', 'digest'],
+          properties: {
+            id: { type: 'string' },
+            path: { type: 'string' },
+            digest
+          }
+        }
+      },
+      contextDigest: digest
+    }
   };
 }
 
@@ -130,6 +285,51 @@ test('workspace validates against schemas and referenced files', async () => {
   assert.equal(result.ok, true, result.errors.join('\n'));
 });
 
+test('skill context resolver assembles a contract from registered sources only', async () => {
+  const fixture = await createSkillContextFixture();
+  const context = await new SkillContextResolver(fixture.workspaceRoot).resolve(fixture.plan);
+
+  assert.equal(context.kind, 'skill-context');
+  assert.equal(context.projectId, 't-max');
+  assert.equal(context.backgroundId, 'xiaoneng');
+  assert.equal(context.skillContext.contractVersion, '1.0.0');
+  assert.equal(context.skillContext.skillId, 'xiaoneng-agent');
+  assert.match(context.skillContext.skillCommit, /^[0-9a-f]{40}$/);
+  assert.equal(context.skillContext.executionMode, 'FullWorkflow');
+  assert.equal(context.skillContext.ownerAgent, 'xiaoneng-agent');
+  assert.deepEqual(context.skillContext.ownerSkills, ['op-ship-ops']);
+  assert.deepEqual(context.skillContext.selectedReferences.map((reference) => reference.path), [
+    'skills/op-ship-ops/references/build-gate.md'
+  ]);
+  assert.match(context.skillContext.contextDigest, /^[0-9a-f]{64}$/);
+  assert.deepEqual(
+    context.documents.map((document) => document.path),
+    [
+      'xiaoneng-agent/SKILL.md',
+      'harness/runtime/manifest.yaml',
+      'skills/op-ship-ops/SKILL.md',
+      'skills/op-ship-ops/references/build-gate.md'
+    ]
+  );
+  assert.match(context.documents[0].content, /XIAONENG_ENTRY_CONTENT/);
+  assert.match(context.documents[1].content, /FullWorkflow/);
+  assert.match(context.documents[2].content, /OWNER_SKILL_CONTENT/);
+  assert.match(context.documents[3].content, /SELECTED_REFERENCE_CONTENT/);
+  assert.doesNotMatch(JSON.stringify(context), /MUST_NOT_BE_LOADED|unregistered-link/);
+  assert(context.characters <= fixture.plan.maxCharacters);
+});
+
+test('skill context resolver fails closed when the declared contract is missing', async () => {
+  const fixture = await createSkillContextFixture();
+  await assert.rejects(
+    new SkillContextResolver(fixture.workspaceRoot).resolve({
+      ...fixture.plan,
+      contractPath: 'harness/contracts/runtime/missing.schema.json'
+    }),
+    /SKILL_CONTEXT_SOURCE_MISSING/
+  );
+});
+
 test('validate command checks all loops when no loop id is provided', async () => {
   const { stdout } = await execFileAsync('node', ['dist/loop-engineering/cli/loop.js', 'validate']);
 
@@ -152,6 +352,8 @@ test('dry run creates independent handoff and evaluation plans', async () => {
   assert.equal(plan.orchestrator?.agentFile, 'xiaobai.orchestrator.agent.yaml');
   assert.equal(plan.orchestrator?.role, 'orchestrator');
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 'app-a');
+  assert.equal(plan.backgroundContext, undefined);
+  assert.equal(Object.prototype.hasOwnProperty.call(plan, 'backgroundContext'), false);
   assert.deepEqual(plan.orchestrator?.routesTo.workflowStages, [
     'triage-discovery',
     'finding-isolation',
@@ -708,6 +910,7 @@ test('monitoring projects the latest real run and keeps missing or invalid strea
 
 test('execution runtime checks action gates before the adapter and Harness after completion', async () => {
   const fixture = await createExecutionFixture('morning-triage');
+  const executionGateNow = new Date();
   const gate = new HumanGate(fixture.loop);
   const passStore = new GatePassStore(fixture.memoryRoot, fixture.loop.metadata.id);
   await passStore.append(
@@ -722,7 +925,7 @@ test('execution runtime checks action gates before the adapter and Harness after
         { type: 'review', value: 'independent review passed' },
         { type: 'human-approval', value: 'owner approved merge' }
       ],
-      now: new Date('2026-08-10T00:00:00.000Z')
+      now: executionGateNow
     })
   );
 
@@ -733,7 +936,7 @@ test('execution runtime checks action gates before the adapter and Harness after
     loop: fixture.loop,
     plan: fixture.plan,
     executorInstance: 'executor-test-pass',
-    now: () => new Date('2026-08-10T00:01:00.000Z')
+    now: () => new Date(executionGateNow.getTime() + 60_000)
   }).execute(
     {
       runId: 'run-execution-pass',
@@ -752,7 +955,7 @@ test('execution runtime checks action gates before the adapter and Harness after
     }
   );
 
-  assert.equal(result.status, 'passed');
+  assert.equal(result.status, 'passed', result.reasons.join('\n'));
   assert.equal(result.gateDecision?.status, 'passed');
   assert.equal(result.harnessResult?.status, 'passed');
   assert.equal(calls, 1);
@@ -846,6 +1049,44 @@ test('execution runtime blocks missing dependencies and stage gates without invo
   assert.equal(calls, 0);
 });
 
+test('execution runtime fails only the opted-in run when skill context cannot be loaded', async () => {
+  const fixture = await createExecutionFixture('frontend-delivery');
+  const skillFixture = await createSkillContextFixture();
+  const fixtureMount = path.join(fixture.workspaceRoot, '.test-skill-context');
+  await symlink(skillFixture.sourceRoot, fixtureMount, 'dir');
+  assert(fixture.plan.backgroundContext);
+  fixture.plan.backgroundContext.sourceMount = '.test-skill-context';
+  fixture.plan.backgroundContext.contractPath = 'harness/contracts/runtime/missing.schema.json';
+  let calls = 0;
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-test-background-failure'
+  }).execute(
+    {
+      runId: 'run-background-failure',
+      taskId: 'task-background-failure',
+      stageId: 'requirement-intake',
+      subject: {}
+    },
+    {
+      id: 'fake-executor',
+      async execute() {
+        calls += 1;
+        return { status: 'blocked', reason: 'must not run', evidence: [] };
+      }
+    }
+  );
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /Background context loading failed closed/);
+  assert.match(result.reasons.join('\n'), /SKILL_CONTEXT_SOURCE_MISSING/);
+  assert.equal(calls, 0);
+  assert.deepEqual(result.stageEvents.map((event) => event.eventType), ['entered', 'first_action', 'failed']);
+});
+
 test('execution runtime fails a stage when Harness rejects a successful adapter result', async () => {
   const fixture = await createExecutionFixture('morning-triage');
   const result = await new ExecutionRuntime({
@@ -937,6 +1178,10 @@ test('Codex CLI adapter enforces read-only flags, structured output, and mutatio
   const fakeRoot = await mkdtemp(path.join(tmpdir(), 'fake-codex-cli-'));
   const executable = path.join(fakeRoot, 'fake-codex.mjs');
   const auditPath = path.join(fakeRoot, 'audit.json');
+  const skillContextFixture = await createSkillContextFixture();
+  const backgroundContext = await new SkillContextResolver(skillContextFixture.workspaceRoot).resolve(
+    skillContextFixture.plan
+  );
   const payload = {
     loadedContext: ['repository-skill', 'project-skill', 'task-brief', 'relevant-files', 'previous-memory'],
     contextCharactersUsed: 4000,
@@ -962,7 +1207,7 @@ const args = process.argv.slice(2);
 const option = (name) => args[args.indexOf(name) + 1];
 if (args[0] !== 'exec') process.exit(21);
 const schema = JSON.parse(readFileSync(option('--output-schema'), 'utf8'));
-writeFileSync(${JSON.stringify(auditPath)}, JSON.stringify({ args, cwd: process.cwd(), schemaRequired: schema.required }));
+writeFileSync(${JSON.stringify(auditPath)}, JSON.stringify({ args, cwd: process.cwd(), schemaRequired: schema.required, prompt: args.at(-1) }));
 writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(payload)}));
 process.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');
 `,
@@ -982,7 +1227,8 @@ process.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');
     attempt: 1,
     actions: [],
     subject: { finding: 'inspect the current failure' },
-    workspaceRoot: fixture.workspaceRoot
+    workspaceRoot: fixture.workspaceRoot,
+    backgroundContext
   };
   const result = await adapter.execute(input);
   assert.equal(result.status, 'completed');
@@ -991,11 +1237,16 @@ process.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');
   assert.equal(submission.taskId, input.taskId);
   assert.equal(submission.agentId, 'generator');
   assert.equal(submission.harnessId, 'coding-harness');
+  assert.equal(submission.loadedContext.includes('xiaoneng-skill-context'), false);
+  assert.equal(submission.contextCharactersUsed, payload.contextCharactersUsed + backgroundContext.characters);
+  assert.equal(result.evidence.some((item) => item.value.startsWith('engine-background-context:')), true);
+  assert.equal(result.evidence.some((item) => item.value.startsWith('engine-background-source-1:')), true);
 
   const audit = JSON.parse(await readText(auditPath)) as {
     args: string[];
     cwd: string;
     schemaRequired: string[];
+    prompt: string;
   };
   assert.equal(audit.args[0], 'exec');
   assert.equal(audit.args[audit.args.indexOf('--cd') + 1], fixture.workspaceRoot);
@@ -1014,6 +1265,13 @@ process.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');
     'output',
     'evidence'
   ]);
+  assert.match(audit.prompt, /engine-background-context-json/);
+  assert.match(audit.prompt, /XIAONENG_ENTRY_CONTENT/);
+  assert.match(audit.prompt, /OWNER_SKILL_CONTENT/);
+  assert.match(audit.prompt, /SELECTED_REFERENCE_CONTENT/);
+  assert.match(audit.prompt, /FullWorkflow/);
+  assert.match(audit.prompt, new RegExp(backgroundContext.skillContext.contextDigest));
+  assert.doesNotMatch(audit.prompt, /MUST_NOT_BE_LOADED|unregistered-link/);
   assert.equal(await pathExists(path.join(fixture.workspaceRoot, 'fake-write.txt')), false);
 
   const auditBeforeMutation = await readText(auditPath);
@@ -1229,6 +1487,18 @@ test('frontend delivery loop gates design approval before implementation', async
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
+  assert.deepEqual(plan.backgroundContext, {
+    status: 'planned',
+    kind: 'skill-context',
+    contractVersion: '1.0.0',
+    projectId: 't-max',
+    backgroundId: 'xiaoneng',
+    sourceMount: '.local/t-max/mounts/background/xiaoneng',
+    manifestPath: 'harness/runtime/manifest.yaml',
+    contractPath: 'harness/contracts/runtime/skill-context.schema.json',
+    executionMode: 'FullWorkflow',
+    maxCharacters: 18000
+  });
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
     true
@@ -1340,6 +1610,8 @@ test('frontend delivery routes harmony repository to harmony background', async 
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'harmony-wardrobe'), true);
   assert.equal(plan.context.skillPath, 'projects/harmony-wardrobe/SKILL.md');
+  assert.equal(plan.backgroundContext, undefined);
+  assert.equal(Object.prototype.hasOwnProperty.call(plan, 'backgroundContext'), false);
 });
 
 test('frontend delivery routes trunkFeeder-ui repository to trunkFeeder background', async () => {
@@ -1357,6 +1629,8 @@ test('frontend delivery routes trunkFeeder-ui repository to trunkFeeder backgrou
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'trunkFeeder-ui');
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'trunkFeeder'), true);
   assert.equal(plan.context.skillPath, 'projects/trunkFeeder/SKILL.md');
+  assert.equal(plan.backgroundContext, undefined);
+  assert.equal(Object.prototype.hasOwnProperty.call(plan, 'backgroundContext'), false);
 });
 
 test('frontend delivery routes target remote to harmony background', async () => {

@@ -3,6 +3,7 @@ import { mkdir, open, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { HarnessRuntime } from '../../harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../../human-gate/src/humanGate';
+import { SkillContextResolver } from '../../skill-context-runtime/src/skillContextResolver';
 import {
   ExecutionStageInput,
   ExecutionStageResult,
@@ -14,6 +15,7 @@ import {
   HarnessEvidenceType,
   LoopSpec,
   RuntimePlan,
+  ResolvedBackgroundContext,
   StageEvent,
   StageEventKey,
   WorkflowStagePlan
@@ -207,6 +209,20 @@ export class ExecutionRuntime {
     }
 
     await append('first_action');
+    let backgroundContext: ResolvedBackgroundContext | undefined;
+    if (this.options.plan.backgroundContext) {
+      try {
+        backgroundContext = await new SkillContextResolver(this.options.workspaceRoot).resolve(
+          this.options.plan.backgroundContext
+        );
+      } catch (error) {
+        const reasons = [
+          `Background context loading failed closed: ${error instanceof Error ? error.message : String(error)}`
+        ];
+        await append('failed', [otherEvidence(reasons[0])]);
+        return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded);
+      }
+    }
     let adapterResult;
     try {
       adapterResult = await adapter.execute({
@@ -218,7 +234,8 @@ export class ExecutionRuntime {
         actions,
         subject: input.subject,
         workspaceRoot: this.options.workspaceRoot,
-        worktreePath: input.worktreePath
+        worktreePath: input.worktreePath,
+        ...(backgroundContext ? { backgroundContext } : {})
       });
     } catch (error) {
       const reasons = [`executor adapter failed: ${error instanceof Error ? error.message : String(error)}`];
@@ -252,7 +269,10 @@ export class ExecutionRuntime {
 
     if (harnessResult.status !== 'passed') {
       const reasons = ['Harness rejected executor submission'];
-      await append('failed', [otherEvidence(`${reasons[0]}: ${summarizeHarnessViolations(harnessResult)}`)]);
+      await append('failed', [
+        ...(backgroundContext ? adapterResult.evidence : []),
+        otherEvidence(`${reasons[0]}: ${summarizeHarnessViolations(harnessResult)}`)
+      ]);
       return executionResult('failed', adapter.id, authority, reasons, gateDecision, harnessResult, recorded);
     }
 

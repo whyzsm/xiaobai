@@ -138,6 +138,15 @@ export interface ProjectBackground {
   name: string;
   localPathKey: string;
   mount: string;
+  integration?: SkillContextIntegration;
+}
+
+export interface SkillContextIntegration {
+  kind: 'skill-context';
+  version: '1.0.0';
+  manifest: string;
+  contract: string;
+  executionModes: Record<string, string>;
 }
 
 export interface ProjectRepository {
@@ -479,6 +488,7 @@ export interface ExecutorAdapterInput {
   subject: JsonRecord;
   workspaceRoot: string;
   worktreePath?: string;
+  backgroundContext?: ResolvedBackgroundContext;
 }
 
 export interface ExecutorAdapterResult {
@@ -605,6 +615,7 @@ export interface RuntimePlan {
   };
   humanGate: HumanGatePlan;
   workflow?: WorkflowPlan;
+  backgroundContext?: BackgroundContextPlan;
   memoryContext?: {
     indexPath: string;
     included: Array<{
@@ -621,6 +632,58 @@ export interface RuntimePlan {
     }>;
     warnings: string[];
   };
+}
+
+export interface BackgroundContextPlan {
+  status: 'planned';
+  kind: 'skill-context';
+  contractVersion: '1.0.0';
+  projectId: string;
+  backgroundId: string;
+  sourceMount: string;
+  manifestPath: string;
+  contractPath: string;
+  executionMode: string;
+  maxCharacters: number;
+}
+
+export interface SkillContextReference {
+  id: string;
+  path: string;
+  digest: string;
+}
+
+export interface SkillContextContract {
+  contractVersion: '1.0.0';
+  skillId: string;
+  skillCommit: string;
+  entryPath: string;
+  entryHash: string;
+  manifestPath: string;
+  manifestDigest: string;
+  executionMode: string;
+  ownerAgent: string;
+  ownerSkills: string[];
+  selectedReferences: SkillContextReference[];
+  contextDigest: string;
+}
+
+export interface BackgroundContextDocument {
+  roles: Array<'entry' | 'manifest' | 'owner-agent' | 'owner-skill' | 'reference'>;
+  path: string;
+  sourceDigest: string;
+  contentDigest: string;
+  selection: 'full' | 'relevant-sections' | 'selected-manifest';
+  content: string;
+}
+
+export interface ResolvedBackgroundContext {
+  kind: 'skill-context';
+  projectId: string;
+  backgroundId: string;
+  skillContext: SkillContextContract;
+  documents: BackgroundContextDocument[];
+  characters: number;
 }
 
 export interface SimulationStage {

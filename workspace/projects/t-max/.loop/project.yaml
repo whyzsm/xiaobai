@@ -10,6 +10,13 @@ background:
   name: xiaoneng
   localPathKey: xiaoneng
   mount: ../../.local/t-max/mounts/background/xiaoneng
+  integration:
+    kind: skill-context
+    version: 1.0.0
+    manifest: harness/runtime/manifest.yaml
+    contract: harness/contracts/runtime/skill-context.schema.json
+    executionModes:
+      frontend-delivery: FullWorkflow
 repositories:
   - id: KPIUI
     name: KPIUI

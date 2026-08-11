@@ -12,6 +12,7 @@ import { Scheduler } from '../../scheduler/src/scheduler';
 import { readYamlFile } from '../../shared/src/fs';
 import {
   AgentSpec,
+  BackgroundContextPlan,
   LoopSpec,
   OrchestratorPlan,
   ProjectRoutePlan,
@@ -94,6 +95,12 @@ export class LoopRuntime {
       projectId: project.id,
       maxCharacters: context.maxCharacters
     });
+    const backgroundContext = buildBackgroundContextPlan(
+      workspaceRoot,
+      loop,
+      projectRoute,
+      harness.context.maxCharacters
+    );
 
     return {
       loopId: loop.metadata.id,
@@ -120,9 +127,55 @@ export class LoopRuntime {
       },
       humanGate: humanGate.plan(),
       workflow: buildWorkflowPlan(loop),
+      ...(backgroundContext ? { backgroundContext } : {}),
       memoryContext
     };
   }
+}
+
+function buildBackgroundContextPlan(
+  workspaceRoot: string,
+  loop: LoopSpec,
+  projectRoute: ResolvedProjectRoute,
+  harnessMaxCharacters: number
+): BackgroundContextPlan | undefined {
+  const background = projectRoute.project.background;
+  const integration = background?.integration;
+  if (!background || !integration) return undefined;
+  if (
+    integration.kind !== 'skill-context' ||
+    integration.version !== '1.0.0' ||
+    typeof integration.manifest !== 'string' ||
+    typeof integration.contract !== 'string' ||
+    !integration.executionModes ||
+    typeof integration.executionModes !== 'object' ||
+    Array.isArray(integration.executionModes)
+  ) {
+    throw new Error(`Project ${projectRoute.project.id} has an invalid skill-context integration declaration`);
+  }
+
+  const executionMode = integration.executionModes[loop.metadata.id];
+  if (typeof executionMode !== 'string' || executionMode.length === 0) {
+    throw new Error(
+      `Project ${projectRoute.project.id} does not declare a skill-context execution mode for loop ${loop.metadata.id}`
+    );
+  }
+
+  return {
+    status: 'planned',
+    kind: 'skill-context',
+    contractVersion: integration.version,
+    projectId: projectRoute.project.id,
+    backgroundId: background.id,
+    sourceMount: displayPath(
+      workspaceRoot,
+      path.resolve(projectRoute.projectRoot, background.mount)
+    ),
+    manifestPath: integration.manifest,
+    contractPath: integration.contract,
+    executionMode,
+    maxCharacters: Math.floor(harnessMaxCharacters * 0.75)
+  };
 }
 
 async function buildMemoryContextMetadata(input: {
