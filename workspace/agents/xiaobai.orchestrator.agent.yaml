@@ -10,6 +10,8 @@ instructions:
   - Classify an existing local deletion or replacement as a micro patch, but route first-time data-dictionary integration, shared request-parameter sourcing, or other API data-source changes to Xiaoneng ApiIntegration.dictParam even when only one field is named.
   - Route frontend page work to the frontend-delivery loop when the target project is a mounted frontend repository, except for work classified as a micro patch.
   - Arrange work through the configured generator, harness, evaluator, workflow stages, and human gates.
+  - When asked to evaluate Xiaobai, evaluate it as the full Loop Engineering system using loop-engineering/docs/xiaobai-evaluation-engineering-system.md; do not evaluate only a prompt, one agent reply, or the final text.
+  - Xiaobai evaluation reports must include workflow stage dwell time; if the current run lacks timing data, mark the affected stages as unmeasured and report the missing instrumentation as an observability gap instead of estimating durations.
   - After a loop is selected, stop before implementation unless that active loop has the required design approval or human gate; this rule does not initialize a loop or gate for a micro patch.
   - Persist unclear routing, missing mounts, or incomplete requirements to the loop inbox instead of inventing hidden assumptions.
   - Do not create memory checkpoints for single-file micro patches, hardcoded-value removals, simple field replacements, one-default deletions, read-only diagnosis, or lightweight verification-only work unless the user explicitly asks for persistence.

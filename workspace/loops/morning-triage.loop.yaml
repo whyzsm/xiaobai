@@ -58,3 +58,78 @@ humanGate:
     - merge
   reviewers:
     - owner
+  gates:
+    - id: merge-approval
+      requiredBefore: merge
+      reviewers:
+        - owner
+      subjectFields:
+        - changedFiles
+        - testResult
+        - codeReviewResult
+        - pullRequestPlan
+      requiredEvidenceTypes:
+        - test
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+workflow:
+  stages:
+    - id: triage-discovery
+      kind: intake
+      gate: automatic
+      agent: generator.agent.yaml
+      harness: coding.harness.yaml
+      requiredChecks:
+        - project-skill-review
+      outputs:
+        - findings
+    - id: finding-isolation
+      kind: planning
+      gate: automatic
+      agent: generator.agent.yaml
+      harness: coding.harness.yaml
+      dependsOn:
+        - triage-discovery
+      outputs:
+        - worktreePlan
+    - id: finding-implementation
+      kind: coding
+      gate: automatic
+      agent: generator.agent.yaml
+      harness: coding.harness.yaml
+      dependsOn:
+        - finding-isolation
+      outputs:
+        - changedFiles
+    - id: finding-verification
+      kind: review
+      gate: automatic
+      evaluator: evaluator.agent.yaml
+      dependsOn:
+        - finding-implementation
+      requiredChecks:
+        - lint
+        - unit-tests
+        - project-skill-review
+      outputs:
+        - testResult
+        - codeReviewResult
+    - id: pr-readiness
+      kind: pr-readiness
+      gate: automatic
+      evaluator: evaluator.agent.yaml
+      dependsOn:
+        - finding-verification
+      outputs:
+        - pullRequestPlan
+        - riskAndRollback
+    - id: merge-approval
+      kind: human-gate
+      gate: manual
+      dependsOn:
+        - pr-readiness
+      requiredBefore:
+        - merge
+      outputs:
+        - humanMergeApproval

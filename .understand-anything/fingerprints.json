@@ -1,0 +1,5270 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "ddec6bf79c03b6ae7c3b0f11e9fd38c4d7a5f121",
+  "generatedAt": "2026-08-10T09:00:02.360Z",
+  "files": {
+    ".aliyun/pull_request_template.md": {
+      "filePath": ".aliyun/pull_request_template.md",
+      "contentHash": "2ba6f5fc5e0e7000047cbc773572525dad8116a1316081a151d6e68dcd183a6b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    ".gitattributes": {
+      "filePath": ".gitattributes",
+      "contentHash": "5a756ccd6214c26534a29f4daecebf005f9a2d60d5379a382c4ace62ba0cb28b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": false
+    },
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "520ec01d058671f4b4b2e8840d3cf01e110058d2509136444a558e4de3745de9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 396,
+      "hasStructuralAnalysis": true
+    },
+    "data/cases/2026-06-28-loop-simulation-lifecycle.md": {
+      "filePath": "data/cases/2026-06-28-loop-simulation-lifecycle.md",
+      "contentHash": "e939a8ab27c5fc00c89979e3c3f5649c22f29f5838718014123d2e0f8cad3837",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 45,
+      "hasStructuralAnalysis": true
+    },
+    "data/index/cases-index.json": {
+      "filePath": "data/index/cases-index.json",
+      "contentHash": "bce3feec1dd072b5abaffa7a21fec909e38ba013eb24785c67f91ed6e9e8cba8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "data/index/patterns-index.md": {
+      "filePath": "data/index/patterns-index.md",
+      "contentHash": "29747b15c03fd384860baf485063c146f9fd7d086772362d46f52ad8459952f3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "docs/plans/2026-06-28-frontend-delivery-loop-v2.md": {
+      "filePath": "docs/plans/2026-06-28-frontend-delivery-loop-v2.md",
+      "contentHash": "a74df3643f00097633c5793e2966ceee25acd4dcf301d8c3daf4e26c589d67ca",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 71,
+      "hasStructuralAnalysis": true
+    },
+    "docs/plans/2026-06-28-frontend-delivery-loop.md": {
+      "filePath": "docs/plans/2026-06-28-frontend-delivery-loop.md",
+      "contentHash": "901e570b685f850aea4f624f1ecf85e3e91aae1a79f0193e59ab94293338d1e5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 141,
+      "hasStructuralAnalysis": true
+    },
+    "docs/plans/2026-06-28-obsidian-memory-implementation.md": {
+      "filePath": "docs/plans/2026-06-28-obsidian-memory-implementation.md",
+      "contentHash": "416a692e35477c2ff9e4f2909a0f7c5c112c7c5715528296fa5c82872d69722c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 360,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/cli/loop.ts": {
+      "filePath": "loop-engineering/cli/loop.ts",
+      "contentHash": "340cd1c81d72ba67b0d9af914a7478a76bdba1c4f2da659b4a00d6dbde0caf42",
+      "functions": [
+        {
+          "name": "main",
+          "params": [
+            "argv"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 87
+        },
+        {
+          "name": "listLoopSpecs",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseArgs",
+          "params": [
+            "argv"
+          ],
+          "returnType": "CliOptions",
+          "exported": false,
+          "lineCount": 45
+        },
+        {
+          "name": "requireValue",
+          "params": [
+            "args",
+            "index",
+            "flag"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "printPlan",
+          "params": [
+            "plan"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "printSimulation",
+          "params": [
+            "result"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "printHelp",
+          "params": [],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readdir"
+          ]
+        },
+        {
+          "source": "../packages/loop-runtime/src/loopRuntime",
+          "specifiers": [
+            "LoopRuntime"
+          ]
+        },
+        {
+          "source": "../packages/simulation-runtime/src/simulationRuntime",
+          "specifiers": [
+            "SimulationRuntime"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/fs",
+          "specifiers": [
+            "findLoopSpec",
+            "formatJson"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/validation",
+          "specifiers": [
+            "validateWorkspace"
+          ]
+        },
+        {
+          "source": "./memory",
+          "specifiers": [
+            "runMemoryCommand"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 240,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/cli/memory.ts": {
+      "filePath": "loop-engineering/cli/memory.ts",
+      "contentHash": "55a42f779043e54bbddbd57399717b1da7cb7711ce69e26d9ae75816d0e32149",
+      "functions": [
+        {
+          "name": "runMemoryCommand",
+          "params": [
+            "options"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "executeMemoryCommand",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "handleCheckpoint",
+          "params": [
+            "command",
+            "paths",
+            "args",
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 82
+        },
+        {
+          "name": "handleAuditToday",
+          "params": [
+            "command",
+            "paths",
+            "args"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "formatLocalDate",
+          "params": [
+            "date"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "resolveCliMemoryPaths",
+          "params": [
+            "workspaceRoot",
+            "args"
+          ],
+          "returnType": "Promise<MemoryPaths>",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "inferVaultRoot",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "inferProjectId",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "handleInit",
+          "params": [
+            "command",
+            "paths",
+            "args"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "hasExistingSeedCase",
+          "params": [
+            "casesRoot"
+          ],
+          "returnType": "Promise<boolean>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "isDatedSeedCaseTemplate",
+          "params": [
+            "templatePath"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "handleIndex",
+          "params": [
+            "command",
+            "paths",
+            "args",
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "handleSearch",
+          "params": [
+            "command",
+            "paths",
+            "args"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "handleContext",
+          "params": [
+            "command",
+            "paths",
+            "args",
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "handleValidate",
+          "params": [
+            "command",
+            "paths",
+            "repoRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "handleDoctor",
+          "params": [
+            "command",
+            "paths"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "handleCapture",
+          "params": [
+            "command",
+            "paths",
+            "args",
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "handlePromote",
+          "params": [
+            "command",
+            "paths",
+            "args",
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "handleReport",
+          "params": [
+            "command",
+            "paths",
+            "args"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "handleSnapshot",
+          "params": [
+            "command",
+            "paths",
+            "args",
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryCommandResult>",
+          "exported": false,
+          "lineCount": 49
+        },
+        {
+          "name": "renderProjectMemorySnapshot",
+          "params": [
+            "input"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "isSeedMemoryContent",
+          "params": [
+            "content"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isSnapshotMemoryPath",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "relativeToVault",
+          "params": [
+            "vaultRoot",
+            "filePath"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "ensureIndex",
+          "params": [
+            "paths",
+            "workspaceRoot",
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "relativeLearningRoot",
+          "params": [
+            "paths"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "inferDefaultLoop",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<string | undefined>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "parseMemoryArgs",
+          "params": [
+            "command",
+            "argv"
+          ],
+          "returnType": "ParsedMemoryArgs",
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "requireValue",
+          "params": [
+            "argv",
+            "index",
+            "flag"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "printHuman",
+          "params": [
+            "result"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "appendFile",
+            "mkdir",
+            "readdir",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../packages/memory-protocol/src",
+          "specifiers": [
+            "createMemoryTemplates",
+            "MemoryCommandResult",
+            "resolveMemoryProtocolPaths",
+            "resolveSafeWritePath"
+          ]
+        },
+        {
+          "source": "../packages/memory-indexer/src",
+          "specifiers": [
+            "buildMemoryIndex",
+            "writeMemoryIndexAtomic"
+          ]
+        },
+        {
+          "source": "../packages/memory-search/src",
+          "specifiers": [
+            "readMemoryIndex",
+            "searchMemory"
+          ]
+        },
+        {
+          "source": "../packages/memory-context/src",
+          "specifiers": [
+            "loadMemoryContext"
+          ]
+        },
+        {
+          "source": "../packages/memory-doctor/src",
+          "specifiers": [
+            "doctorMemory",
+            "validateMemory"
+          ]
+        },
+        {
+          "source": "../packages/memory-capture/src",
+          "specifiers": [
+            "planCaseWrite",
+            "writeCase",
+            "writePattern"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/fs",
+          "specifiers": [
+            "findLoopSpec",
+            "formatJson",
+            "pathExists",
+            "readText",
+            "readYamlFile"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/memoryRoot",
+          "specifiers": [
+            "resolveMemoryRootConfig"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/types",
+          "specifiers": [
+            "LoopSpec"
+          ]
+        }
+      ],
+      "exports": [
+        "runMemoryCommand"
+      ],
+      "totalLines": 574,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/docs/architecture.md": {
+      "filePath": "loop-engineering/docs/architecture.md",
+      "contentHash": "87253563fb43080c2521dbf9296ad3c81be17047ab28e5abceabc61f8775ee74",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/docs/frontend-platform-standards.md": {
+      "filePath": "loop-engineering/docs/frontend-platform-standards.md",
+      "contentHash": "868398692fea48e8a323a1cd351474d71ec49757cfbeb48620b5aa6adc67e9b5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 364,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/docs/obsidian-memory-architecture.md": {
+      "filePath": "loop-engineering/docs/obsidian-memory-architecture.md",
+      "contentHash": "c8f8caf798a9fb479c16c6efb6622552f977e23d90a8c078cff7a5ce423ae7b3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 545,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/docs/obsidian-memory-migration.md": {
+      "filePath": "loop-engineering/docs/obsidian-memory-migration.md",
+      "contentHash": "b30b90d92c5f427a8e3ff884b850d02ab1a79c8993db809fff2b0d20e83ceaaf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 129,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/docs/product-requirement-platform-standards.md": {
+      "filePath": "loop-engineering/docs/product-requirement-platform-standards.md",
+      "contentHash": "131a117a8495505102e6efc31c0d6d282674065c6515af78e43b7eacf76b1ddd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 522,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/docs/xiaobai-evaluation-engineering-system.md": {
+      "filePath": "loop-engineering/docs/xiaobai-evaluation-engineering-system.md",
+      "contentHash": "c194a533b7fb1bdf5d53c43e8eeb3c77acd76f2a44d40ac043645fa60a4ce53a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/agent-runtime/src/agentRuntime.ts": {
+      "filePath": "loop-engineering/packages/agent-runtime/src/agentRuntime.ts",
+      "contentHash": "6a3214b1ed2ddca100022df7a43f7c584f7ef8d891d130103bb904427269290a",
+      "functions": [],
+      "classes": [
+        {
+          "name": "AgentRuntime",
+          "methods": [
+            "constructor",
+            "loadAgent"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "AgentSpec"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "readYamlFile"
+          ]
+        }
+      ],
+      "exports": [
+        "AgentRuntime"
+      ],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/budget-guard/src/budgetGuard.ts": {
+      "filePath": "loop-engineering/packages/budget-guard/src/budgetGuard.ts",
+      "contentHash": "8d10f968f342f83d15da0cc8835fd624b0440cbaba406e32a8b07d64038d7023",
+      "functions": [],
+      "classes": [
+        {
+          "name": "BudgetGuard",
+          "methods": [
+            "constructor",
+            "check"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "BudgetLimits"
+          ]
+        }
+      ],
+      "exports": [
+        "BudgetGuard"
+      ],
+      "totalLines": 25,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/connector-runtime/src/connectorRuntime.ts": {
+      "filePath": "loop-engineering/packages/connector-runtime/src/connectorRuntime.ts",
+      "contentHash": "000b489374a75b3b33bb3f48f8662480ac7df7b9f3599c653dd3c53b8fbcc881",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ConnectorRuntime",
+          "methods": [
+            "constructor",
+            "collect"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 27
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "ConnectorEvidence",
+            "ConnectorSpec",
+            "DiscoverySource"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "readYamlFile"
+          ]
+        }
+      ],
+      "exports": [
+        "ConnectorRuntime"
+      ],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/context-engine/src/contextEngine.ts": {
+      "filePath": "loop-engineering/packages/context-engine/src/contextEngine.ts",
+      "contentHash": "471a3e75d48b4a6928ce3a1d8ebd0bd2b380bb90cad581dc9f8e4fdf62cb7b25",
+      "functions": [
+        {
+          "name": "truncate",
+          "params": [
+            "value",
+            "maxCharacters"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "ContextEngine",
+          "methods": [
+            "buildDiscoveryContext"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 21
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "DiscoveryContext",
+            "ConnectorEvidence",
+            "LoopSpec",
+            "SkillDocument"
+          ]
+        }
+      ],
+      "exports": [
+        "ContextEngine"
+      ],
+      "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/evaluator-runtime/src/evaluatorRuntime.ts": {
+      "filePath": "loop-engineering/packages/evaluator-runtime/src/evaluatorRuntime.ts",
+      "contentHash": "6717a9f3d719846a1cb8e10e66b6ee24160ed1eeefa18a87ba9ee2518f0bea80",
+      "functions": [],
+      "classes": [
+        {
+          "name": "EvaluatorRuntime",
+          "methods": [
+            "plan"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "AgentSpec",
+            "EvaluationPlan",
+            "LoopSpec",
+            "WorktreePlan"
+          ]
+        }
+      ],
+      "exports": [
+        "EvaluatorRuntime"
+      ],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/harness-runtime/src/harnessRuntime.ts": {
+      "filePath": "loop-engineering/packages/harness-runtime/src/harnessRuntime.ts",
+      "contentHash": "fb74d4ddb175bd447279cb3cd3590fa09af29e182a60fc9959becdcc745c02ea",
+      "functions": [],
+      "classes": [
+        {
+          "name": "HarnessRuntime",
+          "methods": [
+            "constructor",
+            "load",
+            "planGeneratorRuns"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 17
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "AgentRunPlan",
+            "HarnessSpec",
+            "LoopSpec",
+            "WorktreePlan"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "readYamlFile"
+          ]
+        }
+      ],
+      "exports": [
+        "HarnessRuntime"
+      ],
+      "totalLines": 22,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/human-gate/src/humanGate.ts": {
+      "filePath": "loop-engineering/packages/human-gate/src/humanGate.ts",
+      "contentHash": "02adb0c918ccc110a3b18698eff795b05bfabc39d3ce06142a8224ecacf837db",
+      "functions": [],
+      "classes": [
+        {
+          "name": "HumanGate",
+          "methods": [
+            "constructor",
+            "plan"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "HumanGatePlan",
+            "LoopSpec"
+          ]
+        }
+      ],
+      "exports": [
+        "HumanGate"
+      ],
+      "totalLines": 13,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/loop-runtime/src/loopRuntime.ts": {
+      "filePath": "loop-engineering/packages/loop-runtime/src/loopRuntime.ts",
+      "contentHash": "590537f18d4cb096d8909ee99464877df944da6aedd09f5f369dfa5cc1040e1d",
+      "functions": [
+        {
+          "name": "buildMemoryContextMetadata",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<RuntimePlan['memoryContext']>",
+          "exported": false,
+          "lineCount": 48
+        },
+        {
+          "name": "buildOrchestratorPlan",
+          "params": [
+            "workspaceRoot",
+            "loop",
+            "agent",
+            "projectRoute"
+          ],
+          "returnType": "OrchestratorPlan | undefined",
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "buildProjectRoutePlan",
+          "params": [
+            "workspaceRoot",
+            "projectRoute"
+          ],
+          "returnType": "ProjectRoutePlan",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "relativeLearningRoot",
+          "params": [
+            "paths"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "inferVaultRoot",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "inferProjectId",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "buildWorkflowPlan",
+          "params": [
+            "loop"
+          ],
+          "returnType": "WorkflowPlan | undefined",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "displayPath",
+          "params": [
+            "workspaceRoot",
+            "filePath"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [
+        {
+          "name": "LoopRuntime",
+          "methods": [
+            "dryRun"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 87
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../agent-runtime/src/agentRuntime",
+          "specifiers": [
+            "AgentRuntime"
+          ]
+        },
+        {
+          "source": "../../budget-guard/src/budgetGuard",
+          "specifiers": [
+            "BudgetGuard"
+          ]
+        },
+        {
+          "source": "../../connector-runtime/src/connectorRuntime",
+          "specifiers": [
+            "ConnectorRuntime"
+          ]
+        },
+        {
+          "source": "../../context-engine/src/contextEngine",
+          "specifiers": [
+            "ContextEngine"
+          ]
+        },
+        {
+          "source": "../../evaluator-runtime/src/evaluatorRuntime",
+          "specifiers": [
+            "EvaluatorRuntime"
+          ]
+        },
+        {
+          "source": "../../harness-runtime/src/harnessRuntime",
+          "specifiers": [
+            "HarnessRuntime"
+          ]
+        },
+        {
+          "source": "../../human-gate/src/humanGate",
+          "specifiers": [
+            "HumanGate"
+          ]
+        },
+        {
+          "source": "../../memory-store/src/memoryStore",
+          "specifiers": [
+            "MemoryStore"
+          ]
+        },
+        {
+          "source": "../../shared/src/memoryRoot",
+          "specifiers": [
+            "MemoryRootConfig",
+            "resolveMemoryRootConfig"
+          ]
+        },
+        {
+          "source": "../../scheduler/src/scheduler",
+          "specifiers": [
+            "Scheduler"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "readYamlFile"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "AgentSpec",
+            "LoopSpec",
+            "OrchestratorPlan",
+            "ProjectRoutePlan",
+            "ProjectSpec",
+            "RuntimePlan",
+            "WorkflowPlan"
+          ]
+        },
+        {
+          "source": "../../skill-runtime/src/skillRuntime",
+          "specifiers": [
+            "SkillRuntime"
+          ]
+        },
+        {
+          "source": "../../worktree-manager/src/worktreeManager",
+          "specifiers": [
+            "WorktreeManager"
+          ]
+        },
+        {
+          "source": "../../memory-indexer/src",
+          "specifiers": [
+            "buildMemoryIndex",
+            "writeMemoryIndexAtomic"
+          ]
+        },
+        {
+          "source": "../../memory-context/src",
+          "specifiers": [
+            "loadMemoryContext"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "resolveMemoryProtocolPaths"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists"
+          ]
+        },
+        {
+          "source": "../../project-registry/src/projectRegistry",
+          "specifiers": [
+            "ResolvedProjectRoute",
+            "resolveProjectRoute"
+          ]
+        }
+      ],
+      "exports": [
+        "LoopRuntime"
+      ],
+      "totalLines": 270,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-capture/src/caseTemplate.ts": {
+      "filePath": "loop-engineering/packages/memory-capture/src/caseTemplate.ts",
+      "contentHash": "e3b297f2cdb74457789a22287078fac7b0350c2ec43aebde9f724c79c2f391bf",
+      "functions": [
+        {
+          "name": "renderCaseTemplate",
+          "params": [
+            "input"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "renderCaseTemplate"
+      ],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-capture/src/caseWriter.ts": {
+      "filePath": "loop-engineering/packages/memory-capture/src/caseWriter.ts",
+      "contentHash": "6b75c20a51def2f38c9c717507ee23cc406d670a0176094a1cc8d66ab19f6dc2",
+      "functions": [
+        {
+          "name": "planCaseWrite",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<CaseWritePlan>",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "writeCase",
+          "params": [
+            "plan"
+          ],
+          "returnType": "Promise<CaseWritePlan>",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "uniqueCasePath",
+          "params": [
+            "root",
+            "filename"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists"
+          ]
+        },
+        {
+          "source": "./caseTemplate",
+          "specifiers": [
+            "renderCaseTemplate"
+          ]
+        },
+        {
+          "source": "./slug",
+          "specifiers": [
+            "slugifyTitle"
+          ]
+        }
+      ],
+      "exports": [
+        "planCaseWrite",
+        "writeCase"
+      ],
+      "totalLines": 48,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-capture/src/index.ts": {
+      "filePath": "loop-engineering/packages/memory-capture/src/index.ts",
+      "contentHash": "6d109cb4ecde9e6fc198daabcbab013729d05373fac87d9831ec6938e52d7ddf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-capture/src/patternPromoter.ts": {
+      "filePath": "loop-engineering/packages/memory-capture/src/patternPromoter.ts",
+      "contentHash": "824eeeaab10baa9fed96031fef6edd82f5d158a6d4ed639fea7b1c32dc8f061f",
+      "functions": [
+        {
+          "name": "renderPattern",
+          "params": [
+            "input"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "writePattern",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "appendGlobalPattern",
+          "params": [
+            "globalPatternsPath",
+            "title",
+            "patternPath"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "appendSourceCaseLink",
+          "params": [
+            "casePath",
+            "title",
+            "patternPath"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "appendFile",
+            "mkdir",
+            "readFile",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "NoteEntry"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists"
+          ]
+        },
+        {
+          "source": "./slug",
+          "specifiers": [
+            "slugifyTitle"
+          ]
+        }
+      ],
+      "exports": [
+        "renderPattern",
+        "writePattern"
+      ],
+      "totalLines": 52,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-capture/src/slug.ts": {
+      "filePath": "loop-engineering/packages/memory-capture/src/slug.ts",
+      "contentHash": "173aa5d05485848daf112740790ff1498f76ac2e1c2f31cc555b06a39a9b0c7e",
+      "functions": [
+        {
+          "name": "slugifyTitle",
+          "params": [
+            "title"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "slugifyTitle"
+      ],
+      "totalLines": 9,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-context/src/budget.ts": {
+      "filePath": "loop-engineering/packages/memory-context/src/budget.ts",
+      "contentHash": "b0f6d7d405da8c4595befa393d2b92bb3a75e4ddae6d3edde4ecac58282873ff",
+      "functions": [
+        {
+          "name": "fitContextBudget",
+          "params": [
+            "items",
+            "maxCharacters"
+          ],
+          "returnType": "{\n  included: MemoryContextItem[];\n  omitted: OmittedMemoryContextItem[];\n  usedCharacters: number;\n}",
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./bundle",
+          "specifiers": [
+            "MemoryContextItem",
+            "OmittedMemoryContextItem"
+          ]
+        }
+      ],
+      "exports": [
+        "fitContextBudget"
+      ],
+      "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-context/src/bundle.ts": {
+      "filePath": "loop-engineering/packages/memory-context/src/bundle.ts",
+      "contentHash": "a3b3fc51840537ac98f73f4740e87696756f820561adddc550abb33615798f49",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 27,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-context/src/index.ts": {
+      "filePath": "loop-engineering/packages/memory-context/src/index.ts",
+      "contentHash": "eb77d627d9664e81e6f3ee2af4a3de57560a0b128ab1f5b818d15e5511c3b3fc",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 4,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-context/src/memoryContextLoader.ts": {
+      "filePath": "loop-engineering/packages/memory-context/src/memoryContextLoader.ts",
+      "contentHash": "5f0fe28fa84abbeab1994542122c430fc2bfef19cfc5c12665ea230e30862bf2",
+      "functions": [
+        {
+          "name": "loadMemoryContext",
+          "params": [
+            "options"
+          ],
+          "returnType": "Promise<MemoryContextBundle>",
+          "exported": true,
+          "lineCount": 49
+        },
+        {
+          "name": "selectCoreNotes",
+          "params": [
+            "notes",
+            "projectId",
+            "loopId"
+          ],
+          "returnType": "NoteEntry[]",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "uniqueNotes",
+          "params": [
+            "notes"
+          ],
+          "returnType": "NoteEntry[]",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "priority",
+          "params": [
+            "note"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 22
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryIndex",
+            "NoteEntry"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists",
+            "readText"
+          ]
+        },
+        {
+          "source": "../../memory-search/src",
+          "specifiers": [
+            "searchMemory"
+          ]
+        },
+        {
+          "source": "./budget",
+          "specifiers": [
+            "fitContextBudget"
+          ]
+        },
+        {
+          "source": "./bundle",
+          "specifiers": [
+            "MemoryContextBundle",
+            "MemoryContextItem"
+          ]
+        }
+      ],
+      "exports": [
+        "loadMemoryContext"
+      ],
+      "totalLines": 107,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-doctor/src/doctorMemory.ts": {
+      "filePath": "loop-engineering/packages/memory-doctor/src/doctorMemory.ts",
+      "contentHash": "bbbcc7f05f6759c5bffd6c7e99f10fe136e0432ba931141042ce415d9d1b2787",
+      "functions": [
+        {
+          "name": "doctorMemory",
+          "params": [
+            "index"
+          ],
+          "returnType": "MemoryDoctorReport",
+          "exported": true,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryIndex"
+          ]
+        }
+      ],
+      "exports": [
+        "doctorMemory"
+      ],
+      "totalLines": 37,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-doctor/src/index.ts": {
+      "filePath": "loop-engineering/packages/memory-doctor/src/index.ts",
+      "contentHash": "3ed7fe5f7b529c907b60bcb6819a46e434ed759b0ba8e86f2973588274f79806",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-doctor/src/indexFreshness.ts": {
+      "filePath": "loop-engineering/packages/memory-doctor/src/indexFreshness.ts",
+      "contentHash": "cc3be3822193ff9903a9185abf23fad616b49a54580b75c878315803760adf8b",
+      "functions": [
+        {
+          "name": "checkIndexFreshness",
+          "params": [
+            "index"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "computeFileHash",
+            "MemoryIndex"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists"
+          ]
+        }
+      ],
+      "exports": [
+        "checkIndexFreshness"
+      ],
+      "totalLines": 18,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-doctor/src/jsonl.ts": {
+      "filePath": "loop-engineering/packages/memory-doctor/src/jsonl.ts",
+      "contentHash": "3101c861d538038fdae53ff9d1576dd5c0b3ebd2090fa139b2d2e1474d5aeb50",
+      "functions": [
+        {
+          "name": "validateJsonl",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "readText"
+          ]
+        }
+      ],
+      "exports": [
+        "validateJsonl"
+      ],
+      "totalLines": 18,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-doctor/src/validateMemory.ts": {
+      "filePath": "loop-engineering/packages/memory-doctor/src/validateMemory.ts",
+      "contentHash": "262901e7daa8a587d872875a4a6e2dc290c3bd55e144a0841c5e631d647ae131",
+      "functions": [
+        {
+          "name": "validateMemory",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<MemoryValidationResult>",
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "listJsonl",
+          "params": [
+            "root"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readdir"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryIndex"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists"
+          ]
+        },
+        {
+          "source": "../../memory-indexer/src",
+          "specifiers": [
+            "validateMemoryIndexSchema"
+          ]
+        },
+        {
+          "source": "./jsonl",
+          "specifiers": [
+            "validateJsonl"
+          ]
+        },
+        {
+          "source": "./indexFreshness",
+          "specifiers": [
+            "checkIndexFreshness"
+          ]
+        }
+      ],
+      "exports": [
+        "validateMemory"
+      ],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-indexer/src/index.ts": {
+      "filePath": "loop-engineering/packages/memory-indexer/src/index.ts",
+      "contentHash": "8b57d9e42b00744ce5d16a9df0e45c6ea9351a27b891217da991f8db4cee7434",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-indexer/src/indexSchema.ts": {
+      "filePath": "loop-engineering/packages/memory-indexer/src/indexSchema.ts",
+      "contentHash": "33bb1de265bc678ad489d2a71dd5c0782eb620be38549b62bc0f6916a32940b9",
+      "functions": [
+        {
+          "name": "validateMemoryIndexSchema",
+          "params": [
+            "repoRoot",
+            "value"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "ajv/dist/2020",
+          "specifiers": [
+            "Ajv2020"
+          ]
+        }
+      ],
+      "exports": [
+        "validateMemoryIndexSchema"
+      ],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-indexer/src/indexWriter.ts": {
+      "filePath": "loop-engineering/packages/memory-indexer/src/indexWriter.ts",
+      "contentHash": "c9d7fde3416ab3e5871b2d2cc61aaaae096ecde8c5a29850b8a3adbea60ffcc7",
+      "functions": [
+        {
+          "name": "writeMemoryIndexAtomic",
+          "params": [
+            "indexPath",
+            "index"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "rename",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryIndex"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "formatJson"
+          ]
+        }
+      ],
+      "exports": [
+        "writeMemoryIndexAtomic"
+      ],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-indexer/src/memoryIndexer.ts": {
+      "filePath": "loop-engineering/packages/memory-indexer/src/memoryIndexer.ts",
+      "contentHash": "22fd28db8d95f7fd483748be96924bf9de9912b40e56580e395a669922526f1b",
+      "functions": [
+        {
+          "name": "buildMemoryIndex",
+          "params": [
+            "options"
+          ],
+          "returnType": "Promise<MemoryIndex>",
+          "exported": true,
+          "lineCount": 81
+        },
+        {
+          "name": "readNote",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<NoteEntry>",
+          "exported": false,
+          "lineCount": 57
+        },
+        {
+          "name": "listMarkdownFiles",
+          "params": [
+            "root",
+            "warnings"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "buildTags",
+          "params": [
+            "notes"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "stableNoteId",
+          "params": [
+            "projectId",
+            "relativePath"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "stringValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "numberValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "number | undefined",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "arrayValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "confidenceValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "'low' | 'medium' | 'high' | undefined",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "defaultStatus",
+          "params": [
+            "kind"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "defaultType",
+          "params": [
+            "kind"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "lstat",
+            "readdir",
+            "stat"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "buildObsidianLink",
+            "computeFileHash",
+            "extractMarkdown",
+            "MemoryIndex",
+            "MemoryWarning",
+            "NoteEntry",
+            "parseFrontmatter",
+            "ProjectEntry",
+            "resolveMemoryProtocolPaths",
+            "vaultRelativePath"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists",
+            "readText"
+          ]
+        },
+        {
+          "source": "./noteClassifier",
+          "specifiers": [
+            "classifyNote"
+          ]
+        }
+      ],
+      "exports": [
+        "buildMemoryIndex"
+      ],
+      "totalLines": 245,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-indexer/src/noteClassifier.ts": {
+      "filePath": "loop-engineering/packages/memory-indexer/src/noteClassifier.ts",
+      "contentHash": "d24885e47c5c5af902c1ed1e768c9683ebdb946c121ba0d6e9ce164867c94250",
+      "functions": [
+        {
+          "name": "classifyNote",
+          "params": [
+            "input"
+          ],
+          "returnType": "{ kind: MemoryNoteKind; loopId?: string }",
+          "exported": true,
+          "lineCount": 28
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryNoteKind"
+          ]
+        }
+      ],
+      "exports": [
+        "classifyNote"
+      ],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/frontmatter.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/frontmatter.ts",
+      "contentHash": "53f049df62b0c66c884174afbeb3f1cab8a496d36cc3e540e20fdf4b7f781f7f",
+      "functions": [
+        {
+          "name": "parseFrontmatter",
+          "params": [
+            "content"
+          ],
+          "returnType": "ParsedFrontmatter",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "normalizeFrontmatter",
+          "params": [
+            "data"
+          ],
+          "returnType": "Record<string, unknown>",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "normalizeStringArray",
+          "params": [
+            "value"
+          ],
+          "returnType": "string[]",
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "yaml",
+          "specifiers": [
+            "YAML"
+          ]
+        },
+        {
+          "source": "./types",
+          "specifiers": [
+            "ParsedFrontmatter"
+          ]
+        }
+      ],
+      "exports": [
+        "parseFrontmatter",
+        "normalizeStringArray"
+      ],
+      "totalLines": 52,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/hash.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/hash.ts",
+      "contentHash": "ba534b2e5c5a4ea6189387ebb4c664d0551148589c0a447b8caff0de67ee2efa",
+      "functions": [
+        {
+          "name": "computeFileHash",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "lstat",
+            "readFile"
+          ]
+        }
+      ],
+      "exports": [
+        "computeFileHash"
+      ],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/index.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/index.ts",
+      "contentHash": "32379495f223779be96354fd957bf1c30e704301279ce6048de1d4788e9ba177",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/markdown.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/markdown.ts",
+      "contentHash": "8d4a663d1e5ad5ae4fe204daac042cb7d4b0f9a3af9201f4f88d3c0dc69f489c",
+      "functions": [
+        {
+          "name": "extractMarkdown",
+          "params": [
+            "input"
+          ],
+          "returnType": "MarkdownExtraction",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "extractHeadings",
+          "params": [
+            "body"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "extractLinks",
+          "params": [
+            "body"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "extractSummary",
+          "params": [
+            "body",
+            "maxChars"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "extractKeywords",
+          "params": [
+            "text",
+            "limit"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "stringValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./frontmatter",
+          "specifiers": [
+            "normalizeStringArray"
+          ]
+        },
+        {
+          "source": "./types",
+          "specifiers": [
+            "MarkdownExtraction",
+            "MarkdownExtractionInput"
+          ]
+        }
+      ],
+      "exports": [
+        "extractMarkdown"
+      ],
+      "totalLines": 77,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/paths.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/paths.ts",
+      "contentHash": "fde814dafc3c5fba66c6488017747f3549eef5d8274facf1215548133e23d574",
+      "functions": [
+        {
+          "name": "resolveMemoryProtocolPaths",
+          "params": [
+            "options"
+          ],
+          "returnType": "MemoryProtocolPaths",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "assertVaultRootOutsideLearningRoot",
+          "params": [
+            "vaultRoot",
+            "learningRootName"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "resolveSafeWritePath",
+          "params": [
+            "allowedRoot",
+            "targetPath"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "vaultRelativePath",
+          "params": [
+            "vaultRoot",
+            "filePath"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "buildObsidianLink",
+          "params": [
+            "vaultRelativeMarkdownPath",
+            "title"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./types",
+          "specifiers": [
+            "MemoryProtocolPathOptions",
+            "MemoryProtocolPaths"
+          ]
+        }
+      ],
+      "exports": [
+        "resolveMemoryProtocolPaths",
+        "resolveSafeWritePath",
+        "vaultRelativePath",
+        "buildObsidianLink"
+      ],
+      "totalLines": 63,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/templates.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/templates.ts",
+      "contentHash": "3b9246a2eccf86dda843eeaaa717763ce8096115d1ea6fcd61e664d136a2b004",
+      "functions": [
+        {
+          "name": "createMemoryTemplates",
+          "params": [
+            "options"
+          ],
+          "returnType": "MemoryTemplate[]",
+          "exported": true,
+          "lineCount": 91
+        },
+        {
+          "name": "frontmatter",
+          "params": [
+            "title",
+            "type",
+            "tags"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types",
+          "specifiers": [
+            "MemoryTemplate",
+            "MemoryTemplateOptions"
+          ]
+        }
+      ],
+      "exports": [
+        "createMemoryTemplates"
+      ],
+      "totalLines": 98,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-protocol/src/types.ts": {
+      "filePath": "loop-engineering/packages/memory-protocol/src/types.ts",
+      "contentHash": "8ad39d818533650508183d8524284f78872bb991ab398465725c09cb24b31cfc",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 151,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-search/src/filters.ts": {
+      "filePath": "loop-engineering/packages/memory-search/src/filters.ts",
+      "contentHash": "af93e4ead4aa208e71a26d9f38dd395251746215cd54a166934f932aa750211c",
+      "functions": [
+        {
+          "name": "applyMemoryFilters",
+          "params": [
+            "notes",
+            "filters"
+          ],
+          "returnType": "NoteEntry[]",
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "NoteEntry"
+          ]
+        }
+      ],
+      "exports": [
+        "applyMemoryFilters"
+      ],
+      "totalLines": 22,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-search/src/index.ts": {
+      "filePath": "loop-engineering/packages/memory-search/src/index.ts",
+      "contentHash": "66b9d8367c9ce14cf33c3dd9234525bac1e87e0f465366564d4ff86a91ce24f5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-search/src/indexReader.ts": {
+      "filePath": "loop-engineering/packages/memory-search/src/indexReader.ts",
+      "contentHash": "9c8c0d72f9a58073eba387411636c3d1b93459ef9693db2e2b885bfdba26d7e9",
+      "functions": [
+        {
+          "name": "readMemoryIndex",
+          "params": [
+            "indexPath",
+            "vaultRoot"
+          ],
+          "returnType": "Promise<MemoryIndex>",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "rebaseMemoryIndex",
+          "params": [
+            "index",
+            "vaultRoot"
+          ],
+          "returnType": "MemoryIndex",
+          "exported": false,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryIndex"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists",
+            "readText"
+          ]
+        }
+      ],
+      "exports": [
+        "readMemoryIndex"
+      ],
+      "totalLines": 41,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-search/src/memorySearch.ts": {
+      "filePath": "loop-engineering/packages/memory-search/src/memorySearch.ts",
+      "contentHash": "ec9fa51f706c08c2d63bc72d7d5d886f5aceb7bd81755404182423c4da09304f",
+      "functions": [
+        {
+          "name": "searchMemory",
+          "params": [
+            "index",
+            "options"
+          ],
+          "returnType": "ScoredMemoryMatch[]",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "hasQueryFieldMatch",
+          "params": [
+            "match"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "MemoryIndex"
+          ]
+        },
+        {
+          "source": "./filters",
+          "specifiers": [
+            "applyMemoryFilters",
+            "MemorySearchFilters"
+          ]
+        },
+        {
+          "source": "./scoring",
+          "specifiers": [
+            "scoreMemoryNote",
+            "ScoredMemoryMatch"
+          ]
+        }
+      ],
+      "exports": [
+        "searchMemory"
+      ],
+      "totalLines": 22,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-search/src/scoring.ts": {
+      "filePath": "loop-engineering/packages/memory-search/src/scoring.ts",
+      "contentHash": "f32d34c6f4aa654cd678c5e08cac89172f2355e60815530a9e00e936d6ee40f7",
+      "functions": [
+        {
+          "name": "scoreMemoryNote",
+          "params": [
+            "note",
+            "query",
+            "sameProject"
+          ],
+          "returnType": "ScoredMemoryMatch",
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "tokenize",
+          "params": [
+            "query"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "containsAny",
+          "params": [
+            "value",
+            "terms"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "containsAll",
+          "params": [
+            "value",
+            "terms"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "NoteEntry"
+          ]
+        }
+      ],
+      "exports": [
+        "scoreMemoryNote"
+      ],
+      "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/memory-store/src/memoryStore.ts": {
+      "filePath": "loop-engineering/packages/memory-store/src/memoryStore.ts",
+      "contentHash": "a96347eb3b50ba2c76fad7f0fba362e3a34dcc97e1a539af646edb05499c1b90",
+      "functions": [
+        {
+          "name": "countRunLogEntries",
+          "params": [
+            "runLogPath"
+          ],
+          "returnType": "Promise<number>",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "displayPath",
+          "params": [
+            "workspaceRoot",
+            "filePath"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [
+        {
+          "name": "MemoryStore",
+          "methods": [
+            "constructor",
+            "stateFile",
+            "inboxFile",
+            "runLog",
+            "readState",
+            "readInbox",
+            "runCount",
+            "plannedWrites"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 41
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "LoopSpec"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists",
+            "readText"
+          ]
+        },
+        {
+          "source": "../../shared/src/memoryRoot",
+          "specifiers": [
+            "resolveMemoryPath"
+          ]
+        }
+      ],
+      "exports": [
+        "MemoryStore",
+        "countRunLogEntries"
+      ],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/project-registry/src/projectRegistry.ts": {
+      "filePath": "loop-engineering/packages/project-registry/src/projectRegistry.ts",
+      "contentHash": "7221dafab7666a84d1e8a4048216520f831997011471e8da7ef07f8c6899a6bb",
+      "functions": [
+        {
+          "name": "resolveProjectRoute",
+          "params": [
+            "workspaceRoot",
+            "loop",
+            "request"
+          ],
+          "returnType": "Promise<ResolvedProjectRoute>",
+          "exported": true,
+          "lineCount": 56
+        },
+        {
+          "name": "loadProjectRegistry",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<ProjectRegistryEntry[]>",
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "findProjectMatches",
+          "params": [
+            "entries",
+            "target",
+            "source"
+          ],
+          "returnType": "ProjectMatch[]",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "findRepositoryMatches",
+          "params": [
+            "entries",
+            "target",
+            "source"
+          ],
+          "returnType": "ProjectMatch[]",
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "findRemoteMatches",
+          "params": [
+            "entries",
+            "target",
+            "source"
+          ],
+          "returnType": "ProjectMatch[]",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "findCwdMatches",
+          "params": [
+            "entries",
+            "targetCwd"
+          ],
+          "returnType": "ProjectMatch[]",
+          "exported": false,
+          "lineCount": 51
+        },
+        {
+          "name": "buildRoute",
+          "params": [
+            "match"
+          ],
+          "returnType": "ResolvedProjectRoute",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "requireSingleMatch",
+          "params": [
+            "matches",
+            "label",
+            "target"
+          ],
+          "returnType": "ProjectMatch",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "dedupeMatches",
+          "params": [
+            "matches"
+          ],
+          "returnType": "ProjectMatch[]",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "keepMostSpecificPathMatches",
+          "params": [
+            "matches"
+          ],
+          "returnType": "ProjectMatch[]",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "configuredLocalPath",
+          "params": [
+            "section",
+            "key"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "expandHome",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "containsPath",
+          "params": [
+            "root",
+            "candidate"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "sameAlias",
+          "params": [
+            "left",
+            "right"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "normalizeAlias",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "sameRemote",
+          "params": [
+            "left",
+            "right"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "normalizeRemote",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readdir"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "LoopSpec",
+            "ProjectRepository",
+            "ProjectRouteResolution",
+            "ProjectRouteSource",
+            "ProjectSpec"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists",
+            "readYamlFile"
+          ]
+        }
+      ],
+      "exports": [
+        "resolveProjectRoute"
+      ],
+      "totalLines": 340,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/scheduler/src/scheduler.ts": {
+      "filePath": "loop-engineering/packages/scheduler/src/scheduler.ts",
+      "contentHash": "b6ba57a7fc5dd94f38b0a965e8c3199dd42379e6959f3ae30fbacdf180c566f2",
+      "functions": [],
+      "classes": [
+        {
+          "name": "Scheduler",
+          "methods": [
+            "constructor",
+            "plan"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 12
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "LoopSpec"
+          ]
+        }
+      ],
+      "exports": [
+        "Scheduler"
+      ],
+      "totalLines": 15,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/shared/src/fs.ts": {
+      "filePath": "loop-engineering/packages/shared/src/fs.ts",
+      "contentHash": "c8748a7258a66a4056b4377c048ddc82718293de1b3fa0dff94d94c30079280a",
+      "functions": [
+        {
+          "name": "pathExists",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "Promise<boolean>",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "readText",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "writeText",
+          "params": [
+            "filePath",
+            "content"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "readYamlFile",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "Promise<T>",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "findLoopSpec",
+          "params": [
+            "workspaceRoot",
+            "loopId"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "resolveWorkspacePath",
+          "params": [
+            "workspaceRoot",
+            "relativeOrAbsolute"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "formatJson",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "access",
+            "mkdir",
+            "readFile",
+            "readdir",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "YAML"
+          ]
+        }
+      ],
+      "exports": [
+        "pathExists",
+        "readText",
+        "writeText",
+        "readYamlFile",
+        "findLoopSpec",
+        "resolveWorkspacePath",
+        "formatJson"
+      ],
+      "totalLines": 59,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/shared/src/memoryRoot.ts": {
+      "filePath": "loop-engineering/packages/shared/src/memoryRoot.ts",
+      "contentHash": "4da4dbb7c37f14789b9ae38fc22bd9b283d240cea344206fd60e8a07a5fcc2d1",
+      "functions": [
+        {
+          "name": "resolveMemoryRootConfig",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<MemoryRootConfig>",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "resolveMemoryRoot",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "resolveMemoryPath",
+          "params": [
+            "memoryRoot",
+            "memoryPath"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "inferMemoryProtocolConfig",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "Pick<MemoryRootConfig, 'memoryVaultRoot' | 'memoryLearningRootName'>",
+          "exported": false,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./fs",
+          "specifiers": [
+            "pathExists",
+            "readYamlFile",
+            "resolveWorkspacePath"
+          ]
+        }
+      ],
+      "exports": [
+        "resolveMemoryRootConfig",
+        "resolveMemoryRoot",
+        "resolveMemoryPath"
+      ],
+      "totalLines": 71,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/shared/src/types.ts": {
+      "filePath": "loop-engineering/packages/shared/src/types.ts",
+      "contentHash": "427e8a72253087a63bb9867fbb3075870ed8e0f271faff6561c725ff369bbbf0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 415,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/shared/src/validation.ts": {
+      "filePath": "loop-engineering/packages/shared/src/validation.ts",
+      "contentHash": "7d2101b38611dce5d4ef6c36754e57fe5d237667b0734acab9789a1cc0676b84",
+      "functions": [
+        {
+          "name": "schemaRootFromWorkspace",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "buildAjv",
+          "params": [
+            "workspaceRoot"
+          ],
+          "returnType": "Promise<Ajv2020>",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "formatAjvErrors",
+          "params": [
+            "name",
+            "errors"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "validateObject",
+          "params": [
+            "ajv",
+            "schemaName",
+            "displayName",
+            "value"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "validateWorkspace",
+          "params": [
+            "workspaceRoot",
+            "loopPath"
+          ],
+          "returnType": "Promise<ValidationResult>",
+          "exported": true,
+          "lineCount": 138
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "ajv",
+          "specifiers": [
+            "AnySchema",
+            "ErrorObject"
+          ]
+        },
+        {
+          "source": "ajv/dist/2020",
+          "specifiers": [
+            "Ajv2020"
+          ]
+        },
+        {
+          "source": "./types",
+          "specifiers": [
+            "AgentSpec",
+            "BudgetSpec",
+            "ConnectorSpec",
+            "HarnessSpec",
+            "LoopSpec",
+            "ValidationResult"
+          ]
+        },
+        {
+          "source": "./fs",
+          "specifiers": [
+            "pathExists",
+            "readYamlFile",
+            "resolveWorkspacePath"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile"
+          ]
+        },
+        {
+          "source": "./memoryRoot",
+          "specifiers": [
+            "resolveMemoryPath",
+            "resolveMemoryRoot"
+          ]
+        }
+      ],
+      "exports": [
+        "validateWorkspace"
+      ],
+      "totalLines": 200,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts": {
+      "filePath": "loop-engineering/packages/simulation-runtime/src/simulationRuntime.ts",
+      "contentHash": "fb2723533eeb0d9c55507aab984959943003fbdde2b6e07e848ac7ce0950e1d7",
+      "functions": [
+        {
+          "name": "writeObsidianSimulationCase",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 33
+        },
+        {
+          "name": "relativeLearningRoot",
+          "params": [
+            "paths"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "renderObsidianCaseBody",
+          "params": [
+            "now",
+            "plan",
+            "sourceUser"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 32
+        },
+        {
+          "name": "buildRunId",
+          "params": [
+            "now"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "artifactPaths",
+          "params": [
+            "repoRoot",
+            "workspaceRoot",
+            "memoryRoot",
+            "loopId",
+            "runId",
+            "now"
+          ],
+          "returnType": "SimulationArtifact",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "inferVaultRoot",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "inferProjectId",
+          "params": [
+            "memoryRoot"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "buildStages",
+          "params": [
+            "plan",
+            "artifacts"
+          ],
+          "returnType": "SimulationStage[]",
+          "exported": false,
+          "lineCount": 48
+        },
+        {
+          "name": "renderReport",
+          "params": [
+            "runId",
+            "now",
+            "plan",
+            "stages",
+            "artifacts"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 45
+        },
+        {
+          "name": "renderFinding",
+          "params": [
+            "finding"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "renderState",
+          "params": [
+            "now",
+            "plan"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "renderKnowledgeCase",
+          "params": [
+            "now",
+            "artifacts",
+            "plan",
+            "sourceUser"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 54
+        },
+        {
+          "name": "buildCaseIndexEntry",
+          "params": [
+            "now",
+            "artifacts",
+            "sourceUser"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "renderPatternsIndex",
+          "params": [
+            "now",
+            "artifacts"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "appendJsonl",
+          "params": [
+            "filePath",
+            "value"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "resolveSourceUser",
+          "params": [
+            "repoRoot"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "relative",
+          "params": [
+            "from",
+            "to"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "SimulationRuntime",
+          "methods": [
+            "simulate"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 73
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "appendFile",
+            "mkdir"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:util",
+          "specifiers": [
+            "promisify"
+          ]
+        },
+        {
+          "source": "../../loop-runtime/src/loopRuntime",
+          "specifiers": [
+            "LoopRuntime"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "Finding",
+            "RuntimePlan",
+            "SimulationArtifact",
+            "SimulationResult",
+            "SimulationStage"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "formatJson",
+            "writeText"
+          ]
+        },
+        {
+          "source": "../../shared/src/memoryRoot",
+          "specifiers": [
+            "MemoryRootConfig",
+            "resolveMemoryPath",
+            "resolveMemoryRootConfig"
+          ]
+        },
+        {
+          "source": "../../memory-capture/src",
+          "specifiers": [
+            "planCaseWrite",
+            "writeCase"
+          ]
+        },
+        {
+          "source": "../../memory-indexer/src",
+          "specifiers": [
+            "buildMemoryIndex",
+            "writeMemoryIndexAtomic"
+          ]
+        },
+        {
+          "source": "../../memory-protocol/src",
+          "specifiers": [
+            "resolveMemoryProtocolPaths"
+          ]
+        },
+        {
+          "source": "../../memory-store/src/memoryStore",
+          "specifiers": [
+            "countRunLogEntries"
+          ]
+        }
+      ],
+      "exports": [
+        "SimulationRuntime"
+      ],
+      "totalLines": 441,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/skill-runtime/src/skillRuntime.ts": {
+      "filePath": "loop-engineering/packages/skill-runtime/src/skillRuntime.ts",
+      "contentHash": "6f1fcfb110865462aab2883d2ecc67f3be580789fb0c6da8874c2d7e8ecf8dca",
+      "functions": [
+        {
+          "name": "stringValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "numberValue",
+          "params": [
+            "value"
+          ],
+          "returnType": "number | undefined",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "SkillRuntime",
+          "methods": [
+            "constructor",
+            "loadDiscoverySkill",
+            "selectFindings"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 62
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "ConnectorEvidence",
+            "Finding",
+            "LoopSpec",
+            "SkillDocument"
+          ]
+        },
+        {
+          "source": "../../shared/src/fs",
+          "specifiers": [
+            "pathExists",
+            "readText"
+          ]
+        }
+      ],
+      "exports": [
+        "SkillRuntime"
+      ],
+      "totalLines": 75,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/packages/worktree-manager/src/worktreeManager.ts": {
+      "filePath": "loop-engineering/packages/worktree-manager/src/worktreeManager.ts",
+      "contentHash": "0298e0b6ebfd62a31fb8deb658ba1ed9e329041f942daf50e99db0f46d317b68",
+      "functions": [],
+      "classes": [
+        {
+          "name": "WorktreeManager",
+          "methods": [
+            "constructor",
+            "plan"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 23
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../../shared/src/types",
+          "specifiers": [
+            "Finding",
+            "LoopSpec",
+            "WorktreePlan"
+          ]
+        }
+      ],
+      "exports": [
+        "WorktreeManager"
+      ],
+      "totalLines": 27,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/agent.schema.json": {
+      "filePath": "loop-engineering/schemas/agent.schema.json",
+      "contentHash": "86f25be02e95c032cfe175dda6746b54df5c5edb9279b57e65ad36af39df666d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 36,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/budget.schema.json": {
+      "filePath": "loop-engineering/schemas/budget.schema.json",
+      "contentHash": "406e2a3394e85d07f37421c51cdbf0cfe55ea91c8c0c33b54379b7f6cbadef77",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/connector.schema.json": {
+      "filePath": "loop-engineering/schemas/connector.schema.json",
+      "contentHash": "2139f3448198c1fcaaba896061f06c7bbb7c9e551cd01b5a6520eb216a474b6f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 61,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/harness.schema.json": {
+      "filePath": "loop-engineering/schemas/harness.schema.json",
+      "contentHash": "3c0b5560df35cb531f484e67a9248218bdaaeb31dc72e8e0ce02add5df0e04f8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 60,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/loop.schema.json": {
+      "filePath": "loop-engineering/schemas/loop.schema.json",
+      "contentHash": "34fc78296395818690f1b1662f90323440da41b1f95fbfe7f115321dbab7453e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 216,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/memory-index.schema.json": {
+      "filePath": "loop-engineering/schemas/memory-index.schema.json",
+      "contentHash": "e121307d7cecd4ed430a56199b1eb8968cb4eb8ab7a82d7a135a189151d547ff",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 157,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/schemas/memory-note.schema.json": {
+      "filePath": "loop-engineering/schemas/memory-note.schema.json",
+      "contentHash": "fd6594a147a29c03983cdac8f8e26f1056da3ac4ee6be7b565bbda2c434fe891",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/templates/evaluator.agent.yaml": {
+      "filePath": "loop-engineering/templates/evaluator.agent.yaml",
+      "contentHash": "b314f229576e84c4f11728aa0478303aef9c1829a82783e816cc144196201bb4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 21,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/templates/fix-bug.loop.yaml": {
+      "filePath": "loop-engineering/templates/fix-bug.loop.yaml",
+      "contentHash": "1ef50a81a7ffb7ee3d12565ae64a3ab64dd686fdd444a79cb30b34e3f0358b03",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 50,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/templates/project.SKILL.md": {
+      "filePath": "loop-engineering/templates/project.SKILL.md",
+      "contentHash": "117af86d40e310a80fcae164bbb78a31ecd5afba48f6e3f4178148f55210c01e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/templates/triage.loop.yaml": {
+      "filePath": "loop-engineering/templates/triage.loop.yaml",
+      "contentHash": "5478baa0d31a72ac31d2c07c4cb2a540bb748334a7408f5734a9e39785e61616",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 57,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/tests/memory-cli.test.ts": {
+      "filePath": "loop-engineering/tests/memory-cli.test.ts",
+      "contentHash": "7f65d7fee5f963152776a484957c4974db3012940f24ab55ebbe45b6ec69cdbc",
+      "functions": [
+        {
+          "name": "createTempWorkspace",
+          "params": [],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "runLoop",
+          "params": [
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "runLoopFailure",
+          "params": [
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "mkdtemp",
+            "readFile",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFile"
+          ]
+        },
+        {
+          "source": "node:util",
+          "specifiers": [
+            "promisify"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/fs",
+          "specifiers": [
+            "pathExists"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 414,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/tests/memory-protocol.test.ts": {
+      "filePath": "loop-engineering/tests/memory-protocol.test.ts",
+      "contentHash": "9fec98cc3af123d73dc27aa85306689cdff1be59a092d679c76e9a4a3bf591b3",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "mkdtemp",
+            "symlink",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "../packages/memory-protocol/src",
+          "specifiers": [
+            "buildObsidianLink",
+            "computeFileHash",
+            "createMemoryTemplates",
+            "extractMarkdown",
+            "parseFrontmatter",
+            "resolveMemoryProtocolPaths",
+            "resolveSafeWritePath"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 188,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/tests/memory-schema.test.ts": {
+      "filePath": "loop-engineering/tests/memory-schema.test.ts",
+      "contentHash": "cf4781b2d53ab25bab92bfd7f42d887f0ffb52bebc8016a6ab521be74aee0bde",
+      "functions": [
+        {
+          "name": "loadValidator",
+          "params": [
+            "schemaFile"
+          ],
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "ajv/dist/2020",
+          "specifiers": [
+            "Ajv2020"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 141,
+      "hasStructuralAnalysis": true
+    },
+    "loop-engineering/tests/runtime.test.ts": {
+      "filePath": "loop-engineering/tests/runtime.test.ts",
+      "contentHash": "fa4954e4dd7d048519c692ad44359c7afd62b4c55b35ab6d19f35b195858530f",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "../packages/loop-runtime/src/loopRuntime",
+          "specifiers": [
+            "LoopRuntime"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "mkdtemp",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFile"
+          ]
+        },
+        {
+          "source": "node:util",
+          "specifiers": [
+            "promisify"
+          ]
+        },
+        {
+          "source": "../packages/simulation-runtime/src/simulationRuntime",
+          "specifiers": [
+            "SimulationRuntime"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/fs",
+          "specifiers": [
+            "findLoopSpec",
+            "pathExists",
+            "readText",
+            "readYamlFile"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/types",
+          "specifiers": [
+            "ConnectorSpec"
+          ]
+        },
+        {
+          "source": "../packages/shared/src/validation",
+          "specifiers": [
+            "validateWorkspace"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 570,
+      "hasStructuralAnalysis": true
+    },
+    "package.json": {
+      "filePath": "package.json",
+      "contentHash": "6e264c0808d6d9e1e491ce49f2219af0cc7ad31e62b152f30726568b94287c35",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 36,
+      "hasStructuralAnalysis": true
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "8ea28893303a5b793520b6a7226959e3c6f2eda6fd56ba444a87624b7a0c96b4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 447,
+      "hasStructuralAnalysis": true
+    },
+    "SKILL.md": {
+      "filePath": "SKILL.md",
+      "contentHash": "dee094019975101e502ca8db86b7ebe877c573803380063ef36687b12bfa3405",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 231,
+      "hasStructuralAnalysis": true
+    },
+    "tsconfig.json": {
+      "filePath": "tsconfig.json",
+      "contentHash": "5eae7ab402863fd612eeaccd24597624a1c5b1e99770491751d07f06f8ddaccb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 18,
+      "hasStructuralAnalysis": true
+    },
+    "workbuddy-expert-skill-guide.md": {
+      "filePath": "workbuddy-expert-skill-guide.md",
+      "contentHash": "968eb0e1c771366b10ee9408fa7cc02dbc602e62434026f57a320434518584e9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 392,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/coding.harness.yaml": {
+      "filePath": "workspace/agents/coding.harness.yaml",
+      "contentHash": "fbf86e3f5696e7969948dea74a500e55c453254a2cdd5c025adc76c454ce9884",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 40,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/evaluator.agent.yaml": {
+      "filePath": "workspace/agents/evaluator.agent.yaml",
+      "contentHash": "f7f7f079ee22eabaaab182551d9f3d920f0089829e2313ae62db369048503b29",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 21,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/frontend-delivery.harness.yaml": {
+      "filePath": "workspace/agents/frontend-delivery.harness.yaml",
+      "contentHash": "adb9f33333b842323063c700f22c1a557124b934b7212f7cda496e65628a739b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/frontend-evaluator.agent.yaml": {
+      "filePath": "workspace/agents/frontend-evaluator.agent.yaml",
+      "contentHash": "f5183e05bb37cb041c9c0576a31a8c9939c1bfcc954e08262fba6737d1b6f08b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/frontend-generator.agent.yaml": {
+      "filePath": "workspace/agents/frontend-generator.agent.yaml",
+      "contentHash": "e8f1e841250e9bfa844ce59709172f5a0ce1ebb8ac2e9a5fada31ed66aa488bb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 24,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/generator.agent.yaml": {
+      "filePath": "workspace/agents/generator.agent.yaml",
+      "contentHash": "d94eba6894cc5a76591375e7170e59ac2bb8c4ec2390969a8ccfc1d345bd61e8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/suagent.agent.yaml": {
+      "filePath": "workspace/agents/suagent.agent.yaml",
+      "contentHash": "4e1ba2d08ee3d0d47000e8da6c5956380497b0f7d71a64af83cbab24d044f813",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 21,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/agents/xiaobai.orchestrator.agent.yaml": {
+      "filePath": "workspace/agents/xiaobai.orchestrator.agent.yaml",
+      "contentHash": "2e77bea512f519c7c687f7186c673ccc039d0a904cf560a445f4f1ec391e1992",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 30,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/budgets/default.budget.yaml": {
+      "filePath": "workspace/budgets/default.budget.yaml",
+      "contentHash": "9889a501b6978aec960382239922faf6a0e8ef81143127c6fad08f3dd54a20cd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/connectors/github-actions.yaml": {
+      "filePath": "workspace/connectors/github-actions.yaml",
+      "contentHash": "3d3a62ebf9ac263435c1bead34ec8f6dd850300ffed34f9c3d043c8e9ab93db0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/connectors/github.yaml": {
+      "filePath": "workspace/connectors/github.yaml",
+      "contentHash": "23cac190aa283f1f5fec3e812f1b4eace19689413f7d6746892b3a7cccef0a69",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 35,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/connectors/jira.yaml": {
+      "filePath": "workspace/connectors/jira.yaml",
+      "contentHash": "84245e9d776a886352bfafb037f964a45f071f3743ac8a3077c70148e0ef3f95",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 17,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/connectors/requirement-input.yaml": {
+      "filePath": "workspace/connectors/requirement-input.yaml",
+      "contentHash": "8adbb4217c6553240887269fb659a631fde8cde414bc118b32315e7aad8ddebb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 24,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/connectors/slack.yaml": {
+      "filePath": "workspace/connectors/slack.yaml",
+      "contentHash": "358673e5d344fa4e72407c4b840537a221cbfe03df322df52b28a5742d7ac826",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/connectors/yuque.yaml": {
+      "filePath": "workspace/connectors/yuque.yaml",
+      "contentHash": "954bff323b2391df11d4e0c0ade82bbe61cea77b70efbfd67d10e024b04315e3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 30,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/loops/frontend-delivery.loop.yaml": {
+      "filePath": "workspace/loops/frontend-delivery.loop.yaml",
+      "contentHash": "e8a8b34a75b0d3432021ff2ecf6d2834464199c48ffbb6d5b2c3fb115b7ab0f6",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 165,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/loops/morning-triage.loop.yaml": {
+      "filePath": "workspace/loops/morning-triage.loop.yaml",
+      "contentHash": "73349166284a1bfcb5a11b2e3e1853b1a88071afcc1cdfea756c7fe4320a9b1b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 61,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/loops/frontend-delivery/findings.jsonl": {
+      "filePath": "workspace/memory/loops/frontend-delivery/findings.jsonl",
+      "contentHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/memory/loops/frontend-delivery/inbox.md": {
+      "filePath": "workspace/memory/loops/frontend-delivery/inbox.md",
+      "contentHash": "78aeb7dab0d22043ebcb0175a6e86ac4ab428ca8353064bd38ba213fc7b3c944",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/loops/frontend-delivery/metrics.jsonl": {
+      "filePath": "workspace/memory/loops/frontend-delivery/metrics.jsonl",
+      "contentHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/memory/loops/frontend-delivery/runs.jsonl": {
+      "filePath": "workspace/memory/loops/frontend-delivery/runs.jsonl",
+      "contentHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/memory/loops/frontend-delivery/state.md": {
+      "filePath": "workspace/memory/loops/frontend-delivery/state.md",
+      "contentHash": "8f61ffcfd667a59f0597dea352439f56beba4de851d2d4160614bbb28b876dc0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/loops/morning-triage/decisions.md": {
+      "filePath": "workspace/memory/loops/morning-triage/decisions.md",
+      "contentHash": "bfb6e9593ae7f7deb2d13ef3e2d02570ca1bbb1b07f22dd28775f57f90542a3e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 4,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/loops/morning-triage/findings.jsonl": {
+      "filePath": "workspace/memory/loops/morning-triage/findings.jsonl",
+      "contentHash": "fe8dc0893586a0b9e9727025e8870b4c4633f738c57e70e3edce2fab191d210f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/memory/loops/morning-triage/inbox.md": {
+      "filePath": "workspace/memory/loops/morning-triage/inbox.md",
+      "contentHash": "3b04440eb53f3e377071a271ad917eb8a9d0d79c298e25558513ac0d71a1540b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/loops/morning-triage/metrics.jsonl": {
+      "filePath": "workspace/memory/loops/morning-triage/metrics.jsonl",
+      "contentHash": "17b39fc316e79497a7a6480243c7bef1b902768200bceef11900aa6faed72c9a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/memory/loops/morning-triage/runs.jsonl": {
+      "filePath": "workspace/memory/loops/morning-triage/runs.jsonl",
+      "contentHash": "69dd586f620d63665db6ee94f673a8bad9e8501769770186b421eb38bd1c8029",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/memory/loops/morning-triage/state.md": {
+      "filePath": "workspace/memory/loops/morning-triage/state.md",
+      "contentHash": "dfeab6c4eacdec195819820a6846e6ba68048d845957897ae1a7a91bf95b464a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 23,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/README.md": {
+      "filePath": "workspace/memory/README.md",
+      "contentHash": "1454d39878d66c3ff9b533ef5fa3664155141b009af4e730f483593f72b79440",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 130,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/memory/xiaoneng-page-preflight-2026-07-22.md": {
+      "filePath": "workspace/memory/xiaoneng-page-preflight-2026-07-22.md",
+      "contentHash": "13c0ab9a8826b477aba2b3cf8d2dcc02e7fb8553f349730a385b7496cc0c49fe",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/monitoring/dashboard.html": {
+      "filePath": "workspace/monitoring/dashboard.html",
+      "contentHash": "4c9997bee683c6e98351a554cf78e1d82d857e5f9bba74d121859ab119a20087",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1724,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/monitoring/README.md": {
+      "filePath": "workspace/monitoring/README.md",
+      "contentHash": "615b3fc8541d28fcf0983a4ceb2e460f0e04016ac39557eb82f9fea8aaf6249e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 144,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/monitoring/scripts/generate-monitor-data.mjs": {
+      "filePath": "workspace/monitoring/scripts/generate-monitor-data.mjs",
+      "contentHash": "7db41c72080e1bc11ca5268bfdef794b37d153e539a6891bbbe4bb461e552f2c",
+      "functions": [
+        {
+          "name": "relativeToProject",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "readText",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "readJson",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "readYaml",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "listFiles",
+          "params": [
+            "directory"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "runGit",
+          "params": [
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseAheadBehind",
+          "params": [],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "collectGit",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "loadStructuredFiles",
+          "params": [
+            "files",
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "collectAgents",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "normalizeStage",
+          "params": [
+            "stage",
+            "loopFile"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "collectLoops",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "resolveMount",
+          "params": [
+            "projectDirectory",
+            "configuredPath"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "collectProjects",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 38
+        },
+        {
+          "name": "countJsonl",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "collectMemory",
+          "params": [
+            "loopIds",
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 57
+        },
+        {
+          "name": "summarizeTypes",
+          "params": [
+            "items",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "collectGraph",
+          "params": [
+            "git",
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 54
+        },
+        {
+          "name": "collectConnectors",
+          "params": [
+            "warnings"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "buildTiming",
+          "params": [
+            "loops"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "buildEvaluation",
+          "params": [
+            "loops",
+            "agents",
+            "timing"
+          ],
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "collectInventory",
+          "params": [],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "buildSnapshot",
+          "params": [],
+          "exported": true,
+          "lineCount": 76
+        },
+        {
+          "name": "writeSnapshot",
+          "params": [
+            "snapshot"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "parseArgs",
+          "params": [
+            "argv"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath",
+            "pathToFileURL"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "parseYaml"
+          ]
+        }
+      ],
+      "exports": [
+        "buildSnapshot",
+        "writeSnapshot"
+      ],
+      "totalLines": 547,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/monitoring/scripts/start-dashboard.mjs": {
+      "filePath": "workspace/monitoring/scripts/start-dashboard.mjs",
+      "contentHash": "75c95330faae02e722506a826314674d09cee5b3287733240136cbc5a45ab996",
+      "functions": [
+        {
+          "name": "parseArgs",
+          "params": [
+            "argv"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "sendJson",
+          "params": [
+            "response",
+            "statusCode",
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "sendFile",
+          "params": [
+            "response",
+            "filePath",
+            "contentType"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "hasValidToken",
+          "params": [
+            "url"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "refreshSnapshot",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "createRequestHandler",
+          "params": [],
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "openUrl",
+          "params": [
+            "url"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "listen",
+          "params": [
+            "server",
+            "port",
+            "onReady"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "crypto"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawn"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./generate-monitor-data.mjs",
+          "specifiers": [
+            "buildSnapshot",
+            "writeSnapshot"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 154,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/app-a/.loop/project.yaml": {
+      "filePath": "workspace/projects/app-a/.loop/project.yaml",
+      "contentHash": "2411e11e0e61bc67311f0045f76263082e4f077f68b7785481c4b8bee8ed7fdc",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/app-a/.loop/skills/fix-tests.SKILL.md": {
+      "filePath": "workspace/projects/app-a/.loop/skills/fix-tests.SKILL.md",
+      "contentHash": "8f648a05186bc37d694862c946e72bfc759c266a01d5b9ad9bd5515e0ffe94e2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/app-a/.loop/skills/triage.SKILL.md": {
+      "filePath": "workspace/projects/app-a/.loop/skills/triage.SKILL.md",
+      "contentHash": "c94dc1c413c7b72f5b7f3db2395862f6d3347e487c804ae79da749c8b78e4b5a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 39,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/app-a/SKILL.md": {
+      "filePath": "workspace/projects/app-a/SKILL.md",
+      "contentHash": "e1dca69fb1fb92b907d92d70c92b2373c99b2288e175fa4989cea0ef369b775d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/.loop/local.paths.yaml.example": {
+      "filePath": "workspace/projects/harmony-wardrobe/.loop/local.paths.yaml.example",
+      "contentHash": "a998f316361b8bf12f9bb4a8bb57db926f0f852407da610121b75444b8a0abdd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/projects/harmony-wardrobe/.loop/project.yaml": {
+      "filePath": "workspace/projects/harmony-wardrobe/.loop/project.yaml",
+      "contentHash": "018ab0b4c87381a0372da5c244af62ef4fb06a9176c5e1e3068c801ea3f01fbf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/background/harmonyos-samples-repositories.json": {
+      "filePath": "workspace/projects/harmony-wardrobe/background/harmonyos-samples-repositories.json",
+      "contentHash": "e24fbd8ea2a2a9425b01cca39866f06025ed3181388b5bbe00a2ea1ec109dfc9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5362,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/external-references.md": {
+      "filePath": "workspace/projects/harmony-wardrobe/external-references.md",
+      "contentHash": "a8f0fd1e4ad7cda46f5b38a9afd14b75dcf466421e4f44e96b8af7eaf3f2eeea",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 50,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/README.md": {
+      "filePath": "workspace/projects/harmony-wardrobe/README.md",
+      "contentHash": "bb7d1aa99e0c2732f502a666e70ed77655f1d0da3eb50c16214158521c7b63df",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 56,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs": {
+      "filePath": "workspace/projects/harmony-wardrobe/scripts/fetch-harmonyos-samples.mjs",
+      "contentHash": "f9ebba1fccbcb739088861ff39dd7a429dde38c39e0049110ced35e352247bdf",
+      "functions": [
+        {
+          "name": "fetchText",
+          "params": [
+            "url"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "decodeGiteeScriptPayload",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseDeclaredCount",
+          "params": [
+            "html"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parseMaxPage",
+          "params": [
+            "html"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "parseRepositories",
+          "params": [
+            "payload",
+            "source"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "buildUrl",
+          "params": [
+            "params",
+            "page"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "queryLabel",
+          "params": [
+            "params"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "titleFromPath",
+          "params": [
+            "pathName"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "fetchQuery",
+          "params": [
+            "params"
+          ],
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "mergeRepositories",
+          "params": [
+            "repositoryLists"
+          ],
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 41
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 221,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/scripts/mount-local.mjs": {
+      "filePath": "workspace/projects/harmony-wardrobe/scripts/mount-local.mjs",
+      "contentHash": "a806a7945cda82b2e403819cb508f0753b17645f6690b734ffc1be705114a635",
+      "functions": [
+        {
+          "name": "readYaml",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "readConfiguredPath",
+          "params": [
+            "section",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "normalizeLocalPath",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "refreshSymlink",
+          "params": [
+            "target",
+            "mount"
+          ],
+          "exported": false,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "YAML"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/harmony-wardrobe/SKILL.md": {
+      "filePath": "workspace/projects/harmony-wardrobe/SKILL.md",
+      "contentHash": "fe0e0e6af632126c0686253d53b3fcccef7012754083b0a3a5ef8153f9e9abe7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 78,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/.loop/local.paths.yaml.example": {
+      "filePath": "workspace/projects/t-max/.loop/local.paths.yaml.example",
+      "contentHash": "25ec49b4e5c0828eb3d855e3c9c9365a38d101ff6bb03781629ecf4ef4041104",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/projects/t-max/.loop/project.yaml": {
+      "filePath": "workspace/projects/t-max/.loop/project.yaml",
+      "contentHash": "9fee8a25f0d98f40df426d0fd02ed9f04baa611560a1359e7f0dfed593c58453",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 49,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/.loop/skills/frontend-delivery.SKILL.md": {
+      "filePath": "workspace/projects/t-max/.loop/skills/frontend-delivery.SKILL.md",
+      "contentHash": "ae1f5a0f07436a6e3b20614a2ed27900b81ef099a085e72886ed948c7d1144c0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 112,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/.loop/skills/frontend-design-review.SKILL.md": {
+      "filePath": "workspace/projects/t-max/.loop/skills/frontend-design-review.SKILL.md",
+      "contentHash": "06537965444b8ce9fe39458d452c5c6d932a812d09738b0564998855e3bd5b67",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 56,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/.loop/skills/frontend-master-design.SKILL.md": {
+      "filePath": "workspace/projects/t-max/.loop/skills/frontend-master-design.SKILL.md",
+      "contentHash": "3f9fc38d33677c7b1b8de3bd87c0611c7466a85a3ae12a5b6d5047a512ed7403",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 62,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/.loop/skills/frontend-repository-design.SKILL.md": {
+      "filePath": "workspace/projects/t-max/.loop/skills/frontend-repository-design.SKILL.md",
+      "contentHash": "e1cee81f6ead616f5fb0d16a5321745bed547a4af36579ad273eb29ac82e05d9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/README.md": {
+      "filePath": "workspace/projects/t-max/README.md",
+      "contentHash": "c3ebf8263b5fd937997a617a59bbb277d39ffad5500201350a7255f8c8723b81",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 52,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/scripts/mount-local.mjs": {
+      "filePath": "workspace/projects/t-max/scripts/mount-local.mjs",
+      "contentHash": "0e2349b6bcd4da09f792c74bdf90ed35ab526761513dd54b799bf5811ba5c047",
+      "functions": [
+        {
+          "name": "readYaml",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "readConfiguredPath",
+          "params": [
+            "section",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "normalizeLocalPath",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "removeStaleBackgroundSymlinks",
+          "params": [
+            "desiredMount"
+          ],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "refreshSymlink",
+          "params": [
+            "target",
+            "mount"
+          ],
+          "exported": false,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "YAML"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 126,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/t-max/SKILL.md": {
+      "filePath": "workspace/projects/t-max/SKILL.md",
+      "contentHash": "b7a9a8640fcc98fa8d45223742202cef03c35f89aabf02b6722e33278dbf0112",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example": {
+      "filePath": "workspace/projects/trunkFeeder/.loop/local.paths.yaml.example",
+      "contentHash": "b79b7d376a1536096a05ebc39dd709a359b5af529d9c37eda19d8016f8441fc5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    "workspace/projects/trunkFeeder/.loop/project.yaml": {
+      "filePath": "workspace/projects/trunkFeeder/.loop/project.yaml",
+      "contentHash": "455f2bcbc83054a85676f3833e47991720fc440a33d9a2777daca420b6ee0ed7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/README.md": {
+      "filePath": "workspace/projects/trunkFeeder/README.md",
+      "contentHash": "cc844f08c0c3d1e8c609d3360ace40a710e5e4e7ab0eb16742884cb8d9b05faf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 56,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/scripts/mount-local.mjs": {
+      "filePath": "workspace/projects/trunkFeeder/scripts/mount-local.mjs",
+      "contentHash": "a806a7945cda82b2e403819cb508f0753b17645f6690b734ffc1be705114a635",
+      "functions": [
+        {
+          "name": "readYaml",
+          "params": [
+            "filePath"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "readConfiguredPath",
+          "params": [
+            "section",
+            "key"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "normalizeLocalPath",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "refreshSymlink",
+          "params": [
+            "target",
+            "mount"
+          ],
+          "exported": false,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "yaml",
+          "specifiers": [
+            "YAML"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/projects/trunkFeeder/SKILL.md": {
+      "filePath": "workspace/projects/trunkFeeder/SKILL.md",
+      "contentHash": "e89c60e78ed26900e12a506067961b4bac98d816a35a6eed1cec8860304307c3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 54,
+      "hasStructuralAnalysis": true
+    },
+    "workspace/workspace.local.yaml.example": {
+      "filePath": "workspace/workspace.local.yaml.example",
+      "contentHash": "f96977297e70a06fd062d40df461a8cb6672312a50cf5088c7c99d365374e8bd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": false
+    },
+    "专家团使用与模型说明.md": {
+      "filePath": "专家团使用与模型说明.md",
+      "contentHash": "e0400ab7e556ca3343ab0c8de9e78ef19fcf48c37b1dacecf666b70784738a10",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 48,
+      "hasStructuralAnalysis": true
+    },
+    "专家评审团-项目评审报告.md": {
+      "filePath": "专家评审团-项目评审报告.md",
+      "contentHash": "942eb8320c217c14c10e6e1abb1905a3a7dbe5dc923279753f032a7955852897",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 124,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

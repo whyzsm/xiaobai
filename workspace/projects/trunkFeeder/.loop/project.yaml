@@ -1,0 +1,18 @@
+kind: ProjectGroup
+id: trunkFeeder
+name: trunkFeeder
+root: ../../.local/trunkFeeder/mounts
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: trunkFeeder
+  name: trunkFeeder
+  localPathKey: trunkFeeder
+  mount: ../../.local/trunkFeeder/mounts/background/trunkFeeder
+repositories:
+  - id: trunkFeeder-ui
+    name: trunkFeeder-ui
+    localPathKey: trunkFeeder-ui
+    mount: ../../.local/trunkFeeder/mounts/repos/trunkFeeder-ui
+    remote: http://git.ane56-ins.com/T-MAX/trunkFeeder-ui

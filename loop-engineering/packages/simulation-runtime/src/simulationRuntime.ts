@@ -7,6 +7,7 @@ import {
   Finding,
   RuntimePlan,
   SimulationArtifact,
+  SimulationExecutionContract,
   SimulationResult,
   SimulationStage
 } from '../../shared/src/types';
@@ -37,13 +38,14 @@ export class SimulationRuntime {
     const memoryRoot = memoryConfig.memoryRoot;
     const artifacts = artifactPaths(repoRoot, workspaceRoot, memoryRoot, plan.loopId, runId, now);
     const stages = buildStages(plan, artifacts);
+    const executionContract = buildExecutionContract(plan);
     const sourceUser = await resolveSourceUser(repoRoot);
 
     await mkdir(path.dirname(artifacts.reportPath), { recursive: true });
     await mkdir(path.dirname(artifacts.casePath), { recursive: true });
     await mkdir(path.dirname(artifacts.casesIndexPath), { recursive: true });
 
-    await writeText(artifacts.reportPath, renderReport(runId, now, plan, stages, artifacts));
+    await writeText(artifacts.reportPath, renderReport(runId, now, plan, stages, executionContract, artifacts));
     await writeText(artifacts.casePath, renderKnowledgeCase(now, artifacts, plan, sourceUser));
     const obsidianCase = await writeObsidianSimulationCase({
       workspaceRoot,
@@ -61,6 +63,9 @@ export class SimulationRuntime {
       mode: 'simulation',
       loopId: plan.loopId,
       status: 'completed',
+      executionAuthority: executionContract.authority,
+      adapterInvoked: executionContract.adapterInvoked,
+      stageEventsWritten: executionContract.stageEventsWritten,
       findings: plan.findings.length,
       report: relative(repoRoot, artifacts.reportPath),
       createdAt: now.toISOString()
@@ -79,6 +84,9 @@ export class SimulationRuntime {
       findings: plan.findings.length,
       generatorRuns: plan.generatorRuns.length,
       evaluatorRuns: plan.evaluations.length,
+      executionAuthority: executionContract.authority,
+      adapterInvoked: executionContract.adapterInvoked,
+      stageEventsWritten: executionContract.stageEventsWritten,
       createdAt: now.toISOString()
     });
     await writeText(resolveMemoryPath(memoryRoot, plan.persistence.stateFile), renderState(now, plan));
@@ -89,6 +97,7 @@ export class SimulationRuntime {
       loopWorkCount,
       mode: 'simulation',
       stages,
+      executionContract,
       artifacts,
       summary: {
         findings: plan.findings.length,
@@ -257,11 +266,44 @@ function buildStages(plan: RuntimePlan, artifacts: SimulationArtifact): Simulati
   ];
 }
 
+function buildExecutionContract(plan: RuntimePlan): SimulationExecutionContract {
+  return {
+    authority: 'simulation_only',
+    adapterInvoked: false,
+    gateChecks: 'not_executed',
+    harnessChecks: 'not_executed',
+    stageEventsWritten: false,
+    workflowStages: (plan.workflow?.stages ?? []).map((stage) => ({
+      id: stage.id,
+      kind: stage.kind,
+      owner: (stage.agent ?? stage.evaluator ?? 'human').replace(/\.agent\.yaml$/, ''),
+      gate: stage.gate,
+      harness: stage.harness,
+      dependsOn: stage.dependsOn,
+      requiredGates: stage.requiredGates,
+      actions: stage.requiredBefore,
+      status: 'not_executed',
+      timing: {
+        source: 'simulation_only',
+        status: 'unmeasured',
+        enteredAt: null,
+        firstActionAt: null,
+        exitedAt: null,
+        durationMs: null,
+        activeMs: null,
+        waitingMs: null,
+        waitingReason: 'missing_instrumentation'
+      }
+    }))
+  };
+}
+
 function renderReport(
   runId: string,
   now: Date,
   plan: RuntimePlan,
   stages: SimulationStage[],
+  executionContract: SimulationExecutionContract,
   artifacts: SimulationArtifact
 ): string {
   return `# Loop Lifecycle Simulation Report
@@ -273,7 +315,7 @@ function renderReport(
 - Created At: ${now.toISOString()}
 - Mode: simulation
 
-## Stages
+## Simulation Lifecycle Stages / 模拟生命周期阶段
 
 ${stages.map((stage) => `### ${stage.id}: ${stage.title}
 
@@ -282,6 +324,16 @@ ${stages.map((stage) => `### ${stage.id}: ${stage.title}
 - Outputs:
 ${stage.outputs.map((output) => `  - ${output}`).join('\n')}
 `).join('\n')}
+
+## Execution Contract Preview / 执行契约预览
+
+- Authority / 权威范围: ${executionContract.authority}
+- Adapter invoked / 已调用 adapter: ${executionContract.adapterInvoked}
+- Gate checks / Gate 检查: ${executionContract.gateChecks}
+- Harness checks / Harness 检查: ${executionContract.harnessChecks}
+- Stage events written / 已写入节点事件: ${executionContract.stageEventsWritten}
+
+${executionContract.workflowStages.map((stage) => `- ${stage.id}: status=${stage.status}, timing=${stage.timing.status}, waitingReason=${stage.timing.waitingReason}`).join('\n')}
 
 ## Findings
 

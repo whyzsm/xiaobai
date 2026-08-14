@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
+import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
+import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
+import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
-import { findLoopSpec, formatJson } from '../packages/shared/src/fs';
+import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
+import { GatePassEvidence, HarnessEvidenceType, JsonRecord, LoopSpec } from '../packages/shared/src/types';
+import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
 
@@ -16,6 +22,7 @@ interface CliOptions {
   targetRepository?: string;
   targetCwd?: string;
   targetRemote?: string;
+  resultPath?: string;
   rest: string[];
 }
 
@@ -59,6 +66,41 @@ async function main(argv: string[]): Promise<void> {
   }
 
   const loopPath = await findLoopSpec(workspaceRoot, options.loop);
+
+  if (options.command === 'gate') {
+    await runGateCommand(options, workspaceRoot, loopPath);
+    return;
+  }
+
+  if (options.command === 'execute') {
+    await runExecuteCommand(options, workspaceRoot, loopPath);
+    return;
+  }
+
+  if (options.command === 'harness-check') {
+    const validation = await validateWorkspace(workspaceRoot, loopPath);
+    if (!validation.ok) {
+      process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+      process.exitCode = 1;
+      return;
+    }
+    if (!options.resultPath) {
+      throw new Error('harness-check requires --result <json-file>');
+    }
+
+    const loop = await readYamlFile<LoopSpec>(loopPath);
+    const harnessRuntime = new HarnessRuntime(workspaceRoot);
+    const harness = await harnessRuntime.load(loop);
+    const submission = JSON.parse(await readFile(path.resolve(process.cwd(), options.resultPath), 'utf8')) as unknown;
+    const result = harnessRuntime.evaluateRun(loop, harness, submission);
+    if (options.json) {
+      process.stdout.write(formatJson(result));
+    } else {
+      printHarnessResult(result);
+    }
+    process.exitCode = result.status === 'passed' ? 0 : 1;
+    return;
+  }
 
   if (options.command === 'dry-run') {
     const validation = await validateWorkspace(workspaceRoot, loopPath);
@@ -152,6 +194,9 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--target-remote') {
       options.targetRemote = requireValue(rest, index, arg);
       index += 1;
+    } else if (arg === '--result') {
+      options.resultPath = requireValue(rest, index, arg);
+      index += 1;
     } else if (arg === '--json') {
       options.json = true;
     } else {
@@ -160,6 +205,212 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return options;
+}
+
+async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const [subcommand = 'help', ...args] = options.rest;
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const humanGate = new HumanGate(loop);
+  const store = new GatePassStore(await resolveMemoryRoot(workspaceRoot), loop.metadata.id);
+
+  if (subcommand === 'list') {
+    const flags = parseGateFlags(args, []);
+    assertNoGateFlags(flags, subcommand);
+    const result = {
+      loopId: loop.metadata.id,
+      passLog: store.filePath(),
+      ...humanGate.plan()
+    };
+    if (options.json) process.stdout.write(formatJson(result));
+    else printGateList(result);
+    return;
+  }
+
+  if (subcommand === 'approve') {
+    const flags = parseGateFlags(args, [
+      'gate',
+      'run-id',
+      'task-id',
+      'stage',
+      'subject-file',
+      'issuer',
+      'evidence'
+    ]);
+    const event = humanGate.grant({
+      gateId: requireGateFlag(flags, 'gate'),
+      runId: requireGateFlag(flags, 'run-id'),
+      taskId: requireGateFlag(flags, 'task-id'),
+      stageId: optionalGateFlag(flags, 'stage'),
+      subject: await readGateSubject(flags),
+      issuer: requireGateFlag(flags, 'issuer'),
+      evidence: (flags.get('evidence') ?? []).map(parseGateEvidence)
+    });
+    await store.append(event);
+    if (options.json) process.stdout.write(formatJson(event));
+    else printGateEvent(event);
+    return;
+  }
+
+  if (subcommand === 'check') {
+    const flags = parseGateFlags(args, ['run-id', 'task-id', 'stage', 'action', 'subject-file']);
+    const stageId = optionalGateFlag(flags, 'stage');
+    const actions = flags.get('action') ?? [];
+    if (!stageId && actions.length === 0) {
+      throw new Error('gate check requires --stage or at least one --action');
+    }
+    const result = humanGate.check(
+      {
+        runId: requireGateFlag(flags, 'run-id'),
+        taskId: requireGateFlag(flags, 'task-id'),
+        stageId,
+        actions,
+        subject: await readGateSubject(flags)
+      },
+      await store.readAll()
+    );
+    if (options.json) process.stdout.write(formatJson(result));
+    else printGateDecision(result);
+    process.exitCode = result.status === 'passed' ? 0 : 1;
+    return;
+  }
+
+  if (subcommand === 'revoke') {
+    const flags = parseGateFlags(args, ['pass-id', 'issuer', 'reason']);
+    const passId = requireGateFlag(flags, 'pass-id');
+    const current = await store.current(passId);
+    if (!current) throw new Error(`Unknown GatePass: ${passId}`);
+    if (current.version !== 2) throw new Error(`Legacy GatePass cannot be revoked: ${passId}`);
+    const event = humanGate.revoke(
+      current,
+      requireGateFlag(flags, 'issuer'),
+      requireGateFlag(flags, 'reason')
+    );
+    await store.append(event);
+    if (options.json) process.stdout.write(formatJson(event));
+    else printGateEvent(event);
+    return;
+  }
+
+  throw new Error('gate requires one of: list, approve, check, revoke');
+}
+
+async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const flags = parseCommandFlags(
+    options.rest,
+    ['run-id', 'task-id', 'stage', 'attempt', 'action', 'subject-file', 'codex-executable'],
+    'execute'
+  );
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetProject: options.targetProject,
+    targetRepository: options.targetRepository,
+    targetCwd: options.targetCwd,
+    targetRemote: options.targetRemote
+  });
+  const attemptValue = optionalGateFlag(flags, 'attempt');
+  const result = await new ExecutionRuntime({
+    workspaceRoot,
+    memoryRoot: await resolveMemoryRoot(workspaceRoot),
+    loop,
+    plan
+  }).execute(
+    {
+      runId: requireGateFlag(flags, 'run-id'),
+      taskId: requireGateFlag(flags, 'task-id'),
+      stageId: requireGateFlag(flags, 'stage'),
+      attempt: attemptValue === undefined ? 1 : Number(attemptValue),
+      actions: flags.get('action') ?? [],
+      subject: await readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'execution subject'),
+      worktreePath: options.targetCwd
+    },
+    new CodexCliAdapter({ executable: optionalGateFlag(flags, 'codex-executable') })
+  );
+
+  if (options.json) process.stdout.write(formatJson(result));
+  else printExecutionResult(result);
+  process.exitCode = result.status === 'passed' ? 0 : 1;
+}
+
+function parseGateFlags(args: string[], allowed: string[]): Map<string, string[]> {
+  return parseCommandFlags(args, allowed, 'gate');
+}
+
+function parseCommandFlags(args: string[], allowed: string[], command: string): Map<string, string[]> {
+  const allowedFlags = new Set(allowed);
+  const values = new Map<string, string[]>();
+  for (let index = 0; index < args.length; index += 2) {
+    const flag = args[index];
+    if (!flag?.startsWith('--')) throw new Error(`Unexpected ${command} argument: ${flag ?? ''}`);
+    const name = flag.slice(2);
+    if (!allowedFlags.has(name)) throw new Error(`Unknown ${command} option: ${flag}`);
+    const value = args[index + 1];
+    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${flag}`);
+    values.set(name, [...(values.get(name) ?? []), value]);
+  }
+  return values;
+}
+
+function assertNoGateFlags(flags: Map<string, string[]>, command: string): void {
+  if (flags.size > 0) throw new Error(`gate ${command} does not accept options`);
+}
+
+function requireGateFlag(flags: Map<string, string[]>, name: string): string {
+  const value = optionalGateFlag(flags, name);
+  if (!value) throw new Error(`Missing value for --${name}`);
+  return value;
+}
+
+function optionalGateFlag(flags: Map<string, string[]>, name: string): string | undefined {
+  const values = flags.get(name) ?? [];
+  if (values.length > 1 && name !== 'evidence' && name !== 'action') {
+    throw new Error(`Gate option may only be provided once: --${name}`);
+  }
+  return values[0];
+}
+
+function parseGateEvidence(value: string): GatePassEvidence {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1) {
+    throw new Error('Gate evidence must use <type>:<value>');
+  }
+  return {
+    type: value.slice(0, separator) as HarnessEvidenceType,
+    value: value.slice(separator + 1)
+  };
+}
+
+async function readGateSubject(flags: Map<string, string[]>): Promise<JsonRecord> {
+  return readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'gate subject');
+}
+
+async function readJsonObjectFile(inputPath: string, label: string): Promise<JsonRecord> {
+  const filePath = path.resolve(process.cwd(), inputPath);
+  let value: unknown;
+  try {
+    value = JSON.parse(await readFile(filePath, 'utf8')) as unknown;
+  } catch (error) {
+    throw new Error(`Cannot read ${label} JSON: ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be a JSON object: ${filePath}`);
+  }
+  return value as JsonRecord;
 }
 
 function requireValue(args: string[], index: number, flag: string): string {
@@ -223,9 +474,70 @@ function printSimulation(result: Awaited<ReturnType<SimulationRuntime['simulate'
   process.stdout.write(`Case: ${path.relative(process.cwd(), result.artifacts.casePath)}\n`);
 }
 
+function printHarnessResult(result: ReturnType<HarnessRuntime['evaluateRun']>): void {
+  process.stdout.write(`Harness run: ${result.runId}\n`);
+  process.stdout.write(`Task: ${result.taskId}\n`);
+  process.stdout.write(`Agent: ${result.agentId}\n`);
+  process.stdout.write(`Harness: ${result.harnessId}\n`);
+  process.stdout.write(`Status: ${result.status}\n`);
+  process.stdout.write(`Duration: ${result.durationMs === null ? 'unmeasured' : `${result.durationMs}ms`}\n`);
+  for (const [name, passed] of Object.entries(result.checks)) {
+    process.stdout.write(`- ${name}: ${passed ? 'passed' : 'failed'}\n`);
+  }
+  const violations = Object.entries(result.violations)
+    .filter(([, value]) => value === true || (Array.isArray(value) && value.length > 0));
+  if (violations.length > 0) {
+    process.stdout.write('Violations:\n');
+    for (const [name, value] of violations) {
+      process.stdout.write(`- ${name}: ${Array.isArray(value) ? value.join(', ') : String(value)}\n`);
+    }
+  }
+}
+
+function printExecutionResult(result: Awaited<ReturnType<ExecutionRuntime['execute']>>): void {
+  process.stdout.write(`Execution: ${result.status}\n`);
+  process.stdout.write(`Adapter: ${result.adapterId}\n`);
+  process.stdout.write(`Authority: ${result.authority.scope} (${result.authority.executorInstance})\n`);
+  process.stdout.write(`Events: ${result.stageEvents.length}\n`);
+  for (const reason of result.reasons) process.stdout.write(`- ${reason}\n`);
+}
+
+function printGateList(result: ReturnType<HumanGate['plan']> & { loopId: string; passLog: string }): void {
+  process.stdout.write(`Loop: ${result.loopId}\n`);
+  process.stdout.write(`GatePass log: ${result.passLog}\n`);
+  for (const gate of result.gates) {
+    process.stdout.write(
+      `- ${gate.id}: before ${gate.requiredBefore}, reviewers ${gate.reviewers.join(', ')}, max age ${gate.maxAgeMinutes}m\n`
+    );
+  }
+}
+
+function printGateEvent(event: Awaited<ReturnType<GatePassStore['current']>> & {}): void {
+  if (!event) return;
+  process.stdout.write(`GatePass: ${event.passId}\n`);
+  process.stdout.write(`Gate: ${event.gateId}\n`);
+  process.stdout.write(`Status: ${event.status}\n`);
+  process.stdout.write(`Issuer: ${event.issuer}\n`);
+  if (event.expiresAt) process.stdout.write(`Expires: ${event.expiresAt}\n`);
+  if (event.reason) process.stdout.write(`Reason: ${event.reason}\n`);
+}
+
+function printGateDecision(result: ReturnType<HumanGate['check']>): void {
+  process.stdout.write(`Gate check: ${result.status}\n`);
+  process.stdout.write(`Required: ${result.requiredGates.join(', ') || 'none'}\n`);
+  process.stdout.write(`Satisfied: ${result.satisfiedGates.join(', ') || 'none'}\n`);
+  for (const reason of result.blockingReasons) process.stdout.write(`- ${reason}\n`);
+}
+
 function printHelp(): void {
   process.stdout.write(`Usage:
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
+  loop harness-check --loop <loop-id> --result <json-file> [--workspace workspace] [--json]
+  loop gate list --loop <loop-id> [--workspace workspace] [--json]
+  loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-file <json-file> --issuer <reviewer> --evidence <type:value>... [--json]
+  loop gate check --loop <loop-id> --run-id <id> --task-id <id> [--stage <stage-id>] [--action <action>]... --subject-file <json-file> [--json]
+  loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
+  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--codex-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]

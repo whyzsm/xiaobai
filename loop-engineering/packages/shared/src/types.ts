@@ -50,6 +50,7 @@ export interface LoopSpec {
   humanGate: {
     requiredBefore: string[];
     reviewers: string[];
+    gates: HumanGateDefinition[];
   };
   workflow?: {
     stages: LoopWorkflowStage[];
@@ -63,7 +64,9 @@ export interface LoopWorkflowStage {
   agent?: string;
   harness?: string;
   evaluator?: string;
+  dependsOn?: string[];
   requiredChecks?: string[];
+  requiredGates?: string[];
   requiredBefore?: string[];
   outputs?: string[];
 }
@@ -135,6 +138,15 @@ export interface ProjectBackground {
   name: string;
   localPathKey: string;
   mount: string;
+  integration?: SkillContextIntegration;
+}
+
+export interface SkillContextIntegration {
+  kind: 'skill-context';
+  version: '1.0.0';
+  manifest: string;
+  contract: string;
+  executionModes: Record<string, string>;
 }
 
 export interface ProjectRepository {
@@ -257,6 +269,68 @@ export interface AgentRunPlan {
   expectedOutput: string[];
 }
 
+export type HarnessEvidenceType =
+  | 'command'
+  | 'file'
+  | 'diff'
+  | 'test'
+  | 'browser'
+  | 'review'
+  | 'human-approval'
+  | 'other';
+
+export interface HarnessRunEvidence {
+  checkId: string;
+  type: HarnessEvidenceType;
+  value: string;
+}
+
+export interface HarnessRunSubmission {
+  runId: string;
+  taskId: string;
+  agentId: string;
+  harnessId: string;
+  startedAt: string;
+  finishedAt: string;
+  loadedContext: string[];
+  contextCharactersUsed: number;
+  toolsUsed: string[];
+  completedConditions: string[];
+  output: JsonRecord;
+  evidence: HarnessRunEvidence[];
+}
+
+export interface HarnessRunResult {
+  runId: string;
+  taskId: string;
+  agentId: string;
+  harnessId: string;
+  status: 'passed' | 'failed';
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  checks: {
+    identity: boolean;
+    context: boolean;
+    tools: boolean;
+    completion: boolean;
+    output: boolean;
+    evidence: boolean;
+  };
+  violations: {
+    submissionErrors: string[];
+    identityErrors: string[];
+    missingContextLoaders: string[];
+    contextLimitExceeded: boolean;
+    deniedTools: string[];
+    unallowedTools: string[];
+    missingConditions: string[];
+    unknownConditions: string[];
+    missingOutputs: string[];
+    missingEvidence: string[];
+  };
+}
+
 export interface EvaluationPlan {
   taskId: string;
   evaluatorId: string;
@@ -268,6 +342,190 @@ export interface EvaluationPlan {
 export interface HumanGatePlan {
   protectedActions: string[];
   reviewers: string[];
+  gates: HumanGateDefinition[];
+}
+
+export interface HumanGateDefinition {
+  id: string;
+  requiredBefore: string;
+  reviewers: string[];
+  subjectFields: string[];
+  requiredEvidenceTypes: HarnessEvidenceType[];
+  maxAgeMinutes: number;
+}
+
+export interface GatePassEvidence {
+  type: HarnessEvidenceType;
+  value: string;
+}
+
+export interface LegacyGatePassEvent {
+  kind: 'GatePass';
+  version: 1;
+  id: string;
+  passId: string;
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stageId?: string;
+  gateId: string;
+  action: string;
+  status: 'granted' | 'revoked';
+  issuer: string;
+  subjectDigest: string;
+  evidence: GatePassEvidence[];
+  issuedAt: string;
+  expiresAt?: string;
+  reason?: string;
+}
+
+export interface GatePassEvent extends Omit<LegacyGatePassEvent, 'version'> {
+  version: 2;
+  canonicalization: 'jcs-v1';
+  policyDigest: string;
+}
+
+export type StoredGatePassEvent = LegacyGatePassEvent | GatePassEvent;
+
+export interface GateGrantInput {
+  runId: string;
+  taskId: string;
+  stageId?: string;
+  gateId: string;
+  issuer: string;
+  subject: JsonRecord;
+  evidence: GatePassEvidence[];
+  now?: Date;
+}
+
+export interface GateCheckInput {
+  runId: string;
+  taskId: string;
+  stageId?: string;
+  actions?: string[];
+  subject: JsonRecord;
+  now?: Date;
+}
+
+export interface GateDecision {
+  status: 'passed' | 'blocked';
+  requiredGates: string[];
+  satisfiedGates: string[];
+  blockingReasons: string[];
+  passes: GatePassEvent[];
+}
+
+export type StageEventType =
+  | 'entered'
+  | 'first_action'
+  | 'waiting_started'
+  | 'waiting_ended'
+  | 'passed'
+  | 'failed'
+  | 'blocked'
+  | 'skipped';
+
+export type StageWaitingReason =
+  | 'human_input'
+  | 'tool_running'
+  | 'external_api'
+  | 'missing_context'
+  | 'approval_required'
+  | 'error_blocker';
+
+export interface StageEventKey {
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stageId: string;
+  attempt: number;
+}
+
+export interface StageEvent extends StageEventKey {
+  kind: 'StageEvent';
+  version: 1;
+  id: string;
+  stageKind: string;
+  owner: string;
+  eventType: StageEventType;
+  occurredAt: string;
+  waitingReason?: StageWaitingReason;
+  evidence: GatePassEvidence[];
+}
+
+export interface StageEventInput extends StageEventKey {
+  stageKind: string;
+  owner: string;
+  eventType: StageEventType;
+  occurredAt?: string;
+  waitingReason?: StageWaitingReason;
+  evidence?: GatePassEvidence[];
+}
+
+export interface StageTimingProjection extends StageEventKey {
+  stageKind: string;
+  owner: string;
+  status: 'running' | 'waiting' | 'passed' | 'failed' | 'blocked' | 'skipped' | 'unmeasured';
+  valid: boolean;
+  enteredAt: string | null;
+  firstActionAt: string | null;
+  exitedAt: string | null;
+  durationMs: number | null;
+  activeMs: number | null;
+  waitingMs: number | null;
+  waitingReason: StageWaitingReason | 'missing_instrumentation' | null;
+  evidence: GatePassEvidence[];
+  errors: string[];
+}
+
+export interface ExecutorAdapterInput {
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stage: WorkflowStagePlan;
+  attempt: number;
+  actions: string[];
+  subject: JsonRecord;
+  workspaceRoot: string;
+  worktreePath?: string;
+  backgroundContext?: ResolvedBackgroundContext;
+}
+
+export interface ExecutorAdapterResult {
+  status: 'completed' | 'failed' | 'blocked';
+  submission?: unknown;
+  evidence: GatePassEvidence[];
+  reason?: string;
+}
+
+export interface ExecutorAdapter {
+  id: string;
+  execute(input: ExecutorAdapterInput): Promise<ExecutorAdapterResult>;
+}
+
+export interface ExecutionStageInput {
+  runId: string;
+  taskId: string;
+  stageId: string;
+  attempt?: number;
+  actions?: string[];
+  subject: JsonRecord;
+  worktreePath?: string;
+}
+
+export interface ExecutionAuthority {
+  scope: 'local_single_executor';
+  executorInstance: string;
+}
+
+export interface ExecutionStageResult {
+  status: 'passed' | 'failed' | 'blocked';
+  adapterId: string;
+  authority: ExecutionAuthority;
+  reasons: string[];
+  gateDecision: GateDecision | null;
+  harnessResult: HarnessRunResult | null;
+  stageEvents: StageEvent[];
 }
 
 export interface ProjectRoutePlan {
@@ -313,7 +571,9 @@ export interface WorkflowStagePlan {
   agent?: string;
   harness?: string;
   evaluator?: string;
+  dependsOn: string[];
   requiredChecks: string[];
+  requiredGates: string[];
   requiredBefore: string[];
   outputs: string[];
 }
@@ -355,6 +615,7 @@ export interface RuntimePlan {
   };
   humanGate: HumanGatePlan;
   workflow?: WorkflowPlan;
+  backgroundContext?: BackgroundContextPlan;
   memoryContext?: {
     indexPath: string;
     included: Array<{
@@ -373,12 +634,96 @@ export interface RuntimePlan {
   };
 }
 
+export interface BackgroundContextPlan {
+  status: 'planned';
+  kind: 'skill-context';
+  contractVersion: '1.0.0';
+  projectId: string;
+  backgroundId: string;
+  sourceMount: string;
+  manifestPath: string;
+  contractPath: string;
+  executionMode: string;
+  maxCharacters: number;
+}
+
+export interface SkillContextReference {
+  id: string;
+  path: string;
+  digest: string;
+}
+
+export interface SkillContextContract {
+  contractVersion: '1.0.0';
+  skillId: string;
+  skillCommit: string;
+  entryPath: string;
+  entryHash: string;
+  manifestPath: string;
+  manifestDigest: string;
+  executionMode: string;
+  ownerAgent: string;
+  ownerSkills: string[];
+  selectedReferences: SkillContextReference[];
+  contextDigest: string;
+}
+
+export interface BackgroundContextDocument {
+  roles: Array<'entry' | 'manifest' | 'owner-agent' | 'owner-skill' | 'reference'>;
+  path: string;
+  sourceDigest: string;
+  contentDigest: string;
+  selection: 'full' | 'relevant-sections' | 'selected-manifest';
+  content: string;
+}
+
+export interface ResolvedBackgroundContext {
+  kind: 'skill-context';
+  projectId: string;
+  backgroundId: string;
+  skillContext: SkillContextContract;
+  documents: BackgroundContextDocument[];
+  characters: number;
+}
+
 export interface SimulationStage {
   id: string;
   title: string;
   status: 'completed' | 'skipped';
   detail: string;
   outputs: string[];
+}
+
+export interface SimulationExecutionStage {
+  id: string;
+  kind: string;
+  owner: string;
+  gate: 'automatic' | 'manual';
+  harness?: string;
+  dependsOn: string[];
+  requiredGates: string[];
+  actions: string[];
+  status: 'not_executed';
+  timing: {
+    source: 'simulation_only';
+    status: 'unmeasured';
+    enteredAt: null;
+    firstActionAt: null;
+    exitedAt: null;
+    durationMs: null;
+    activeMs: null;
+    waitingMs: null;
+    waitingReason: 'missing_instrumentation';
+  };
+}
+
+export interface SimulationExecutionContract {
+  authority: 'simulation_only';
+  adapterInvoked: false;
+  gateChecks: 'not_executed';
+  harnessChecks: 'not_executed';
+  stageEventsWritten: false;
+  workflowStages: SimulationExecutionStage[];
 }
 
 export interface SimulationArtifact {
@@ -399,6 +744,7 @@ export interface SimulationResult {
   loopWorkCount: number;
   mode: 'simulation';
   stages: SimulationStage[];
+  executionContract: SimulationExecutionContract;
   artifacts: SimulationArtifact;
   summary: {
     findings: number;

@@ -1,0 +1,1749 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" href="data:," />
+    <title>小白智能体运维</title>
+    <style>
+      :root {
+        --page: #f3f5f5;
+        --surface: #ffffff;
+        --surface-subtle: #f7f9f8;
+        --rail: #18221f;
+        --rail-muted: #aebbb6;
+        --rail-active: #2c3b36;
+        --text: #1d2522;
+        --muted: #66716d;
+        --border: #d9dfdc;
+        --border-strong: #c2cbc7;
+        --brand: #167451;
+        --brand-soft: #e2f1eb;
+        --blue: #2f6fbb;
+        --blue-soft: #e7f0fb;
+        --amber: #9a6512;
+        --amber-soft: #fbf0d8;
+        --red: #a33e3e;
+        --red-soft: #f8e5e5;
+        --green: #1c7957;
+        --green-soft: #e1f2eb;
+        --code: #eef1f0;
+        --radius: 6px;
+        --rail-width: 252px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 76px;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background: var(--page);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        letter-spacing: 0;
+      }
+
+      button,
+      input {
+        font: inherit;
+        letter-spacing: 0;
+      }
+
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button:focus-visible,
+      a:focus-visible {
+        outline: 3px solid rgba(47, 111, 187, 0.3);
+        outline-offset: 2px;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: var(--rail-width) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .rail {
+        position: sticky;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        max-height: 100vh;
+        padding: 26px 18px 20px;
+        color: #f4f7f6;
+        background: var(--rail);
+      }
+
+      .brand {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr);
+        gap: 14px;
+        align-items: center;
+        padding: 0 8px 24px;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 54px;
+        height: 54px;
+        border-radius: var(--radius);
+        color: #ffffff;
+        background: var(--brand);
+        font-size: 24px;
+        font-weight: 500;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1.25;
+      }
+
+      .brand p {
+        margin: 3px 0 0;
+        color: var(--rail-muted);
+        font-size: 12px;
+      }
+
+      .nav {
+        display: grid;
+        gap: 3px;
+        overflow-y: auto;
+      }
+
+      .nav a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 42px;
+        padding: 9px 11px;
+        border-radius: var(--radius);
+        color: var(--rail-muted);
+        text-decoration: none;
+      }
+
+      .nav a:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .nav a.is-active {
+        color: #ffffff;
+        background: var(--rail-active);
+      }
+
+      .nav-index {
+        color: #82908b;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .rail-status {
+        margin-top: auto;
+        padding: 18px 8px 0;
+        color: var(--rail-muted);
+        font-size: 12px;
+      }
+
+      .rail-health {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 7px;
+        color: #ffffff;
+      }
+
+      .health-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #9fa9a5;
+      }
+
+      .health-dot.ok {
+        background: #52b788;
+      }
+
+      .health-dot.attention {
+        background: #e4ab45;
+      }
+
+      .workspace {
+        min-width: 0;
+      }
+
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        min-height: 64px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 10px 28px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.96);
+      }
+
+      .repo-context,
+      .toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
+      }
+
+      .branch-name,
+      .commit-id {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+
+      .branch-name {
+        color: var(--brand);
+        font-weight: 500;
+      }
+
+      .commit-id,
+      .generated-at {
+        color: var(--muted);
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        color: var(--text);
+        background: var(--surface);
+        cursor: pointer;
+      }
+
+      .button:hover:not(:disabled) {
+        border-color: #9ba8a2;
+        background: var(--surface-subtle);
+      }
+
+      .button:disabled {
+        cursor: wait;
+        opacity: 0.58;
+      }
+
+      .button-primary {
+        border-color: var(--brand);
+        color: #ffffff;
+        background: var(--brand);
+      }
+
+      .button-primary:hover:not(:disabled) {
+        border-color: #105f41;
+        background: #105f41;
+      }
+
+      .content {
+        width: min(1440px, 100%);
+        margin: 0 auto;
+        padding: 24px 28px 72px;
+      }
+
+      .loading,
+      .fatal-error {
+        min-height: 320px;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .fatal-error strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--red);
+        font-weight: 500;
+      }
+
+      .dashboard[hidden],
+      .loading[hidden],
+      .fatal-error[hidden] {
+        display: none;
+      }
+
+      .section {
+        padding: 26px 0 32px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section:last-child {
+        border-bottom: 0;
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+      }
+
+      .section-heading h2 {
+        margin: 0;
+        font-size: 19px;
+        font-weight: 500;
+        line-height: 1.35;
+      }
+
+      .section-fact {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(112px, 1fr));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .metric {
+        min-width: 0;
+        min-height: 92px;
+        padding: 16px;
+        border-right: 1px solid var(--border);
+      }
+
+      .metric:last-child {
+        border-right: 0;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric-value {
+        margin-top: 7px;
+        font-size: 24px;
+        font-weight: 500;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .metric-note {
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .panel {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .panel-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 48px;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-heading h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .panel-body {
+        padding: 14px;
+      }
+
+      .status {
+        display: inline-flex;
+        min-height: 22px;
+        align-items: center;
+        padding: 2px 7px;
+        border-radius: 999px;
+        color: var(--muted);
+        background: var(--code);
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .status.ok,
+      .status.mounted,
+      .status.passed {
+        color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .status.attention,
+      .status.unmeasured,
+      .status.manual,
+      .status.stale {
+        color: var(--amber);
+        background: var(--amber-soft);
+      }
+
+      .status.error,
+      .status.missing,
+      .status.dirty {
+        color: var(--red);
+        background: var(--red-soft);
+      }
+
+      .status.info,
+      .status.automatic {
+        color: var(--blue);
+        background: var(--blue-soft);
+      }
+
+      .fact-list,
+      .warning-list,
+      .gap-list {
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .fact-row,
+      .warning-row,
+      .gap-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .fact-row:first-child,
+      .warning-row:first-child,
+      .gap-row:first-child {
+        padding-top: 0;
+      }
+
+      .fact-row:last-child,
+      .warning-row:last-child,
+      .gap-row:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+      }
+
+      .row-title {
+        font-weight: 500;
+      }
+
+      .row-meta {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .table-wrap-spaced {
+        margin-top: 16px;
+      }
+
+      #timing-content table {
+        min-width: 1680px;
+      }
+
+      #timing-content td {
+        white-space: nowrap;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        background: var(--surface-subtle);
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      tbody tr:hover td {
+        background: #fafcfb;
+      }
+
+      .cell-title {
+        font-weight: 500;
+      }
+
+      .cell-meta {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      .numeric {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .nowrap {
+        white-space: nowrap;
+      }
+
+      .mono,
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      code {
+        padding: 2px 5px;
+        border-radius: 4px;
+        background: var(--code);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .segmented {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+
+      .segment {
+        min-height: 34px;
+        padding: 6px 11px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        color: var(--muted);
+        background: var(--surface);
+        cursor: pointer;
+      }
+
+      .segment[aria-pressed="true"] {
+        border-color: var(--brand);
+        color: #ffffff;
+        background: var(--brand);
+      }
+
+      .gate-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .empty-state {
+        padding: 24px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--muted);
+        background: var(--surface);
+      }
+
+      .empty-state strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .distribution-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .bar-list {
+        display: grid;
+        gap: 11px;
+      }
+
+      .bar-row {
+        display: grid;
+        grid-template-columns: minmax(90px, 0.7fr) minmax(120px, 1fr) 42px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .bar-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .bar-track {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--code);
+      }
+
+      .bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--brand);
+      }
+
+      .bar-fill.edge {
+        background: var(--blue);
+      }
+
+      .bar-value {
+        color: var(--muted);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .command-list {
+        display: grid;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .command-row {
+        display: grid;
+        grid-template-columns: minmax(130px, 0.3fr) minmax(240px, 1fr) auto auto;
+        gap: 12px;
+        align-items: center;
+        min-height: 58px;
+        padding: 10px 13px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .command-row:last-child {
+        border-bottom: 0;
+      }
+
+      .command-row code {
+        display: block;
+        min-width: 0;
+        padding: 6px 8px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 30;
+        max-width: min(360px, calc(100vw - 40px));
+        padding: 10px 13px;
+        border-radius: var(--radius);
+        color: #ffffff;
+        background: #26312d;
+      }
+
+      .toast[hidden] {
+        display: none;
+      }
+
+      @media (max-width: 1120px) {
+        .metric-grid {
+          grid-template-columns: repeat(3, minmax(112px, 1fr));
+        }
+
+        .metric:nth-child(3) {
+          border-right: 0;
+        }
+
+        .metric:nth-child(-n + 3) {
+          border-bottom: 1px solid var(--border);
+        }
+
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 820px) {
+        html {
+          scroll-padding-top: 118px;
+        }
+
+        .shell {
+          display: block;
+        }
+
+        .rail {
+          position: static;
+          min-height: auto;
+          max-height: none;
+          padding: 16px;
+        }
+
+        .brand {
+          grid-template-columns: 42px minmax(0, 1fr);
+          padding: 0 0 14px;
+        }
+
+        .brand-mark {
+          width: 42px;
+          height: 42px;
+          font-size: 20px;
+        }
+
+        .nav {
+          display: flex;
+          flex-wrap: wrap;
+          overflow: visible;
+          gap: 5px;
+        }
+
+        .nav a {
+          min-height: 34px;
+          padding: 6px 9px;
+          gap: 8px;
+        }
+
+        .rail-status {
+          display: none;
+        }
+
+        .toolbar {
+          top: 0;
+          min-height: 58px;
+          padding: 9px 16px;
+        }
+
+        .generated-at {
+          display: none;
+        }
+
+        .content {
+          padding: 12px 16px 56px;
+        }
+
+        .section {
+          padding: 22px 0 28px;
+        }
+
+        .distribution-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .toolbar {
+          align-items: flex-start;
+        }
+
+        .commit-id {
+          display: none;
+        }
+
+        .metric-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .metric,
+        .metric:nth-child(3) {
+          border-right: 1px solid var(--border);
+          border-bottom: 1px solid var(--border);
+        }
+
+        .metric:nth-child(even) {
+          border-right: 0;
+        }
+
+        .metric:nth-last-child(-n + 2) {
+          border-bottom: 0;
+        }
+
+        .section-heading {
+          display: block;
+        }
+
+        .section-heading > .status {
+          margin-top: 8px;
+        }
+
+        .command-row {
+          grid-template-columns: 1fr auto;
+        }
+
+        .command-row code {
+          grid-column: 1 / -1;
+          grid-row: 2;
+        }
+
+        .command-row .status {
+          grid-column: 1;
+          grid-row: 3;
+          justify-self: start;
+        }
+
+        .command-row .button {
+          grid-column: 2;
+          grid-row: 1;
+        }
+
+        .bar-row {
+          grid-template-columns: minmax(84px, 0.7fr) minmax(88px, 1fr) 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">白</div>
+          <div>
+            <h1>小白智能体运维</h1>
+            <p>循环工程运行监控</p>
+          </div>
+        </div>
+        <nav class="nav" aria-label="页面导航">
+          <a class="is-active" href="#overview"><span>总览</span><span class="nav-index">01</span></a>
+          <a href="#workflow"><span>工作流</span><span class="nav-index">02</span></a>
+          <a href="#agents"><span>智能体与执行框架</span><span class="nav-index">03</span></a>
+          <a href="#projects"><span>路由与项目</span><span class="nav-index">04</span></a>
+          <a href="#timing"><span>节点计时</span><span class="nav-index">05</span></a>
+          <a href="#evaluation"><span>评价与门禁</span><span class="nav-index">06</span></a>
+          <a href="#memory"><span>记忆</span><span class="nav-index">07</span></a>
+          <a href="#graph"><span>知识图谱</span><span class="nav-index">08</span></a>
+          <a href="#operations"><span>运维命令</span><span class="nav-index">09</span></a>
+        </nav>
+        <div class="rail-status">
+          <div class="rail-health">
+            <span class="health-dot" id="health-dot"></span>
+            <span id="rail-health">正在读取快照</span>
+          </div>
+          <div>真源：工作空间、Git、记忆、知识图谱</div>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="toolbar">
+          <div class="repo-context" aria-label="仓库状态">
+            <span class="branch-name" id="branch-name">--</span>
+            <span class="commit-id" id="commit-id">--</span>
+            <span class="status" id="worktree-status">加载中</span>
+          </div>
+          <div class="toolbar-actions">
+            <time class="generated-at" id="generated-at">--</time>
+            <button class="button button-primary" id="refresh-button" type="button">刷新快照</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <div class="loading" id="loading" role="status">正在读取小白运行快照...</div>
+          <div class="fatal-error" id="fatal-error" role="alert" hidden></div>
+
+          <main class="dashboard" id="dashboard" hidden>
+            <section class="section" id="overview">
+              <div class="section-heading">
+                <div>
+                  <h2>系统总览</h2>
+                  <p class="section-fact" id="overview-fact">--</p>
+                </div>
+                <span class="status" id="system-health">--</span>
+              </div>
+              <div class="metric-grid" id="overview-metrics"></div>
+              <div class="summary-grid">
+                <div class="panel">
+                  <div class="panel-heading">
+                    <h3>工作流路由</h3>
+                    <span class="status info" id="loop-route-count">0</span>
+                  </div>
+                  <div class="panel-body">
+                    <ul class="fact-list" id="loop-routes"></ul>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="panel-heading">
+                    <h3>需要处理</h3>
+                    <span class="status attention" id="warning-count">0</span>
+                  </div>
+                  <div class="panel-body">
+                    <ul class="warning-list" id="warnings"></ul>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="section" id="workflow">
+              <div class="section-heading">
+                <div>
+                  <h2>工作流</h2>
+                  <p class="section-fact" id="workflow-fact">--</p>
+                </div>
+              </div>
+              <div class="segmented" id="loop-selector" aria-label="选择工作流"></div>
+              <div id="workflow-content"></div>
+            </section>
+
+            <section class="section" id="agents">
+              <div class="section-heading">
+                <div>
+                  <h2>智能体与执行框架</h2>
+                  <p class="section-fact" id="agent-fact">--</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>对象</th>
+                      <th>类型</th>
+                      <th>角色 / 立场</th>
+                      <th class="numeric">允许工具</th>
+                      <th class="numeric">禁止工具</th>
+                      <th>真源</th>
+                    </tr>
+                  </thead>
+                  <tbody id="agent-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="section" id="projects">
+              <div class="section-heading">
+                <div>
+                  <h2>路由与项目</h2>
+                  <p class="section-fact" id="project-fact">--</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>项目</th>
+                      <th>类型</th>
+                      <th>默认分支</th>
+                      <th>背景</th>
+                      <th>仓库挂载</th>
+                      <th>仓库</th>
+                    </tr>
+                  </thead>
+                  <tbody id="project-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="section" id="timing">
+              <div class="section-heading">
+                <div>
+                  <h2>节点停留时间</h2>
+                  <p class="section-fact" id="timing-fact">--</p>
+                </div>
+                <span class="status unmeasured" id="timing-status">未采集</span>
+              </div>
+              <div class="segmented" id="timing-loop-selector" aria-label="选择计时工作流"></div>
+              <div id="timing-content"></div>
+            </section>
+
+            <section class="section" id="evaluation">
+              <div class="section-heading">
+                <div>
+                  <h2>评价与门禁</h2>
+                  <p class="section-fact" id="evaluation-fact">--</p>
+                </div>
+              </div>
+              <div class="metric-grid" id="evaluation-metrics"></div>
+              <div class="summary-grid">
+                <div class="panel">
+                  <div class="panel-heading"><h3>工作流门禁</h3></div>
+                  <div class="panel-body">
+                    <ul class="fact-list" id="gate-list"></ul>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="panel-heading">
+                    <h3>可观测性缺口</h3>
+                    <span class="status attention" id="gap-count">0</span>
+                  </div>
+                  <div class="panel-body">
+                    <ul class="gap-list" id="gap-list"></ul>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="section" id="memory">
+              <div class="section-heading">
+                <div>
+                  <h2>记忆</h2>
+                  <p class="section-fact" id="memory-fact">--</p>
+                </div>
+                <span class="status" id="memory-status">--</span>
+              </div>
+              <div class="metric-grid" id="memory-metrics"></div>
+              <div class="table-wrap table-wrap-spaced">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>工作流</th>
+                      <th>状态</th>
+                      <th class="numeric">运行记录</th>
+                      <th class="numeric">问题发现</th>
+                      <th class="numeric">运行指标</th>
+                      <th>最近运行</th>
+                      <th>运行结果</th>
+                    </tr>
+                  </thead>
+                  <tbody id="memory-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="section" id="graph">
+              <div class="section-heading">
+                <div>
+                  <h2>知识图谱</h2>
+                  <p class="section-fact" id="graph-fact">--</p>
+                </div>
+                <span class="status" id="graph-status">--</span>
+              </div>
+              <div class="metric-grid" id="graph-metrics"></div>
+              <div class="distribution-grid">
+                <div class="panel">
+                  <div class="panel-heading"><h3>节点类型</h3></div>
+                  <div class="panel-body"><div class="bar-list" id="node-types"></div></div>
+                </div>
+                <div class="panel">
+                  <div class="panel-heading"><h3>关系类型</h3></div>
+                  <div class="panel-body"><div class="bar-list" id="edge-types"></div></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="section" id="operations">
+              <div class="section-heading">
+                <div>
+                  <h2>运维命令</h2>
+                  <p class="section-fact">人工门禁命令保持人工确认，不由页面执行</p>
+                </div>
+              </div>
+              <div class="command-list" id="command-list"></div>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
+      (() => {
+        const token = new URLSearchParams(window.location.search).get('token') || '';
+        const state = {
+          snapshot: null,
+          activeLoopId: null,
+          timingLoopId: null,
+          toastTimer: null,
+        };
+
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => [...document.querySelectorAll(selector)];
+        const apiUrl = (pathname) => `${pathname}?token=${encodeURIComponent(token)}`;
+
+        function escapeHtml(value) {
+          return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+        }
+
+        function formatNumber(value) {
+          return Number.isFinite(Number(value)) ? new Intl.NumberFormat('zh-CN').format(Number(value)) : '--';
+        }
+
+        function formatDate(value) {
+          if (!value) return '未记录';
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) return String(value);
+          return new Intl.DateTimeFormat('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(date);
+        }
+
+        function formatDuration(value) {
+          if (value === null || value === undefined || value === '') return '未采集';
+          if (!Number.isFinite(Number(value))) return '未采集';
+          const milliseconds = Number(value);
+          if (milliseconds < 1000) return `${milliseconds} 毫秒`;
+          if (milliseconds < 60000) return `${(milliseconds / 1000).toFixed(1)} 秒`;
+          return `${(milliseconds / 60000).toFixed(1)} 分钟`;
+        }
+
+        function displayLabel(value) {
+          const labels = {
+            ok: '正常',
+            clean: '干净',
+            available: '可用',
+            mounted: '已挂载',
+            passed: '已通过',
+            completed: '已完成',
+            measured: '已采集',
+            partial: '部分采集',
+            running: '执行中',
+            waiting: '等待中',
+            skipped: '已跳过',
+            attention: '需关注',
+            unmeasured: '未采集',
+            manual: '人工',
+            stale: '需刷新',
+            warning: '警告',
+            missing: '缺失',
+            invalid: '无效',
+            failed: '失败',
+            dirty: '有变更',
+            blocked: '已阻塞',
+            automatic: '自动',
+            info: '信息',
+            Agent: '智能体',
+            Harness: '执行框架',
+            Project: '项目',
+            ProjectGroup: '项目组',
+            intake: '接入',
+            design: '设计',
+            review: '评审',
+            'human-gate': '人工门禁',
+            coding: '编码',
+            'pr-readiness': '合并准备',
+            checker: '审核者',
+            skeptical: '审慎',
+            maker: '执行者',
+            orchestrator: '编排者',
+            coordinator: '协调者',
+            function: '函数',
+            file: '文件',
+            document: '文档',
+            config: '配置',
+            class: '类',
+            imports: '导入',
+            contains: '包含',
+            exports: '导出',
+            'local-override': '本机覆盖',
+            'command-override': '命令指定',
+            missing_instrumentation: '缺少采集机制',
+          };
+          return labels[String(value)] || String(value ?? '--');
+        }
+
+        function loopLabel(loop) {
+          const labels = {
+            'frontend-delivery': '前端交付工作流',
+            'morning-triage': '晨间分诊工作流',
+          };
+          return labels[loop.id] || loop.name;
+        }
+
+        function stageLabel(stageId) {
+          const labels = {
+            'requirement-intake': '需求接入',
+            'target-repository-resolution': '目标仓库解析',
+            'frontend-master-design': '前端总体设计',
+            'frontend-repository-design': '仓库级设计',
+            'frontend-design-review': '前端设计评审',
+            'human-design-approval': '人工设计审批',
+            'frontend-implementation': '前端编码实现',
+            'implementation-verification': '实现结果验证',
+            'pr-readiness': '合并请求准备',
+          };
+          return labels[stageId] || stageId;
+        }
+
+        function objectLabel(objectId) {
+          const labels = {
+            evaluator: '通用评价器',
+            'frontend-evaluator': '前端评价器',
+            'frontend-generator': '前端生成器',
+            generator: '通用生成器',
+            suagent: '监督评价器',
+            xiaobai: '小白编排器',
+            'coding-harness': '编码执行框架',
+            'frontend-delivery-harness': '前端交付执行框架',
+          };
+          return labels[objectId] || objectId;
+        }
+
+        function statusClass(value) {
+          const normalized = String(value || '').toLowerCase();
+          if (['ok', 'clean', 'available', 'mounted', 'passed', 'completed', 'measured'].includes(normalized)) return 'ok';
+          if (['attention', 'unmeasured', 'manual', 'stale', 'warning', 'partial', 'waiting'].includes(normalized)) return 'attention';
+          if (['missing', 'invalid', 'failed', 'dirty', 'blocked'].includes(normalized)) return 'error';
+          return 'info';
+        }
+
+        function status(value, label = value) {
+          return `<span class="status ${statusClass(value)}">${escapeHtml(displayLabel(label))}</span>`;
+        }
+
+        function metric(label, value, note = '') {
+          return `
+            <div class="metric">
+              <div class="metric-label">${escapeHtml(label)}</div>
+              <div class="metric-value">${escapeHtml(value)}</div>
+              ${note ? `<div class="metric-note">${escapeHtml(note)}</div>` : ''}
+            </div>
+          `;
+        }
+
+        function warningLabel(code) {
+          const labels = {
+            knowledge_graph_stale: '知识图谱需要刷新',
+            missing_stage_timing_instrumentation: '节点计时尚未采集',
+            invalid_stage_timing_events: '节点计时事件无效',
+            missing_workflow_stage_contract: '工作流缺少阶段契约',
+            memory_root_unavailable: '记忆根目录不可用',
+            memory_config_unreadable: '记忆本机配置不可读',
+            structured_file_unreadable: '结构化配置不可读',
+            knowledge_graph_unreadable: '知识图谱不可读',
+          };
+          return labels[code] || code;
+        }
+
+        function gapLabel(code) {
+          const labels = {
+            missing_stage_timing_instrumentation: '缺少节点计时运行时事件',
+            invalid_stage_timing_events: '节点计时事件流无效',
+            missing_workflow_stage_contract: '缺少工作流阶段契约',
+          };
+          return labels[code] || code;
+        }
+
+        function gapDetail(gap) {
+          if (gap.loopId) return gap.loopId;
+          if (gap.code === 'missing_stage_timing_instrumentation') {
+            return '等待运行时追加式节点计时事件';
+          }
+          return gap.nextAction || '--';
+        }
+
+        function setBusy(isBusy) {
+          const button = $('#refresh-button');
+          button.disabled = isBusy;
+          button.textContent = isBusy ? '正在刷新' : '刷新快照';
+        }
+
+        function showToast(message) {
+          const toast = $('#toast');
+          toast.textContent = message;
+          toast.hidden = false;
+          window.clearTimeout(state.toastTimer);
+          state.toastTimer = window.setTimeout(() => {
+            toast.hidden = true;
+          }, 2200);
+        }
+
+        function showFatal(error) {
+          $('#loading').hidden = true;
+          $('#dashboard').hidden = true;
+          const fatal = $('#fatal-error');
+          fatal.innerHTML = `<div><strong>无法读取运行快照</strong><span>${escapeHtml(error.message || error)}</span></div>`;
+          fatal.hidden = false;
+        }
+
+        function renderHeader(data) {
+          $('#branch-name').textContent = data.git.branch;
+          $('#commit-id').textContent = data.git.shortHead || '--';
+          const worktree = $('#worktree-status');
+          worktree.className = `status ${data.git.dirty ? 'dirty' : 'ok'}`;
+          worktree.textContent = data.git.dirty ? `${data.git.changedFiles} 项本地变更` : '工作区干净';
+          $('#generated-at').textContent = `快照 ${formatDate(data.generatedAt)}`;
+          const healthDot = $('#health-dot');
+          healthDot.className = `health-dot ${data.health}`;
+          $('#rail-health').textContent = data.health === 'ok' ? '运行状态正常' : `${data.warnings.length} 项需要处理`;
+        }
+
+        function renderOverview(data) {
+          $('#overview-fact').textContent = `${data.git.branch} · ${data.git.shortHead || '无提交'} · ${formatDate(data.generatedAt)}`;
+          const health = $('#system-health');
+          health.className = `status ${statusClass(data.health)}`;
+          health.textContent = data.health === 'ok' ? '正常' : '需关注';
+          $('#overview-metrics').innerHTML = [
+            metric('工作流', formatNumber(data.inventory.loops), '已注册工作流'),
+            metric('智能体 / 执行框架', `${data.inventory.agents} / ${data.inventory.harnesses}`, '执行与约束对象'),
+            metric('项目', formatNumber(data.inventory.projects), `${data.inventory.repositories} 个仓库`),
+            metric('仓库挂载', `${data.inventory.mountedRepositories}/${data.inventory.repositories}`, '本机可访问'),
+            metric('记忆运行记录', formatNumber(data.inventory.memoryRuns), displayLabel(data.memory.source)),
+            metric('图谱节点', formatNumber(data.inventory.graphNodes), data.graph.stale ? '快照已过期' : '匹配当前提交'),
+          ].join('');
+
+          $('#loop-route-count').textContent = `${data.loops.length} 条`;
+          $('#loop-routes').innerHTML = data.loops.length
+            ? data.loops.map((loop) => `
+                <li class="fact-row">
+                  <div>
+                    <div class="row-title">${escapeHtml(loopLabel(loop))}</div>
+                    <div class="row-meta">${escapeHtml(loop.project || '未绑定项目')} · ${escapeHtml(loop.generator || '未配置 generator')} · ${escapeHtml(loop.evaluator || '未配置 evaluator')}</div>
+                  </div>
+                  ${status(loop.stages.length ? 'automatic' : 'unmeasured', loop.stages.length ? `${loop.stages.length} 个阶段` : '无阶段契约')}
+                </li>
+              `).join('')
+            : '<li class="empty-state"><strong>没有注册工作流</strong>下一步在 workspace/loops 中声明工作流。</li>';
+
+          $('#warning-count').textContent = String(data.warnings.length);
+          $('#warnings').innerHTML = data.warnings.length
+            ? data.warnings.map((warning) => `
+                <li class="warning-row">
+                  <div>
+                    <div class="row-title">${escapeHtml(warningLabel(warning.code))}</div>
+                    <div class="row-meta">${escapeHtml(warning.source)}</div>
+                  </div>
+                  ${status('attention', '待处理')}
+                </li>
+              `).join('')
+            : '<li class="empty-state"><strong>没有待处理项</strong>当前快照未发现配置或可观测性风险。</li>';
+        }
+
+        function renderLoopSelector(selector, activeId, onSelect) {
+          const container = $(selector);
+          container.innerHTML = state.snapshot.loops.map((loop) => `
+            <button class="segment" type="button" data-loop-id="${escapeHtml(loop.id)}" aria-pressed="${loop.id === activeId}">
+              ${escapeHtml(loopLabel(loop))}
+            </button>
+          `).join('');
+          container.querySelectorAll('[data-loop-id]').forEach((button) => {
+            button.addEventListener('click', () => onSelect(button.dataset.loopId));
+          });
+        }
+
+        function renderWorkflow() {
+          const data = state.snapshot;
+          const loop = data.loops.find((item) => item.id === state.activeLoopId) || data.loops[0];
+          if (!loop) {
+            $('#workflow-content').innerHTML = '<div class="empty-state"><strong>没有工作流</strong>下一步在 workspace/loops 中注册工作流。</div>';
+            return;
+          }
+          state.activeLoopId = loop.id;
+          renderLoopSelector('#loop-selector', loop.id, (loopId) => {
+            state.activeLoopId = loopId;
+            renderWorkflow();
+          });
+          $('#workflow-fact').textContent = `${loop.file} · ${displayLabel(loop.schedule.type)} · ${loop.owner}`;
+
+          if (!loop.stages.length) {
+            $('#workflow-content').innerHTML = `
+              <div class="empty-state">
+                <strong>${escapeHtml(loopLabel(loop))} 未声明工作流阶段</strong>
+                下一步补齐阶段、负责人、输入输出和必要检查；当前不能评价节点级执行状态。
+              </div>
+            `;
+            return;
+          }
+
+          $('#workflow-content').innerHTML = `
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>阶段</th>
+                    <th>类型</th>
+                    <th>门禁</th>
+                    <th>负责人</th>
+                    <th>执行框架</th>
+                    <th>必要检查</th>
+                    <th>产出</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${loop.stages.map((stage) => `
+                    <tr>
+                      <td>
+                        <div class="cell-title">${escapeHtml(stageLabel(stage.id))}</div>
+                        <div class="cell-meta">${escapeHtml(stage.id)}</div>
+                      </td>
+                      <td>${escapeHtml(displayLabel(stage.kind))}</td>
+                      <td>${status(stage.gate, stage.gate)}</td>
+                      <td>${escapeHtml(stage.owner)}</td>
+                      <td>${escapeHtml(stage.harness || '--')}</td>
+                      <td><div class="gate-strip">${stage.requiredChecks.length ? stage.requiredChecks.map((check) => status('info', check)).join('') : '<span class="cell-meta">无</span>'}</div></td>
+                      <td>${stage.outputs.length ? escapeHtml(stage.outputs.join(', ')) : '--'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        function renderAgents(data) {
+          const rows = [
+            ...data.agents.map((item) => ({ ...item, category: 'Agent' })),
+            ...data.harnesses.map((item) => ({ ...item, category: 'Harness' })),
+          ];
+          $('#agent-fact').textContent = `${data.agents.length} 个智能体 · ${data.harnesses.length} 个执行框架 · ${data.evaluation.evaluatorCount} 个评价器`;
+          $('#agent-rows').innerHTML = rows.map((item) => `
+            <tr>
+              <td>
+                <div class="cell-title">${escapeHtml(objectLabel(item.id))}</div>
+                <div class="cell-meta">${escapeHtml(item.id)} · ${escapeHtml(item.file)}</div>
+              </td>
+              <td>${status(item.category === 'Harness' ? 'manual' : 'info', displayLabel(item.category))}</td>
+              <td>${escapeHtml([item.role, item.stance].filter(Boolean).map(displayLabel).join(' / ') || '--')}</td>
+              <td class="numeric">${formatNumber(item.allowedTools)}</td>
+              <td class="numeric">${formatNumber(item.deniedTools)}</td>
+              <td><code>${escapeHtml(item.file)}</code></td>
+            </tr>
+          `).join('');
+        }
+
+        function renderProjects(data) {
+          $('#project-fact').textContent = `${data.projects.length} 项目 · ${data.inventory.mountedRepositories}/${data.inventory.repositories} 仓库已挂载`;
+          $('#project-rows').innerHTML = data.projects.map((project) => {
+            const repositories = project.repositories.length
+              ? project.repositories.map((repository) => `${escapeHtml(repository.name)} ${status(repository.mounted ? 'mounted' : 'missing', repository.mounted ? '已挂载' : '缺失')}`).join('<br />')
+              : '<span class="cell-meta">项目自身</span>';
+            const background = !project.background.configured
+              ? '<span class="cell-meta">无背景</span>'
+              : `${escapeHtml(project.background.name || 'background')} ${status(project.background.mounted ? 'mounted' : 'missing', project.background.mounted ? '已挂载' : '缺失')}`;
+            const mountStatus = project.repositoryCount === 0
+              ? status('info', '不适用')
+              : status(project.mountedRepositoryCount === project.repositoryCount ? 'mounted' : 'attention', `${project.mountedRepositoryCount}/${project.repositoryCount}`);
+            return `
+              <tr>
+                <td><div class="cell-title">${escapeHtml(project.name)}</div><div class="cell-meta">${escapeHtml(project.file)}</div></td>
+                <td>${escapeHtml(displayLabel(project.kind))}</td>
+                <td><code>${escapeHtml(project.defaultBranch || '--')}</code></td>
+                <td>${background}</td>
+                <td>${mountStatus}</td>
+                <td>${repositories}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        function renderTiming() {
+          const data = state.snapshot;
+          const loop = data.loops.find((item) => item.id === state.timingLoopId) || data.loops[0];
+          if (!loop) return;
+          state.timingLoopId = loop.id;
+          renderLoopSelector('#timing-loop-selector', loop.id, (loopId) => {
+            state.timingLoopId = loopId;
+            renderTiming();
+          });
+          const stages = data.timing.stages.filter((stage) => stage.loopId === loop.id);
+          const source = data.timing.sources?.find((item) => item.loopId === loop.id);
+          const measuredStages = stages.filter((stage) => stage.valid).length;
+          $('#timing-fact').textContent = source?.selectedRunId
+            ? `${loopLabel(loop)} · ${source.selectedRunId} · ${measuredStages}/${stages.length} 个节点有效`
+            : `${loopLabel(loop)} · 缺少运行时节点计时事件`;
+          const timingStatus = $('#timing-status');
+          const loopTimingStatus = source?.status || data.timing.status;
+          timingStatus.className = `status ${statusClass(loopTimingStatus)}`;
+          timingStatus.textContent = displayLabel(loopTimingStatus);
+
+          if (!stages.length) {
+            $('#timing-content').innerHTML = `
+              <div class="empty-state">
+                <strong>${escapeHtml(loopLabel(loop))} 没有可计时的阶段契约</strong>
+                先在工作流规范中声明阶段，再接入追加式计时事件。
+              </div>
+            `;
+            return;
+          }
+
+          $('#timing-content').innerHTML = `
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>阶段</th>
+                    <th>任务</th>
+                    <th>尝试</th>
+                    <th>类型</th>
+                    <th>负责人</th>
+                    <th>状态</th>
+                    <th>进入时间</th>
+                    <th>首次动作时间</th>
+                    <th>退出时间</th>
+                    <th>总耗时</th>
+                    <th>活动耗时</th>
+                    <th>等待耗时</th>
+                    <th>等待原因</th>
+                    <th>证据</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${stages.map((stage) => `
+                    <tr>
+                      <td class="nowrap">
+                        <div class="cell-title">${escapeHtml(stageLabel(stage.stageId))}</div>
+                        <div class="cell-meta">${escapeHtml(stage.stageId)}</div>
+                      </td>
+                      <td><code>${escapeHtml(stage.taskId || '--')}</code></td>
+                      <td class="numeric">${escapeHtml(stage.attempt ?? '--')}</td>
+                      <td>${escapeHtml(displayLabel(stage.stageKind))}</td>
+                      <td>${escapeHtml(stage.owner)}</td>
+                      <td>${status(stage.status, displayLabel(stage.status))}</td>
+                      <td>${escapeHtml(stage.enteredAt || '未采集')}</td>
+                      <td>${escapeHtml(stage.firstActionAt || '未采集')}</td>
+                      <td>${escapeHtml(stage.exitedAt || '未采集')}</td>
+                      <td>${formatDuration(stage.durationMs)}</td>
+                      <td>${formatDuration(stage.activeMs)}</td>
+                      <td>${formatDuration(stage.waitingMs)}</td>
+                      <td>${escapeHtml(displayLabel(stage.waitingReason))}</td>
+                      <td><code>${escapeHtml(stage.evidence)}</code></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        function renderEvaluation(data) {
+          const evaluation = data.evaluation;
+          $('#evaluation-fact').textContent = evaluation.policy;
+          $('#evaluation-metrics').innerHTML = [
+            metric('评价器', formatNumber(evaluation.evaluatorCount), evaluation.evaluatorIds.join(', ') || '未配置'),
+            metric('人工门禁', formatNumber(evaluation.loopsWithHumanGate), '已声明工作流'),
+            metric('自评违规', formatNumber(evaluation.allowSelfReviewViolations.length), evaluation.allowSelfReviewViolations.length ? '需要阻断' : '未发现'),
+            metric('可观测性缺口', formatNumber(evaluation.observabilityGaps.length), '进入评价发现'),
+            metric('计时状态', displayLabel(data.timing.status), displayLabel(data.timing.waitingReason)),
+            metric('工作区', data.git.dirty ? '有变更' : '干净', `${data.git.changedFiles} 项变更`),
+          ].join('');
+
+          $('#gate-list').innerHTML = data.loops.map((loop) => `
+            <li class="fact-row">
+              <div>
+                <div class="row-title">${escapeHtml(loopLabel(loop))}</div>
+                <div class="row-meta">${escapeHtml(loop.requiredChecks.join(', ') || '未声明必要检查')}</div>
+              </div>
+              <div class="gate-strip">
+                ${status(loop.allowSelfReview ? 'error' : 'ok', loop.allowSelfReview ? '允许自评' : '禁止自评')}
+                ${status(loop.humanGates.length ? 'manual' : 'info', `${loop.humanGates.length} 个人工门禁`)}
+              </div>
+            </li>
+          `).join('');
+
+          $('#gap-count').textContent = String(evaluation.observabilityGaps.length);
+          $('#gap-list').innerHTML = evaluation.observabilityGaps.length
+            ? evaluation.observabilityGaps.map((gap) => `
+                <li class="gap-row">
+                  <div>
+                    <div class="row-title">${escapeHtml(gapLabel(gap.code))}</div>
+                    <div class="row-meta">${escapeHtml(gapDetail(gap))}</div>
+                  </div>
+                  ${status(gap.status, displayLabel(gap.status))}
+                </li>
+              `).join('')
+            : '<li class="empty-state"><strong>没有评价缺口</strong>当前可观测性字段完整。</li>';
+        }
+
+        function renderMemory(data) {
+          const memory = data.memory;
+          $('#memory-fact').textContent = `${displayLabel(memory.source)} · 原始正文不进入监控快照`;
+          const memoryStatus = $('#memory-status');
+          memoryStatus.className = `status ${memory.rootAvailable ? 'ok' : 'error'}`;
+          memoryStatus.textContent = memory.rootAvailable ? '可用' : '不可用';
+          $('#memory-metrics').innerHTML = [
+            metric('运行记录', formatNumber(memory.totals.runs), '追加日志'),
+            metric('问题发现', formatNumber(memory.totals.findings), '问题证据'),
+            metric('运行指标', formatNumber(memory.totals.metrics), '运行指标'),
+            metric('记忆根目录', memory.rootAvailable ? '可用' : '缺失', displayLabel(memory.source)),
+            metric('工作流记忆', formatNumber(memory.loops.filter((loop) => loop.available).length), `${memory.loops.length} 个已声明`),
+            metric('最近运行', formatDate(memory.loops.map((loop) => loop.lastRunAt).filter(Boolean).sort().at(-1)), '仅显示时间'),
+          ].join('');
+
+          $('#memory-rows').innerHTML = memory.loops.map((loop) => `
+            <tr>
+              <td><span class="cell-title">${escapeHtml(loop.id)}</span></td>
+              <td>${status(loop.available ? 'available' : 'missing', loop.available ? '可用' : '无目录')}</td>
+              <td class="numeric">${formatNumber(loop.runs)}</td>
+              <td class="numeric">${formatNumber(loop.findings)}</td>
+              <td class="numeric">${formatNumber(loop.metrics)}</td>
+              <td class="nowrap">${escapeHtml(formatDate(loop.lastRunAt))}</td>
+              <td>${loop.lastRunStatus ? status(loop.lastRunStatus, displayLabel(loop.lastRunStatus)) : '--'}</td>
+            </tr>
+          `).join('');
+        }
+
+        function renderBars(selector, values, extraClass = '') {
+          const container = $(selector);
+          if (!values.length) {
+            container.innerHTML = '<div class="empty-state"><strong>没有分布数据</strong>图谱未生成或当前集合为空。</div>';
+            return;
+          }
+          const visible = values.slice(0, 8);
+          const maximum = Math.max(...visible.map((item) => item.count), 1);
+          container.innerHTML = visible.map((item) => `
+            <div class="bar-row">
+              <span class="bar-label" title="${escapeHtml(displayLabel(item.type))}">${escapeHtml(displayLabel(item.type))}</span>
+              <span class="bar-track" aria-hidden="true"><span class="bar-fill ${extraClass}" style="width: ${Math.max(4, (item.count / maximum) * 100)}%"></span></span>
+              <span class="bar-value">${formatNumber(item.count)}</span>
+            </div>
+          `).join('');
+        }
+
+        function renderGraph(data) {
+          const graph = data.graph;
+          $('#graph-fact').textContent = `${graph.file} · ${graph.analyzedCommit ? graph.analyzedCommit.slice(0, 7) : '无分析提交'}`;
+          const graphStatus = $('#graph-status');
+          const graphState = graph.status !== 'ok' ? graph.status : graph.stale ? 'stale' : 'ok';
+          graphStatus.className = `status ${statusClass(graphState)}`;
+          graphStatus.textContent = graph.status !== 'ok' ? '未生成' : graph.stale ? '需刷新' : '当前';
+          $('#graph-metrics').innerHTML = [
+            metric('节点', formatNumber(graph.nodes), '结构对象'),
+            metric('关系', formatNumber(graph.edges), '对象关系'),
+            metric('已分析文件', formatNumber(graph.analyzedFiles), '纳入快照'),
+            metric('分析时间', formatDate(graph.analyzedAt), '知识图谱分析器'),
+            metric('分析提交', graph.analyzedCommit ? graph.analyzedCommit.slice(0, 7) : '--', graph.stale ? '不匹配 HEAD' : '匹配 HEAD'),
+            metric('当前提交', data.git.shortHead || '--', data.git.branch),
+          ].join('');
+          renderBars('#node-types', graph.nodeTypes);
+          renderBars('#edge-types', graph.edgeTypes, 'edge');
+        }
+
+        function renderOperations(data) {
+          $('#command-list').innerHTML = data.operations.map((operation) => `
+            <div class="command-row">
+              <span class="cell-title">${escapeHtml(operation.label)}</span>
+              <code>${escapeHtml(operation.command)}</code>
+              ${status(operation.approvalRequired ? 'manual' : 'info', operation.approvalRequired ? '需人工确认' : '本地命令')}
+              <button class="button" type="button" data-copy-command="${escapeHtml(operation.command)}">复制</button>
+            </div>
+          `).join('');
+          $$('[data-copy-command]').forEach((button) => {
+            button.addEventListener('click', async () => {
+              try {
+                await navigator.clipboard.writeText(button.dataset.copyCommand);
+                showToast('命令已复制');
+              } catch {
+                showToast('浏览器未授权剪贴板');
+              }
+            });
+          });
+        }
+
+        function render(data) {
+          state.snapshot = data;
+          state.activeLoopId ||= data.loops[0]?.id || null;
+          state.timingLoopId ||= data.loops[0]?.id || null;
+          renderHeader(data);
+          renderOverview(data);
+          renderWorkflow();
+          renderAgents(data);
+          renderProjects(data);
+          renderTiming();
+          renderEvaluation(data);
+          renderMemory(data);
+          renderGraph(data);
+          renderOperations(data);
+          $('#loading').hidden = true;
+          $('#fatal-error').hidden = true;
+          $('#dashboard').hidden = false;
+        }
+
+        async function fetchSnapshot() {
+          if (!token) throw new Error('访问令牌缺失，请使用启动命令输出的完整地址。');
+          const response = await fetch(apiUrl('/monitor-data.json'), { cache: 'no-store' });
+          if (!response.ok) throw new Error(`快照接口返回 HTTP ${response.status}`);
+          return response.json();
+        }
+
+        async function load() {
+          try {
+            const snapshot = await fetchSnapshot();
+            render(snapshot);
+          } catch (error) {
+            showFatal(error);
+          }
+        }
+
+        async function refresh() {
+          setBusy(true);
+          try {
+            const response = await fetch(apiUrl('/api/refresh'), { method: 'POST' });
+            if (!response.ok) throw new Error(`刷新接口返回 HTTP ${response.status}`);
+            const snapshot = await fetchSnapshot();
+            render(snapshot);
+            showToast('快照已刷新');
+          } catch (error) {
+            showToast(error.message || '刷新失败');
+          } finally {
+            setBusy(false);
+          }
+        }
+
+        function setupNavigation() {
+          const links = $$('.nav a');
+          const sections = links
+            .map((link) => document.querySelector(link.getAttribute('href')))
+            .filter(Boolean);
+          const observer = new IntersectionObserver((entries) => {
+            const visible = entries
+              .filter((entry) => entry.isIntersecting)
+              .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+            if (!visible) return;
+            links.forEach((link) => {
+              link.classList.toggle('is-active', link.getAttribute('href') === `#${visible.target.id}`);
+            });
+          }, { rootMargin: '-15% 0px -70% 0px', threshold: [0, 0.2, 0.6] });
+          sections.forEach((section) => observer.observe(section));
+        }
+
+        $('#refresh-button').addEventListener('click', refresh);
+        setupNavigation();
+        load();
+      })();
+    </script>
+  </body>
+</html>

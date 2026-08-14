@@ -1,15 +1,21 @@
-# Loop Engineering 工程说明
+# Loop Engineering 工程说明 / Loop Engineering Guide
 
 本工程按共享对话里的《Loop Engineering 橙皮书》思路搭建，目标不是做一个单次 agent runner，而是把“发现、交付、验证、持久化、调度”拆成可维护、可审计、可扩展的工程系统。
 
+This repository follows the Loop Engineering approach. Its goal is not a one-shot agent runner, but a maintainable, auditable, and extensible system that separates discovery, delivery, verification, persistence, and scheduling.
+
 核心边界：
+
+Core boundaries:
 
 ```text
 loop-engineering/ = 引擎层，放 runtime、schema、模板、CLI、测试
 workspace/        = 运行空间，放 loop 配置、项目知识、agent、connector、memory、worktree、budget
 ```
 
-当前版本是最小可运行骨架：不会真正调用 LLM，也不会真正创建 PR；它会读取 workspace 里的配置和 mock connector 数据，生成一次 loop dry-run 计划，用来验证目录、配置、职责边界是否成立。
+当前版本包含确定性规划与模拟骨架，以及一个受限的真实执行 pilot：`execute` 可通过本机 Codex CLI 执行符合条件的只读节点，并由统一 runtime 强制执行 Gate、Harness、本机运行锁和追加式节点事件。它不会创建 PR，也不会向目标仓开放无代理写权限；写节点和受保护 action 在 engine-owned action broker 完成前会明确阻断。
+
+The current version includes deterministic planning and simulation plus a constrained real-execution pilot. `execute` can run eligible read-only stages through the local Codex CLI, while the unified runtime enforces gates, Harness validation, a local run lock, and append-only stage events. It does not create pull requests or grant unbrokered target-repository writes; mutation stages and protected actions are explicitly blocked until an engine-owned action broker exists.
 
 ## 快速开始
 
@@ -107,7 +113,7 @@ npm test
 ├── SKILL.md                             # 仓级代码实现 Skill / repository-level implementation Skill
 ├── loop-engineering/                    # Loop Engineering 引擎层
 │   ├── cli/
-│   │   └── loop.ts                      # CLI 入口，支持 validate / dry-run
+│   │   └── loop.ts                      # CLI 入口，支持 validate / dry-run / gate / execute
 │   ├── docs/
 │   │   ├── architecture.md              # 架构说明
 │   │   ├── frontend-platform-standards.md # 前端平台工程规范 / frontend platform engineering standards
@@ -131,6 +137,7 @@ npm test
 │   │   ├── memory-doctor/               # memory validate / doctor 健康诊断
 │   │   ├── budget-guard/                # token、重试、并发等预算检查
 │   │   ├── human-gate/                  # 人工复核点配置
+│   │   ├── execution-runtime/           # Gate/Harness 强制执行、节点事件与 executor adapter
 │   │   └── shared/                      # 公共类型、文件读取、schema 校验
 │   ├── schemas/                         # JSON Schema，校验配置文件结构
 │   │   ├── loop.schema.json
@@ -217,6 +224,10 @@ V2 通过 `workflow.stages[]` 显式表达九个阶段：`requirement-intake`、
 
 V2 explicitly represents nine stages through `workflow.stages[]`: `requirement-intake`, `target-repository-resolution`, `frontend-master-design`, `frontend-repository-design`, `frontend-design-review`, `human-design-approval`, `frontend-implementation`, `implementation-verification`, and `pr-readiness`. In dry-run output, `status: planned` means planned only; it does not mean Yuque API calls, branch creation, target repository writes, or PR creation have happened. The Yuque connector `config.baseUrl` and `auth.tokenEnv` fields are API configuration shape only, and the repository must not store token values.
 
+`morning-triage` 通过 `workflow.stages[]` 显式表达六个阶段：`triage-discovery`、`finding-isolation`、`finding-implementation`、`finding-verification`、`pr-readiness` 和 `merge-approval`。每个自动节点必须声明一个 agent 或 evaluator，每个人工节点必须是无 agent/evaluator 的 `human-gate`；`dependsOn` 只能引用已经声明的前置节点，所有全局 verification check 都必须分配到至少一个节点。
+
+`morning-triage` explicitly represents six stages through `workflow.stages[]`: `triage-discovery`, `finding-isolation`, `finding-implementation`, `finding-verification`, `pr-readiness`, and `merge-approval`. Every automatic stage must declare one agent or evaluator, and every manual stage must be an ownerless `human-gate`. A `dependsOn` entry may reference only a previously declared stage, and every loop-level verification check must be assigned to at least one stage.
+
 ### Harness Spec
 
 入口文件：
@@ -233,6 +244,123 @@ workspace/agents/coding.harness.yaml
 - 完成条件
 - 失败处理策略
 - 输出字段要求
+
+`harness-check` 接收外部 agent executor 产生的结构化 run result，并以 fail-closed 方式检查 agent/harness 身份、上下文加载与字符上限、工具白名单/黑名单、完成条件、必需输出和逐项证据。检查失败时命令返回非零退出码；它不会自行调用模型、执行工具或修改业务仓。
+
+```bash
+npm run loop -- harness-check --loop morning-triage --result /path/to/run-result.json --json
+```
+
+run result 必须包含 `runId`、`taskId`、`agentId`、`harnessId`、`startedAt`、`finishedAt`、`loadedContext`、`contextCharactersUsed`、`toolsUsed`、`completedConditions`、`output` 和 `evidence`。每个已完成条件都必须有对应 `checkId` 的证据记录。
+
+`harness-check` accepts a structured run result produced by an external agent executor. It fails closed when the agent or harness identity is wrong, required context is missing or oversized, a tool violates the allow/deny policy, completion conditions or required outputs are missing, or a claimed condition has no evidence. A failed check returns a non-zero exit code. The command does not call a model, execute tools, or modify a business repository by itself.
+
+The run result must contain `runId`, `taskId`, `agentId`, `harnessId`, `startedAt`, `finishedAt`, `loadedContext`, `contextCharactersUsed`, `toolsUsed`, `completedConditions`, `output`, and `evidence`. Every completed condition must have an evidence record with a matching `checkId`.
+
+### Gate 与 GatePass / Gates And GatePasses
+
+`humanGate.gates[]` 把人工门禁定义为可校验配置。每个 gate 都声明唯一 `id`、受保护动作 `requiredBefore`、允许审批的 `reviewers`、参与摘要计算的 `subjectFields`、必需证据类型 `requiredEvidenceTypes` 和有效期 `maxAgeMinutes`。Loop 顶层 `humanGate.requiredBefore` 与 `humanGate.reviewers` 是 gate 定义的汇总，校验器会阻止两者漂移；manual `human-gate` workflow 节点必须存在同名 gate 定义，自动节点的 `requiredGates` 也只能引用已定义 gate。
+
+`humanGate.gates[]` represents human gates as enforceable configuration. Each gate declares a unique `id`, its protected `requiredBefore` action, authorized `reviewers`, the `subjectFields` included in the subject digest, required `requiredEvidenceTypes`, and `maxAgeMinutes`. The loop-level `humanGate.requiredBefore` and `humanGate.reviewers` fields summarize the gate definitions, and validation rejects drift between them. A manual `human-gate` workflow stage must have a same-ID gate definition, and an automatic stage may reference only defined gates through `requiredGates`.
+
+查看门禁不会写文件：
+
+Listing gates does not write files:
+
+```bash
+npm run loop -- gate list --loop frontend-delivery --json
+```
+
+审批命令校验审批人和证据后，把一条 `granted` 事件追加到 `<memoryRoot>/loops/<loop-id>/passes.jsonl`。`--stage` 表示通行证只允许进入该受保护 workflow 节点；传入的节点必须显式声明对应 `requiredGates`。调用方通过 `--subject-file` 提交 JSON 对象，引擎严格投影 gate 声明的 `subjectFields`，使用 JCS v1 稳定序列化和 SHA-256 计算 `subjectDigest`，同时记录 gate policy digest。调用方不能自行提交裸摘要。
+
+The approval command validates the issuer and evidence, then appends a `granted` event to `<memoryRoot>/loops/<loop-id>/passes.jsonl`. `--stage` binds the pass to one protected workflow stage, which must explicitly declare the gate in `requiredGates`. The caller supplies a JSON object through `--subject-file`; the engine strictly projects the gate's `subjectFields`, computes `subjectDigest` with JCS v1 deterministic serialization and SHA-256, and records a gate-policy digest. Callers cannot submit a raw digest.
+
+审批对象示例：
+
+Example approval subject:
+
+```json
+{
+  "requirementBrief": "Build the approved frontend flow.",
+  "sourceTrace": { "type": "local", "ref": "requirements/frontend.md" },
+  "targetRepositories": ["operateBusiness"],
+  "masterDesignPath": "docs/frontend-master-design.md",
+  "repositoryDesignPaths": ["docs/operate-business-design.md"]
+}
+```
+
+```bash
+npm run loop -- gate approve \
+  --loop frontend-delivery \
+  --gate human-design-approval \
+  --run-id run-001 \
+  --task-id task-001 \
+  --stage frontend-implementation \
+  --subject-file /path/to/design-subject.json \
+  --issuer wusheng \
+  --evidence review:reports/design-review.md \
+  --evidence human-approval:approval-record-001 \
+  --json
+```
+
+`gate check` 可同时接收一个 stage 和多个 action，并检查两者所需 gate 的并集。检查结果只有 `passed` 才返回成功退出码；缺少通行证、run/task 不匹配、stage 不匹配、审批对象变化、gate 策略变化、审批人失去权限、过期、撤销、legacy pass 或损坏的 JSONL 事件都会 fail-closed。统一 `execute` runtime 会在调用 adapter 前强制执行同一检查，不依赖调用方自觉。
+
+`gate check` may receive one stage and multiple actions, and checks the union of their required gates. Only a `passed` decision returns a successful exit code. A missing pass, run/task mismatch, stage mismatch, changed subject, changed gate policy, no-longer-authorized issuer, expiration, revocation, legacy pass, or malformed JSONL event fails closed. The unified `execute` runtime enforces the same check before invoking an adapter rather than relying on caller discipline.
+
+```bash
+npm run loop -- gate check \
+  --loop frontend-delivery \
+  --run-id run-001 \
+  --task-id task-001 \
+  --stage frontend-implementation \
+  --subject-file /path/to/design-subject.json \
+  --json
+
+npm run loop -- gate check \
+  --loop morning-triage \
+  --run-id run-001 \
+  --task-id task-001 \
+  --action merge \
+  --subject-file /path/to/merge-subject.json \
+  --json
+```
+
+撤销不会改写或删除原始授权，而是追加同一 `passId` 的 `revoked` 事件。`gate list` 与 `gate check` 是只读命令；`gate approve` 与 `gate revoke` 是追加写命令。
+
+Revocation never rewrites or deletes the original grant. It appends a `revoked` event with the same `passId`. `gate list` and `gate check` are read-only; `gate approve` and `gate revoke` append events.
+
+```bash
+npm run loop -- gate revoke \
+  --loop frontend-delivery \
+  --pass-id <pass-id> \
+  --issuer wusheng \
+  --reason "requirements changed" \
+  --json
+```
+
+### Execution Runtime 与只读 Codex Adapter / Execution Runtime And Read-Only Codex Adapter
+
+`execute` 是 workflow stage 和受保护 action 的统一执行入口。它先解析 dry-run 计划和依赖，再在引擎内计算审批对象摘要并执行 stage/action GateGuard；只有自动节点通过门禁后才会调用 adapter，adapter 返回的结构化 submission 还必须通过该节点配置的 Harness。执行状态会追加到 `<memoryRoot>/loops/<loop-id>/stage-events.jsonl`，不会改写历史 attempt。
+
+`execute` is the unified execution entry point for workflow stages and protected actions. It resolves the dry-run plan and dependencies, computes approval-subject digests inside the engine, and applies the combined stage/action GateGuard. The adapter is invoked only after an automatic stage passes its gates, and the adapter's structured submission must then pass the stage's configured Harness. Execution state is appended to `<memoryRoot>/loops/<loop-id>/stage-events.jsonl` without rewriting earlier attempts.
+
+```bash
+npm run loop -- execute \
+  --loop morning-triage \
+  --run-id run-001 \
+  --task-id task-001 \
+  --stage triage-discovery \
+  --subject-file /path/to/execution-subject.json \
+  --json
+```
+
+首个真实 adapter 是 `codex-cli-read-only`。它使用显式工作目录、`--sandbox read-only`、JSON output schema、`--output-last-message`、ephemeral 会话和忽略用户配置模式。它只允许 `intake`、`review`、`verification` 等只读节点；coding、design、PR、merge、release 或任何请求 action broker 的执行会在启动 Codex 进程前返回 `unsupported_mutation_stage`。
+
+The first real adapter is `codex-cli-read-only`. It uses an explicit working directory, `--sandbox read-only`, a JSON output schema, `--output-last-message`, an ephemeral session, and ignored user configuration. It permits only read-only kinds such as `intake`, `review`, and `verification`; coding, design, PR, merge, release, or any execution requiring an action broker returns `unsupported_mutation_stage` before a Codex process starts.
+
+当前执行权威范围是 `local_single_executor`：run 级本机锁能阻止同一台机器上的并发 writer，但不是跨机器 lease，也不能把同步 JSONL 当作分布式权威。Dashboard 只读投影这些事件，不参与执行、审批或锁管理。
+
+The current authority scope is `local_single_executor`: a run-scoped local lock prevents concurrent writers on one machine, but it is not a cross-machine lease and synchronized JSONL is not a distributed authority. The Dashboard only projects these events; it does not execute work, grant approvals, or manage locks.
 
 ### Skill
 
@@ -433,14 +561,21 @@ Obsidian 00-记忆索引/memory-index.json          # 同步刷新索引
 - 修改 runtime 代码后：`npm test` 是提交或合并前门禁，agent 需先询问用户是否执行。 / After changing runtime code, `npm test` is a pre-commit or pre-merge gate; agents must ask the user before running it.
 - 修改 Obsidian memory 协议或 CLI 后：`npm test` 与 `npm run loop -- memory validate --json` 需按风险选择验证，其中 `npm test` 需先询问用户是否执行。 / After changing the Obsidian memory protocol or CLI, choose verification based on risk with `npm test` and `npm run loop -- memory validate --json`; ask the user before running `npm test`.
 
-## 当前边界
+## 当前边界 / Current Boundaries
 
-当前工程只实现确定性骨架：
+当前工程保留以下边界：
 
-- 不实际调用 LLM
-- 不实际创建 git worktree
-- 不实际创建 GitHub PR
-- 不实际发送 Slack/Jira 请求
-- connector 数据来自 YAML 中的 `mock` 字段
+The current system retains these boundaries:
 
-后续接入真实能力时，应优先替换 connector-runtime、agent-runtime、worktree-manager 的具体实现，而不是改变 loop spec 的核心结构。
+- 只有符合条件的只读节点可以通过本机 Codex CLI 调用 LLM；写节点在 adapter 启动前阻断。
+- Only eligible read-only stages can call an LLM through the local Codex CLI; mutation stages are blocked before adapter startup.
+- 不实际创建 git worktree、GitHub PR，也不执行 merge 或 release。
+- It does not create Git worktrees or GitHub pull requests, and it does not perform merges or releases.
+- 不实际发送 Slack/Jira 请求；connector 数据仍来自 YAML 中的 `mock` 字段。
+- It does not send Slack or Jira requests; connector data still comes from YAML `mock` fields.
+- GatePass 和 StageEvent 使用本机追加式 JSONL；当前没有跨机器 lease 或分布式权威存储。
+- GatePasses and StageEvents use local append-only JSONL; no cross-machine lease or distributed authority store exists yet.
+
+后续接入写能力时，应优先新增 engine-owned action broker，并替换 connector-runtime、agent-runtime、worktree-manager 的具体实现，而不是绕过 Gate/Harness 或改变 loop spec 的核心结构。
+
+Future mutation support should add an engine-owned action broker and replace concrete connector-runtime, agent-runtime, and worktree-manager implementations instead of bypassing Gate/Harness enforcement or changing the core loop-spec structure.

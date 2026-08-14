@@ -54,3 +54,17 @@ humanGate:
     - merge
   reviewers:
     - owner
+  gates:
+    - id: merge-approval
+      requiredBefore: merge
+      reviewers:
+        - owner
+      subjectFields:
+        - changedFiles
+        - testResult
+        - pullRequestPlan
+      requiredEvidenceTypes:
+        - test
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
