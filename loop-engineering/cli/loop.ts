@@ -3,6 +3,7 @@ import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
+import { generateCapabilityCatalog } from '../packages/capability-catalog/src/capabilityCatalog';
 import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
@@ -62,6 +63,13 @@ async function main(argv: string[]): Promise<void> {
       process.stderr.write(`Validation failed:\n${errors.map((error) => `- ${error}`).join('\n')}\n`);
     }
     process.exitCode = allOk ? 0 : 1;
+    return;
+  }
+
+  if (options.command === 'catalog') {
+    const catalog = await generateCapabilityCatalog(workspaceRoot);
+    if (options.json) process.stdout.write(formatJson(catalog));
+    else printCapabilityCatalog(catalog);
     return;
   }
 
@@ -498,8 +506,26 @@ function printExecutionResult(result: Awaited<ReturnType<ExecutionRuntime['execu
   process.stdout.write(`Execution: ${result.status}\n`);
   process.stdout.write(`Adapter: ${result.adapterId}\n`);
   process.stdout.write(`Authority: ${result.authority.scope} (${result.authority.executorInstance})\n`);
-  process.stdout.write(`Events: ${result.stageEvents.length}\n`);
+  process.stdout.write(`Stage events: ${result.stageEvents.length}\n`);
+  process.stdout.write(`Execution events: ${result.executionEvents.length}\n`);
+  if (result.evaluationVerdict) {
+    process.stdout.write(
+      `Evaluator: ${result.evaluationVerdict.evaluatorId} (${result.evaluationVerdict.decision}, independent=${result.evaluationVerdict.independent})\n`
+    );
+  }
   for (const reason of result.reasons) process.stdout.write(`- ${reason}\n`);
+}
+
+function printCapabilityCatalog(result: Awaited<ReturnType<typeof generateCapabilityCatalog>>): void {
+  process.stdout.write(`Capability catalog: ${result.loops.length} loop(s)\n`);
+  for (const loop of result.loops) {
+    process.stdout.write(`Loop: ${loop.loopId}, stages=${loop.stages.length}, gates=${loop.gates.length}\n`);
+    for (const stage of loop.stages) {
+      process.stdout.write(
+        `- ${stage.stageId}: ${stage.ownerType}=${stage.owner}, harness=${stage.harness ?? 'none'}, tools=${stage.toolPolicy.enforcement}\n`
+      );
+    }
+  }
 }
 
 function printGateList(result: ReturnType<HumanGate['plan']> & { loopId: string; passLog: string }): void {
@@ -532,6 +558,7 @@ function printGateDecision(result: ReturnType<HumanGate['check']>): void {
 function printHelp(): void {
   process.stdout.write(`Usage:
   loop validate [--workspace workspace] [--loop morning-triage] [--json]
+  loop catalog [--workspace workspace] [--json]
   loop harness-check --loop <loop-id> --result <json-file> [--workspace workspace] [--json]
   loop gate list --loop <loop-id> [--workspace workspace] [--json]
   loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-file <json-file> --issuer <reviewer> --evidence <type:value>... [--json]

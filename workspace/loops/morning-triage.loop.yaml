@@ -106,6 +106,7 @@ workflow:
       kind: review
       gate: automatic
       evaluator: evaluator.agent.yaml
+      harness: coding.harness.yaml
       dependsOn:
         - finding-implementation
       requiredChecks:
@@ -119,6 +120,7 @@ workflow:
       kind: pr-readiness
       gate: automatic
       evaluator: evaluator.agent.yaml
+      harness: coding.harness.yaml
       dependsOn:
         - finding-verification
       outputs:

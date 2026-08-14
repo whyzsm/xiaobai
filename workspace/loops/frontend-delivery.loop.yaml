@@ -202,6 +202,7 @@ workflow:
       kind: review
       gate: automatic
       evaluator: frontend-evaluator.agent.yaml
+      harness: frontend-delivery.harness.yaml
       dependsOn:
         - frontend-master-design
         - frontend-repository-design
@@ -237,6 +238,7 @@ workflow:
       kind: review
       gate: automatic
       evaluator: frontend-evaluator.agent.yaml
+      harness: frontend-delivery.harness.yaml
       dependsOn:
         - frontend-implementation
       requiredChecks:
@@ -251,6 +253,7 @@ workflow:
       kind: pr-readiness
       gate: automatic
       evaluator: frontend-evaluator.agent.yaml
+      harness: frontend-delivery.harness.yaml
       dependsOn:
         - implementation-verification
       requiredChecks:

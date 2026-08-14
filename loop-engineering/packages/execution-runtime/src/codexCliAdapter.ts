@@ -1,9 +1,11 @@
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { canonicalizeJson } from '../../human-gate/src/subjectDigest';
+import { specializeHarnessForStage } from '../../harness-runtime/src/harnessRuntime';
 import { readYamlFile } from '../../shared/src/fs';
 import {
   ExecutorAdapter,
@@ -16,7 +18,7 @@ import {
 } from '../../shared/src/types';
 
 const execFileAsync = promisify(execFile);
-const readOnlyStageKinds = new Set(['intake', 'review', 'verification']);
+const readOnlyStageKinds = new Set(['intake', 'review', 'verification', 'pr-readiness']);
 
 export interface CodexCliAdapterOptions {
   executable?: string;
@@ -66,7 +68,10 @@ export class CodexCliAdapter implements ExecutorAdapter {
 
     let harness: HarnessSpec;
     try {
-      harness = await readYamlFile<HarnessSpec>(path.join(input.workspaceRoot, 'agents', input.stage.harness));
+      harness = specializeHarnessForStage(
+        await readYamlFile<HarnessSpec>(path.join(input.workspaceRoot, 'agents', input.stage.harness)),
+        input.stage
+      );
     } catch (error) {
       return blocked(`harness_config_unavailable: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -79,6 +84,19 @@ export class CodexCliAdapter implements ExecutorAdapter {
     const engineEvidence = input.backgroundContext ? backgroundContextEvidence(input.backgroundContext) : [];
     try {
       await writeFile(schemaPath, `${JSON.stringify(codexOutputSchema, null, 2)}\n`, 'utf8');
+      const prompt = buildPrompt(input, harness, subjectJson);
+      const requestId = `${input.runId}:${input.taskId}:${input.stage.id}:${input.attempt}`;
+      await reportExecutorEvent(input, 'prompt/assembled', {
+        requestId,
+        promptDigest: sha256(prompt),
+        promptCharacters: prompt.length,
+        subjectDigest: sha256(subjectJson),
+        outputSchemaDigest: sha256(JSON.stringify(codexOutputSchema)),
+        harnessId: harness.metadata.id,
+        contextDigest: input.backgroundContext?.skillContext.contextDigest ?? null,
+        contextLoaders: harness.context.loaders,
+        reconstruction: 'source-digests'
+      });
       const args = [
         'exec',
         '--cd',
@@ -94,19 +112,40 @@ export class CodexCliAdapter implements ExecutorAdapter {
         '--ignore-user-config',
         '--color',
         'never',
-        buildPrompt(input, harness, subjectJson)
+        prompt
       ];
+      await reportExecutorEvent(input, 'model/requested', {
+        requestId,
+        adapterId: this.id,
+        command: 'codex exec',
+        cwd,
+        sandbox: 'read-only',
+        timeoutMs: this.timeoutMs
+      }, [commandEvidence]);
+      let stdout: string;
       try {
-        await execFileAsync(this.executable, args, {
+        const result = await execFileAsync(this.executable, args, {
           cwd,
           timeout: this.timeoutMs,
           maxBuffer: this.maxBufferBytes,
           encoding: 'utf8'
         });
+        stdout = result.stdout;
       } catch (error) {
         const reason = `codex_cli_failed: ${formatProcessFailure(error)}`;
+        await reportExecutorEvent(input, 'model/completed', {
+          requestId,
+          status: 'failed',
+          reason
+        });
         return failed(reason, [commandEvidence, ...engineEvidence]);
       }
+      await reportCodexToolEvents(input, stdout, requestId);
+      await reportExecutorEvent(input, 'model/completed', {
+        requestId,
+        status: 'completed',
+        outputBytes: Buffer.byteLength(stdout, 'utf8')
+      });
 
       let payload: unknown;
       try {
@@ -139,6 +178,65 @@ export class CodexCliAdapter implements ExecutorAdapter {
       await rm(tempRoot, { recursive: true, force: true });
     }
   }
+}
+
+async function reportExecutorEvent(
+  input: ExecutorAdapterInput,
+  eventType: Parameters<NonNullable<ExecutorAdapterInput['eventReporter']>['record']>[0]['eventType'],
+  data: JsonRecord,
+  evidence: GatePassEvidence[] = []
+): Promise<void> {
+  await input.eventReporter?.record({ eventType, data, evidence });
+}
+
+async function reportCodexToolEvents(
+  input: ExecutorAdapterInput,
+  stdout: string,
+  requestId: string
+): Promise<void> {
+  const started = new Set<string>();
+  for (const line of stdout.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let event: unknown;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!isRecord(event) || !isRecord(event.item)) continue;
+    const itemType = typeof event.item.type === 'string' ? event.item.type : '';
+    if (!isToolItemType(itemType)) continue;
+    const callId = typeof event.item.id === 'string' && event.item.id.trim()
+      ? event.item.id
+      : undefined;
+    if (!callId) continue;
+    if (event.type === 'item.started') {
+      started.add(callId);
+      await reportExecutorEvent(input, 'tool/call', {
+        requestId,
+        callId,
+        toolType: itemType,
+        observation: 'codex-jsonl'
+      });
+    }
+    if (event.type === 'item.completed' && started.has(callId)) {
+      await reportExecutorEvent(input, 'tool/result', {
+        requestId,
+        callId,
+        toolType: itemType,
+        status: typeof event.item.status === 'string' ? event.item.status : 'completed',
+        observation: 'codex-jsonl'
+      });
+    }
+  }
+}
+
+function isToolItemType(value: string): boolean {
+  return value === 'command_execution' || value === 'file_change' || value === 'mcp_tool_call' || value === 'web_search';
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
 }
 
 const codexOutputSchema = {

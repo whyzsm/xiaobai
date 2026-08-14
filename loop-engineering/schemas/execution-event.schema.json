@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution-event.schema.json",
+  "title": "Execution Event",
+  "type": "object",
+  "required": [
+    "kind",
+    "version",
+    "id",
+    "seq",
+    "loopId",
+    "runId",
+    "taskId",
+    "stageId",
+    "attempt",
+    "actor",
+    "eventType",
+    "occurredAt",
+    "data",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "ExecutionEvent" },
+    "version": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "seq": { "type": "integer", "minimum": 1 },
+    "loopId": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "stageId": { "type": "string", "minLength": 1 },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "actor": {
+      "enum": ["runtime", "executor", "harness", "evaluator"]
+    },
+    "eventType": {
+      "enum": [
+        "gate/decision",
+        "context/resolved",
+        "prompt/assembled",
+        "model/requested",
+        "model/completed",
+        "tool/call",
+        "tool/result",
+        "executor/completed",
+        "harness/verdict",
+        "evaluation/verdict"
+      ]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "data": { "type": "object" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": ["command", "file", "diff", "test", "browser", "review", "human-approval", "other"]
+          },
+          "value": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
