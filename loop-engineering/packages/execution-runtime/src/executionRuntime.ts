@@ -1,18 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, open, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { HarnessRuntime } from '../../harness-runtime/src/harnessRuntime';
+import { EvaluatorRuntime } from '../../evaluator-runtime/src/evaluatorRuntime';
+import { HarnessRuntime, specializeHarnessForStage } from '../../harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../../human-gate/src/humanGate';
 import { SkillContextResolver } from '../../skill-context-runtime/src/skillContextResolver';
 import {
   ExecutionStageInput,
   ExecutionStageResult,
+  ExecutionEvent,
   ExecutorAdapter,
   ExecutorAdapterResult,
+  EvaluationVerdict,
   GateCheckInput,
   GateDecision,
   GatePassEvidence,
   HarnessEvidenceType,
+  JsonRecord,
   LoopSpec,
   RuntimePlan,
   ResolvedBackgroundContext,
@@ -20,6 +24,7 @@ import {
   StageEventKey,
   WorkflowStagePlan
 } from '../../shared/src/types';
+import { ExecutionEventStore } from './executionEvents';
 import { createStageEvent, StageEventStore, validateStageEventSequence } from './stageEvents';
 
 export interface ExecutionRuntimeOptions {
@@ -139,6 +144,13 @@ export class ExecutionRuntime {
       owner
     };
     const recorded: StageEvent[] = [];
+    const executionStore = new ExecutionEventStore(
+      this.options.memoryRoot,
+      this.options.loop.metadata.id,
+      input.runId,
+      { now: this.clock }
+    );
+    const executionEvents: ExecutionEvent[] = [];
     const append = async (
       eventType: Parameters<typeof createStageEvent>[0]['eventType'],
       evidence: GatePassEvidence[] = [],
@@ -155,6 +167,20 @@ export class ExecutionRuntime {
       recorded.push(event);
       return event;
     };
+    const appendExecution = async (
+      event: Omit<Parameters<ExecutionEventStore['append']>[0], keyof StageEventKey>
+    ): Promise<ExecutionEvent> => {
+      const recordedEvent = await executionStore.append({
+        loopId: scope.loopId,
+        runId: scope.runId,
+        taskId: scope.taskId,
+        stageId: scope.stageId,
+        attempt: scope.attempt,
+        ...event
+      });
+      executionEvents.push(recordedEvent);
+      return recordedEvent;
+    };
 
     let existingEvents: StageEvent[];
     try {
@@ -168,7 +194,7 @@ export class ExecutionRuntime {
     if (dependencyReasons.length > 0) {
       await append('entered');
       await append('blocked', [otherEvidence(dependencyReasons.join('; '))]);
-      return executionResult('blocked', adapter.id, authority, dependencyReasons, null, null, recorded);
+      return executionResult('blocked', adapter.id, authority, dependencyReasons, null, null, recorded, executionEvents);
     }
 
     await append('entered');
@@ -180,11 +206,17 @@ export class ExecutionRuntime {
       actions,
       subject: input.subject
     });
-    if (gateDecision.status === 'blocked') {
-      if (gateDecision.requiredGates.length > 0) {
-        await append('waiting_started', [], 'approval_required');
-        await append('waiting_ended', [], 'approval_required');
+    await appendExecution({
+      actor: 'runtime',
+      eventType: 'gate/decision',
+      data: {
+        status: gateDecision.status,
+        requiredGates: gateDecision.requiredGates,
+        satisfiedGates: gateDecision.satisfiedGates,
+        blockingReasons: gateDecision.blockingReasons
       }
+    });
+    if (gateDecision.status === 'blocked') {
       await append('blocked', [otherEvidence(`GateGuard blocked: ${gateDecision.blockingReasons.join('; ')}`)]);
       return executionResult(
         'blocked',
@@ -193,19 +225,20 @@ export class ExecutionRuntime {
         gateDecision.blockingReasons,
         gateDecision,
         null,
-        recorded
+        recorded,
+        executionEvents
       );
     }
 
     if (stage.gate !== 'automatic') {
       const reasons = ['manual workflow stage requires human completion'];
       await append('blocked', [otherEvidence(reasons[0])]);
-      return executionResult('blocked', adapter.id, authority, reasons, gateDecision, null, recorded);
+      return executionResult('blocked', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
     }
     if (!stage.harness) {
       const reasons = ['automatic workflow stage has no configured harness'];
       await append('blocked', [otherEvidence(reasons[0])]);
-      return executionResult('blocked', adapter.id, authority, reasons, gateDecision, null, recorded);
+      return executionResult('blocked', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
     }
 
     await append('first_action');
@@ -220,10 +253,16 @@ export class ExecutionRuntime {
           `Background context loading failed closed: ${error instanceof Error ? error.message : String(error)}`
         ];
         await append('failed', [otherEvidence(reasons[0])]);
-        return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded);
+        return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
       }
+      await appendExecution({
+        actor: 'runtime',
+        eventType: 'context/resolved',
+        data: backgroundContextEventData(backgroundContext)
+      });
     }
     let adapterResult;
+    await append('waiting_started', [], 'tool_running');
     try {
       adapterResult = await adapter.execute({
         loopId: scope.loopId,
@@ -235,49 +274,133 @@ export class ExecutionRuntime {
         subject: input.subject,
         workspaceRoot: this.options.workspaceRoot,
         worktreePath: input.worktreePath,
-        ...(backgroundContext ? { backgroundContext } : {})
+        ...(backgroundContext ? { backgroundContext } : {}),
+        eventReporter: {
+          record: async (event) => {
+            await appendExecution({ actor: 'executor', ...event });
+          }
+        }
       });
     } catch (error) {
+      await append('waiting_ended', [], 'tool_running');
       const reasons = [`executor adapter failed: ${error instanceof Error ? error.message : String(error)}`];
       await append('failed', [otherEvidence(reasons[0])]);
-      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded);
+      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
     }
+    await append('waiting_ended', [], 'tool_running');
 
     if (!isExecutorAdapterResult(adapterResult)) {
       const reasons = ['executor adapter returned an invalid result'];
+      await appendExecution({
+        actor: 'runtime',
+        eventType: 'executor/completed',
+        data: { adapterId: adapter.id, status: 'invalid' }
+      });
       await append('failed', [otherEvidence(reasons[0])]);
-      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded);
+      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
     }
+    await appendExecution({
+      actor: 'runtime',
+      eventType: 'executor/completed',
+      data: {
+        adapterId: adapter.id,
+        status: adapterResult.status,
+        reason: adapterResult.reason ?? null
+      },
+      evidence: adapterResult.evidence
+    });
 
     if (adapterResult.status === 'blocked' || adapterResult.status === 'failed') {
       const reason = adapterResult.reason ?? `executor adapter returned ${adapterResult.status}`;
       await append(adapterResult.status, adapterResult.evidence.length > 0 ? adapterResult.evidence : [otherEvidence(reason)]);
-      return executionResult(adapterResult.status, adapter.id, authority, [reason], gateDecision, null, recorded);
+      return executionResult(
+        adapterResult.status,
+        adapter.id,
+        authority,
+        [reason],
+        gateDecision,
+        null,
+        recorded,
+        executionEvents
+      );
     }
 
     let harnessResult;
     try {
       const stageLoop = stageLoopSpec(this.options.loop, stage);
       const harnessRuntime = new HarnessRuntime(this.options.workspaceRoot);
-      const harness = await harnessRuntime.load(stageLoop);
+      const harness = specializeHarnessForStage(await harnessRuntime.load(stageLoop), stage);
       harnessResult = harnessRuntime.evaluateRun(stageLoop, harness, adapterResult.submission);
     } catch (error) {
       const reasons = [`Harness validation failed closed: ${error instanceof Error ? error.message : String(error)}`];
       await append('failed', [otherEvidence(reasons[0])]);
-      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded);
+      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+    }
+    await appendExecution({
+      actor: 'harness',
+      eventType: 'harness/verdict',
+      data: harnessVerdictEventData(harnessResult)
+    });
+
+    let evaluationVerdict: EvaluationVerdict | null = null;
+    if (stage.evaluator) {
+      evaluationVerdict = new EvaluatorRuntime().decide({
+        loop: this.options.loop,
+        stage,
+        runId: input.runId,
+        taskId: input.taskId,
+        harnessResult,
+        evidence: adapterResult.evidence
+      });
+      await appendExecution({
+        actor: 'evaluator',
+        eventType: 'evaluation/verdict',
+        data: {
+          evaluatorId: evaluationVerdict.evaluatorId,
+          independent: evaluationVerdict.independent,
+          decision: evaluationVerdict.decision,
+          requiredChecks: evaluationVerdict.requiredChecks,
+          reasons: evaluationVerdict.reasons
+        },
+        evidence: evaluationVerdict.evidence
+      });
     }
 
-    if (harnessResult.status !== 'passed') {
-      const reasons = ['Harness rejected executor submission'];
+    if (harnessResult.status !== 'passed' || evaluationVerdict?.decision === 'rejected') {
+      const reasons = [
+        harnessResult.status !== 'passed'
+          ? 'Harness rejected executor submission'
+          : 'Independent evaluator rejected executor submission'
+      ];
       await append('failed', [
         ...(backgroundContext ? adapterResult.evidence : []),
         otherEvidence(`${reasons[0]}: ${summarizeHarnessViolations(harnessResult)}`)
       ]);
-      return executionResult('failed', adapter.id, authority, reasons, gateDecision, harnessResult, recorded);
+      return executionResult(
+        'failed',
+        adapter.id,
+        authority,
+        reasons,
+        gateDecision,
+        harnessResult,
+        recorded,
+        executionEvents,
+        evaluationVerdict
+      );
     }
 
     await append('passed', adapterResult.evidence);
-    return executionResult('passed', adapter.id, authority, [], gateDecision, harnessResult, recorded);
+    return executionResult(
+      'passed',
+      adapter.id,
+      authority,
+      [],
+      gateDecision,
+      harnessResult,
+      recorded,
+      executionEvents,
+      evaluationVerdict
+    );
   }
 }
 
@@ -361,9 +484,21 @@ function executionResult(
   reasons: string[],
   gateDecision: GateDecision | null,
   harnessResult: ExecutionStageResult['harnessResult'],
-  stageEvents: StageEvent[]
+  stageEvents: StageEvent[],
+  executionEvents: ExecutionEvent[],
+  evaluationVerdict: EvaluationVerdict | null = null
 ): ExecutionStageResult {
-  return { status, adapterId, authority, reasons, gateDecision, harnessResult, stageEvents };
+  return {
+    status,
+    adapterId,
+    authority,
+    reasons,
+    gateDecision,
+    harnessResult,
+    evaluationVerdict,
+    stageEvents,
+    executionEvents
+  };
 }
 
 function blockedResult(
@@ -371,7 +506,40 @@ function blockedResult(
   authority: ExecutionStageResult['authority'],
   reasons: string[]
 ): ExecutionStageResult {
-  return executionResult('blocked', adapterId, authority, reasons, null, null, []);
+  return executionResult('blocked', adapterId, authority, reasons, null, null, [], []);
+}
+
+function backgroundContextEventData(context: ResolvedBackgroundContext): JsonRecord {
+  return {
+    projectId: context.projectId,
+    backgroundId: context.backgroundId,
+    contractVersion: context.skillContext.contractVersion,
+    skillCommit: context.skillContext.skillCommit,
+    entryPath: context.skillContext.entryPath,
+    entryHash: context.skillContext.entryHash,
+    manifestPath: context.skillContext.manifestPath,
+    manifestDigest: context.skillContext.manifestDigest,
+    contextDigest: context.skillContext.contextDigest,
+    characters: context.characters,
+    sources: context.documents.map((document) => ({
+      path: document.path,
+      roles: document.roles,
+      sourceDigest: document.sourceDigest,
+      contentDigest: document.contentDigest,
+      selection: document.selection
+    }))
+  };
+}
+
+function harnessVerdictEventData(result: NonNullable<ExecutionStageResult['harnessResult']>): JsonRecord {
+  return {
+    status: result.status,
+    agentId: result.agentId,
+    harnessId: result.harnessId,
+    durationMs: result.durationMs,
+    checks: result.checks,
+    violations: result.violations
+  };
 }
 
 function otherEvidence(value: string): GatePassEvidence {

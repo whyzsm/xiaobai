@@ -331,6 +331,19 @@ export interface HarnessRunResult {
   };
 }
 
+export interface EvaluationVerdict {
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stageId: string;
+  evaluatorId: string;
+  independent: boolean;
+  decision: 'approved' | 'rejected';
+  requiredChecks: string[];
+  reasons: string[];
+  evidence: GatePassEvidence[];
+}
+
 export interface EvaluationPlan {
   taskId: string;
   evaluatorId: string;
@@ -478,6 +491,77 @@ export interface StageTimingProjection extends StageEventKey {
   errors: string[];
 }
 
+export type ExecutionEventType =
+  | 'gate/decision'
+  | 'context/resolved'
+  | 'prompt/assembled'
+  | 'model/requested'
+  | 'model/completed'
+  | 'tool/call'
+  | 'tool/result'
+  | 'executor/completed'
+  | 'harness/verdict'
+  | 'evaluation/verdict';
+
+export type ExecutionEventActor = 'runtime' | 'executor' | 'harness' | 'evaluator';
+
+export interface ExecutionEventKey {
+  loopId: string;
+  runId: string;
+  taskId: string;
+  stageId: string;
+  attempt: number;
+}
+
+export interface ExecutionEvent extends ExecutionEventKey {
+  kind: 'ExecutionEvent';
+  version: 1;
+  id: string;
+  seq: number;
+  actor: ExecutionEventActor;
+  eventType: ExecutionEventType;
+  occurredAt: string;
+  data: JsonRecord;
+  evidence: GatePassEvidence[];
+}
+
+export interface ExecutionEventInput extends ExecutionEventKey {
+  actor: ExecutionEventActor;
+  eventType: ExecutionEventType;
+  occurredAt?: string;
+  data?: JsonRecord;
+  evidence?: GatePassEvidence[];
+}
+
+export interface ExecutorReportedEvent {
+  eventType:
+    | 'prompt/assembled'
+    | 'model/requested'
+    | 'model/completed'
+    | 'tool/call'
+    | 'tool/result';
+  data: JsonRecord;
+  evidence?: GatePassEvidence[];
+}
+
+export interface ExecutorEventReporter {
+  record(event: ExecutorReportedEvent): Promise<void>;
+}
+
+export interface ExecutionTraceProjection {
+  loopId: string;
+  runId: string;
+  valid: boolean;
+  reconstructable: boolean;
+  modelRequests: number;
+  modelCompletions: number;
+  toolCalls: number;
+  toolResults: number;
+  harnessVerdicts: number;
+  evaluationVerdicts: number;
+  errors: string[];
+}
+
 export interface ExecutorAdapterInput {
   loopId: string;
   runId: string;
@@ -489,6 +573,7 @@ export interface ExecutorAdapterInput {
   workspaceRoot: string;
   worktreePath?: string;
   backgroundContext?: ResolvedBackgroundContext;
+  eventReporter?: ExecutorEventReporter;
 }
 
 export interface ExecutorAdapterResult {
@@ -525,7 +610,9 @@ export interface ExecutionStageResult {
   reasons: string[];
   gateDecision: GateDecision | null;
   harnessResult: HarnessRunResult | null;
+  evaluationVerdict: EvaluationVerdict | null;
   stageEvents: StageEvent[];
+  executionEvents: ExecutionEvent[];
 }
 
 export interface ProjectRoutePlan {

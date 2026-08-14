@@ -10,10 +10,15 @@ import {
   projectStageTiming,
   StageEventStore
 } from '../packages/execution-runtime/src/stageEvents';
+import {
+  ExecutionEventStore,
+  projectExecutionTrace
+} from '../packages/execution-runtime/src/executionEvents';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
+import { generateCapabilityCatalog } from '../packages/capability-catalog/src/capabilityCatalog';
 import { SkillContextResolver } from '../packages/skill-context-runtime/src/skillContextResolver';
-import { chmod, mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -24,7 +29,8 @@ import {
   ConnectorSpec,
   HarnessRunSubmission,
   LegacyGatePassEvent,
-  LoopSpec
+  LoopSpec,
+  WorkflowStagePlan
 } from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
 
@@ -239,6 +245,33 @@ function validCodingSubmission(runId: string, taskId: string): HarnessRunSubmiss
       { checkId: 'tests_attempted', type: 'test', value: 'focused tests passed' },
       { checkId: 'summary_written', type: 'file', value: 'summary output' }
     ]
+  };
+}
+
+function validStageSubmission(
+  stage: WorkflowStagePlan,
+  runId: string,
+  taskId: string,
+  agentId: string,
+  harnessId: string
+): HarnessRunSubmission {
+  return {
+    runId,
+    taskId,
+    agentId,
+    harnessId,
+    startedAt: '2026-08-10T00:00:00.000Z',
+    finishedAt: '2026-08-10T00:00:02.000Z',
+    loadedContext: ['repository-skill', 'project-skill', 'task-brief', 'relevant-files', 'previous-memory'],
+    contextCharactersUsed: 8000,
+    toolsUsed: ['read_file', 'run_tests', 'git_diff'],
+    completedConditions: [...stage.requiredChecks],
+    output: Object.fromEntries(stage.outputs.map((field) => [field, `${field} result`])),
+    evidence: stage.requiredChecks.map((checkId) => ({
+      checkId,
+      type: 'review' as const,
+      value: `${checkId} independently verified`
+    }))
   };
 }
 
@@ -763,6 +796,54 @@ test('stage timing preserves terminal status and retry attempts in the append-on
   }
 });
 
+test('execution events preserve reconstructable model and tool facts with private spill files', async () => {
+  const memoryRoot = await mkdtemp(path.join(tmpdir(), 'loop-execution-events-'));
+  const store = new ExecutionEventStore(memoryRoot, 'loop-events', 'run-events', {
+    maxInlineBytes: 1024,
+    now: () => new Date('2026-08-10T00:00:00.000Z')
+  });
+  const scope = {
+    loopId: 'loop-events',
+    runId: 'run-events',
+    taskId: 'task-events',
+    stageId: 'review',
+    attempt: 1
+  };
+  await store.append({ ...scope, actor: 'executor', eventType: 'prompt/assembled', data: { requestId: 'request-1' } });
+  await store.append({ ...scope, actor: 'executor', eventType: 'model/requested', data: { requestId: 'request-1' } });
+  await store.append({ ...scope, actor: 'executor', eventType: 'tool/call', data: { callId: 'call-1' } });
+  await store.append({ ...scope, actor: 'executor', eventType: 'tool/result', data: { callId: 'call-1' } });
+  await store.append({ ...scope, actor: 'executor', eventType: 'model/completed', data: { requestId: 'request-1' } });
+  const spilled = await store.append({
+    ...scope,
+    actor: 'runtime',
+    eventType: 'executor/completed',
+    data: { output: 'x'.repeat(2048) }
+  });
+
+  const events = await store.readAll();
+  const projection = projectExecutionTrace(events);
+  assert.equal(projection.valid, true, projection.errors.join('\n'));
+  assert.equal(projection.reconstructable, true);
+  assert.equal(projection.modelRequests, 1);
+  assert.equal(projection.modelCompletions, 1);
+  assert.equal(projection.toolCalls, 1);
+  assert.equal(projection.toolResults, 1);
+  assert.equal(spilled.data.spilled, true);
+  const spillPath = path.join(memoryRoot, String(spilled.data.path));
+  assert.equal(await pathExists(spillPath), true);
+  assert.equal((await stat(spillPath)).mode & 0o777, 0o600);
+  await assert.rejects(
+    store.append({
+      ...scope,
+      actor: 'executor',
+      eventType: 'tool/result',
+      data: { callId: 'unknown-call' }
+    }),
+    /has no tool\/call event/
+  );
+});
+
 test('stage timing rejects out-of-order, duplicate, and terminal-with-open-wait streams', async () => {
   const scope = {
     loopId: 'loop-invalid',
@@ -910,6 +991,8 @@ test('monitoring projects the latest real run and keeps missing or invalid strea
 
 test('execution runtime checks action gates before the adapter and Harness after completion', async () => {
   const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
   const executionGateNow = new Date();
   const gate = new HumanGate(fixture.loop);
   const passStore = new GatePassStore(fixture.memoryRoot, fixture.loop.metadata.id);
@@ -950,7 +1033,11 @@ test('execution runtime checks action gates before the adapter and Harness after
       async execute(input) {
         calls += 1;
         assert.equal(input.stage.id, 'triage-discovery');
-        return { status: 'completed', submission: validCodingSubmission(input.runId, input.taskId), evidence: [] };
+        return {
+          status: 'completed',
+          submission: validStageSubmission(stage, input.runId, input.taskId, 'generator', 'coding-harness'),
+          evidence: []
+        };
       }
     }
   );
@@ -959,7 +1046,18 @@ test('execution runtime checks action gates before the adapter and Harness after
   assert.equal(result.gateDecision?.status, 'passed');
   assert.equal(result.harnessResult?.status, 'passed');
   assert.equal(calls, 1);
-  assert.deepEqual(result.stageEvents.map((event) => event.eventType), ['entered', 'first_action', 'passed']);
+  assert.deepEqual(result.stageEvents.map((event) => event.eventType), [
+    'entered',
+    'first_action',
+    'waiting_started',
+    'waiting_ended',
+    'passed'
+  ]);
+  assert.deepEqual(result.executionEvents.map((event) => event.eventType), [
+    'gate/decision',
+    'executor/completed',
+    'harness/verdict'
+  ]);
   assert.equal(result.authority.scope, 'local_single_executor');
 });
 
@@ -1011,12 +1109,8 @@ test('execution runtime blocks missing dependencies and stage gates without invo
   assert.equal(missingGate.gateDecision?.status, 'blocked');
   assert.match(missingGate.reasons.join('\n'), /no active pass/);
   assert.equal(calls, 0);
-  assert.deepEqual(missingGate.stageEvents.map((event) => event.eventType), [
-    'entered',
-    'waiting_started',
-    'waiting_ended',
-    'blocked'
-  ]);
+  assert.deepEqual(missingGate.stageEvents.map((event) => event.eventType), ['entered', 'blocked']);
+  assert.deepEqual(missingGate.executionEvents.map((event) => event.eventType), ['gate/decision']);
 
   const passPath = path.join(fixture.memoryRoot, 'loops', fixture.loop.metadata.id, 'passes.jsonl');
   await mkdir(path.dirname(passPath), { recursive: true });
@@ -1089,6 +1183,8 @@ test('execution runtime fails only the opted-in run when skill context cannot be
 
 test('execution runtime fails a stage when Harness rejects a successful adapter result', async () => {
   const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
   const result = await new ExecutionRuntime({
     workspaceRoot: fixture.workspaceRoot,
     memoryRoot: fixture.memoryRoot,
@@ -1109,9 +1205,15 @@ test('execution runtime fails a stage when Harness rejects a successful adapter 
         return {
           status: 'completed',
           submission: {
-            ...validCodingSubmission('run-execution-harness', 'task-execution-harness'),
-            completedConditions: ['code_changed'],
-            evidence: [{ checkId: 'code_changed', type: 'diff', value: 'changed file' }]
+            ...validStageSubmission(
+              stage,
+              'run-execution-harness',
+              'task-execution-harness',
+              'generator',
+              'coding-harness'
+            ),
+            completedConditions: ['unexpected-check'],
+            evidence: [{ checkId: 'unexpected-check', type: 'review', value: 'wrong check' }]
           },
           evidence: []
         };
@@ -1123,6 +1225,57 @@ test('execution runtime fails a stage when Harness rejects a successful adapter 
   assert.equal(result.harnessResult?.status, 'failed');
   assert.match(result.reasons.join('\n'), /Harness rejected/);
   assert.equal(result.stageEvents.at(-1)?.eventType, 'failed');
+});
+
+test('execution runtime produces an independent evaluator verdict that can block the stage', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'finding-verification');
+  assert(stage);
+  const dependencyStore = new StageEventStore(fixture.memoryRoot, fixture.loop.metadata.id);
+  const dependency = {
+    loopId: fixture.loop.metadata.id,
+    runId: 'run-evaluator',
+    taskId: 'task-evaluator',
+    stageId: 'finding-implementation',
+    attempt: 1,
+    stageKind: 'coding',
+    owner: 'generator'
+  };
+  await dependencyStore.append(createStageEvent({ ...dependency, eventType: 'entered' }));
+  await dependencyStore.append(createStageEvent({ ...dependency, eventType: 'passed' }));
+
+  const approved = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-evaluator'
+  }).execute(
+    {
+      runId: 'run-evaluator',
+      taskId: 'task-evaluator',
+      stageId: stage.id,
+      subject: {}
+    },
+    {
+      id: 'fake-independent-evaluator',
+      async execute(input) {
+        return {
+          status: 'completed',
+          submission: validStageSubmission(stage, input.runId, input.taskId, 'evaluator', 'coding-harness'),
+          evidence: [{ type: 'review', value: 'independent review evidence' }]
+        };
+      }
+    }
+  );
+
+  assert.equal(approved.status, 'passed', approved.reasons.join('\n'));
+  assert.equal(approved.evaluationVerdict?.decision, 'approved');
+  assert.equal(approved.evaluationVerdict?.independent, true);
+  assert.deepEqual(approved.executionEvents.slice(-2).map((event) => event.eventType), [
+    'harness/verdict',
+    'evaluation/verdict'
+  ]);
 });
 
 test('execution runtime rejects concurrent writers for one run', async () => {
@@ -1186,17 +1339,12 @@ test('Codex CLI adapter enforces read-only flags, structured output, and mutatio
     loadedContext: ['repository-skill', 'project-skill', 'task-brief', 'relevant-files', 'previous-memory'],
     contextCharactersUsed: 4000,
     toolsUsed: ['read_file', 'run_tests', 'git_diff'],
-    completedConditions: ['code_changed', 'tests_attempted', 'summary_written'],
+    completedConditions: ['project-skill-review'],
     output: {
-      summary: 'Read-only inspection completed.',
-      changedFiles: [],
-      testResult: 'not-run',
-      nextRecommendation: 'review'
+      findings: ['No actionable finding in the fixture.']
     },
     evidence: [
-      { checkId: 'code_changed', type: 'diff', value: 'no changes in read-only stage' },
-      { checkId: 'tests_attempted', type: 'test', value: 'tests were inspected only' },
-      { checkId: 'summary_written', type: 'file', value: 'structured summary returned' }
+      { checkId: 'project-skill-review', type: 'review', value: 'project skill was reviewed' }
     ]
   };
   await writeFile(
@@ -1320,17 +1468,12 @@ test('execute CLI routes a read-only stage through the secure runtime with struc
     loadedContext: ['repository-skill', 'project-skill', 'task-brief', 'relevant-files', 'previous-memory'],
     contextCharactersUsed: 4000,
     toolsUsed: ['read_file', 'run_tests', 'git_diff'],
-    completedConditions: ['code_changed', 'tests_attempted', 'summary_written'],
+    completedConditions: ['project-skill-review'],
     output: {
-      summary: 'Read-only inspection completed.',
-      changedFiles: [],
-      testResult: 'not-run',
-      nextRecommendation: 'review'
+      findings: ['No actionable finding in the fixture.']
     },
     evidence: [
-      { checkId: 'code_changed', type: 'diff', value: 'no changes in read-only stage' },
-      { checkId: 'tests_attempted', type: 'test', value: 'tests were inspected only' },
-      { checkId: 'summary_written', type: 'file', value: 'structured summary returned' }
+      { checkId: 'project-skill-review', type: 'review', value: 'project skill was reviewed' }
     ]
   };
   await writeFile(
@@ -1370,11 +1513,26 @@ writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(p
     adapterId: string;
     harnessResult: { status: string } | null;
     stageEvents: Array<{ eventType: string; runId: string; taskId: string; stageId: string }>;
+    executionEvents: Array<{ eventType: string; runId: string; taskId: string; stageId: string }>;
   };
   assert.equal(result.status, 'passed');
   assert.equal(result.adapterId, 'codex-cli-read-only');
   assert.equal(result.harnessResult?.status, 'passed');
-  assert.deepEqual(result.stageEvents.map((event) => event.eventType), ['entered', 'first_action', 'passed']);
+  assert.deepEqual(result.stageEvents.map((event) => event.eventType), [
+    'entered',
+    'first_action',
+    'waiting_started',
+    'waiting_ended',
+    'passed'
+  ]);
+  assert.deepEqual(result.executionEvents.map((event) => event.eventType), [
+    'gate/decision',
+    'prompt/assembled',
+    'model/requested',
+    'model/completed',
+    'executor/completed',
+    'harness/verdict'
+  ]);
 
   const audit = JSON.parse(await readText(auditPath)) as { args: string[]; cwd: string };
   assert.equal(audit.args[audit.args.indexOf('--cd') + 1], tempWorkspace);
@@ -1384,10 +1542,22 @@ writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(p
   const persistedEvents = (await readText(
     path.join(tempWorkspace, 'memory', 'loops', 'morning-triage', 'stage-events.jsonl')
   )).trim().split('\n').map((line) => JSON.parse(line) as { runId: string; taskId: string; stageId: string });
-  assert.equal(persistedEvents.length, 3);
+  assert.equal(persistedEvents.length, 5);
   assert.equal(persistedEvents.every((event) => event.runId === 'run-execute-cli'), true);
   assert.equal(persistedEvents.every((event) => event.taskId === 'task-execute-cli'), true);
   assert.equal(persistedEvents.every((event) => event.stageId === 'triage-discovery'), true);
+  const persistedExecutionEvents = (await readText(
+    path.join(
+      tempWorkspace,
+      'memory',
+      'loops',
+      'morning-triage',
+      'runs',
+      'run-execute-cli',
+      'execution-events.jsonl'
+    )
+  )).trim().split('\n').map((line) => JSON.parse(line) as { seq: number; eventType: string });
+  assert.deepEqual(persistedExecutionEvents.map((event) => event.seq), [1, 2, 3, 4, 5, 6]);
 });
 
 test('gate CLI approves, checks, and revokes an append-only pass', async () => {
@@ -1570,6 +1740,10 @@ test('frontend delivery exposes explicit workflow stages and yuque api shape', a
     plan.workflow?.stages.find((stage) => stage.id === 'frontend-design-review')?.evaluator,
     'frontend-evaluator.agent.yaml'
   );
+  assert.equal(
+    plan.workflow?.stages.find((stage) => stage.id === 'frontend-design-review')?.harness,
+    'frontend-delivery.harness.yaml'
+  );
   assert.deepEqual(
     plan.workflow?.stages.find((stage) => stage.id === 'pr-readiness')?.outputs,
     ['pullRequestPlan', 'riskAndRollback']
@@ -1580,6 +1754,23 @@ test('frontend delivery exposes explicit workflow stages and yuque api shape', a
   assert.equal(yuque.auth?.type, 'env');
   assert.equal(yuque.auth?.tokenEnv, 'YUQUE_TOKEN');
   assert.equal(JSON.stringify(yuque).includes('tokenValue'), false);
+});
+
+test('capability catalog exposes event planes and honest tool enforcement maturity', async () => {
+  const catalog = await generateCapabilityCatalog(workspaceRoot);
+  assert.equal(catalog.kind, 'CapabilityCatalog');
+  assert.equal(catalog.eventPlanes.some((plane) => plane.id === 'execution-facts'), true);
+  const triage = catalog.loops.find((loop) => loop.loopId === 'morning-triage');
+  assert(triage);
+  const evaluation = triage.stages.find((stage) => stage.stageId === 'finding-verification');
+  assert(evaluation);
+  assert.equal(evaluation.ownerType, 'evaluator');
+  assert.equal(evaluation.owner, 'evaluator');
+  assert.equal(evaluation.harness, 'coding.harness.yaml');
+  assert.equal(evaluation.toolPolicy.enforcement, 'executor-reported-engine-validated');
+  assert.equal(evaluation.toolPolicy.allow.includes('run_tests'), true);
+  const manualGate = triage.stages.find((stage) => stage.stageId === 'merge-approval');
+  assert.equal(manualGate?.toolPolicy.enforcement, 'none');
 });
 
 test('frontend delivery requires a target before routing project background', async () => {

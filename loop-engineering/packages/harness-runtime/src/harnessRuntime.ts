@@ -8,6 +8,7 @@ import {
   HarnessSpec,
   JsonRecord,
   LoopSpec,
+  WorkflowStagePlan,
   WorktreePlan
 } from '../../shared/src/types';
 import { readYamlFile } from '../../shared/src/fs';
@@ -112,6 +113,20 @@ export class HarnessRuntime {
       }
     };
   }
+}
+
+export function specializeHarnessForStage(harness: HarnessSpec, stage: WorkflowStagePlan): HarnessSpec {
+  return {
+    ...harness,
+    completion: {
+      ...harness.completion,
+      type: 'stage-objective',
+      conditions: [...stage.requiredChecks]
+    },
+    output: {
+      required: [...stage.outputs]
+    }
+  };
 }
 
 function normalizeSubmission(value: unknown): { submission: HarnessRunSubmission; errors: string[] } {
