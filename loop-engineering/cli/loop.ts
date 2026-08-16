@@ -3,7 +3,9 @@ import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import { startAcpJsonlServer } from '../packages/acp-server/src/acpStdioServer';
 import { ClientSubmissionRuntime } from '../packages/client-submission-runtime/src/clientSubmissionRuntime';
+import { ClaudeCodeAdapter } from '../packages/execution-runtime/src/claudeCodeAdapter';
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
+import { GeminiCliAdapter } from '../packages/execution-runtime/src/geminiCliAdapter';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
 import { generateCapabilityCatalog } from '../packages/capability-catalog/src/capabilityCatalog';
 import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
@@ -17,8 +19,10 @@ import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
 import { parseRepositoryAction, TaskRuntime } from '../packages/task-runtime/src/taskRuntime';
 import {
+  claudeManagedProfileId,
   codexReadOnlyProfileId,
   codexWritableProfileId,
+  geminiManagedProfileId,
   ProviderRuntime
 } from '../packages/provider-runtime/src/providerRuntime';
 
@@ -377,7 +381,20 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
 
   const flags = parseCommandFlags(
     options.rest,
-    ['run-id', 'task-id', 'stage', 'attempt', 'action', 'subject-file', 'codex-executable', 'provider-profile'],
+    [
+      'run-id',
+      'task-id',
+      'stage',
+      'attempt',
+      'action',
+      'subject-file',
+      'codex-executable',
+      'codex-ignore-user-config',
+      'codex-output-schema',
+      'claude-executable',
+      'gemini-executable',
+      'provider-profile'
+    ],
     'execute'
   );
   const loop = await readYamlFile<LoopSpec>(loopPath);
@@ -392,14 +409,28 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
   const attemptValue = optionalGateFlag(flags, 'attempt');
   const providerRuntime = new ProviderRuntime();
   const providerProfileId = optionalGateFlag(flags, 'provider-profile') ?? codexReadOnlyProfileId;
+  const requestedActions = flags.get('action')?.map(parseRepositoryAction) ??
+    (isWritableManagedProfile(providerProfileId) ? ['write'] : ['read']);
   const { adapter } = providerRuntime.createExecutorAdapter({
     profileId: providerProfileId,
-    requestedActions: providerProfileId === codexWritableProfileId ? ['write'] : ['read'],
+    requestedActions,
     factories: {
-      [codexReadOnlyProfileId]: () => new CodexCliAdapter({ executable: optionalGateFlag(flags, 'codex-executable') }),
+      [codexReadOnlyProfileId]: () => new CodexCliAdapter({
+        executable: optionalGateFlag(flags, 'codex-executable'),
+        ignoreUserConfig: parseBooleanFlag(flags, 'codex-ignore-user-config', true),
+        useOutputSchema: parseBooleanFlag(flags, 'codex-output-schema', true)
+      }),
       [codexWritableProfileId]: () => new CodexCliAdapter({
         executable: optionalGateFlag(flags, 'codex-executable'),
-        sandbox: 'workspace-write'
+        sandbox: 'workspace-write',
+        ignoreUserConfig: parseBooleanFlag(flags, 'codex-ignore-user-config', true),
+        useOutputSchema: parseBooleanFlag(flags, 'codex-output-schema', true)
+      }),
+      [claudeManagedProfileId]: () => new ClaudeCodeAdapter({
+        executable: optionalGateFlag(flags, 'claude-executable')
+      }),
+      [geminiManagedProfileId]: () => new GeminiCliAdapter({
+        executable: optionalGateFlag(flags, 'gemini-executable')
       })
     }
   });
@@ -626,6 +657,20 @@ function parseProviderMode(value: string | undefined): 'managed' | 'client' {
   throw new Error(`Unsupported provider mode: ${value}`);
 }
 
+function isWritableManagedProfile(profileId: string): boolean {
+  return profileId === codexWritableProfileId ||
+    profileId === claudeManagedProfileId ||
+    profileId === geminiManagedProfileId;
+}
+
+function parseBooleanFlag(flags: Map<string, string[]>, name: string, defaultValue: boolean): boolean {
+  const value = optionalGateFlag(flags, name);
+  if (value === undefined) return defaultValue;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`--${name} must be true or false`);
+}
+
 async function readGateSubject(flags: Map<string, string[]>): Promise<JsonRecord> {
   return readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'gate subject');
 }
@@ -813,7 +858,7 @@ function printHelp(): void {
 	  loop task run --loop <loop-id> --task-id <id> [--workspace workspace] [--json]
 	  loop task submit --loop <loop-id> --task-id <id> --result-file <json-file> [--stage <stage-id>] [--worktree-path <path>] [--run-id <id>] [--target-cwd path] [--workspace workspace] [--json]
 	  loop task cancel --loop <loop-id> --task-id <id> --reason <text> [--workspace workspace] [--json]
-	  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--provider-profile codex-cli-read-only] [--codex-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
+	  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--provider-profile codex-cli-read-only|codex-cli-writable|claude-code-managed|gemini-cli-managed] [--codex-executable <path>] [--codex-ignore-user-config <true|false>] [--codex-output-schema <true|false>] [--claude-executable <path>] [--gemini-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]

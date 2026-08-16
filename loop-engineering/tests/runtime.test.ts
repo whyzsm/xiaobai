@@ -1354,8 +1354,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const option = (name) => args[args.indexOf(name) + 1];
 if (args[0] !== 'exec') process.exit(21);
+let prompt = '';
+process.stdin.setEncoding('utf8');
+for await (const chunk of process.stdin) prompt += chunk;
 const schema = JSON.parse(readFileSync(option('--output-schema'), 'utf8'));
-writeFileSync(${JSON.stringify(auditPath)}, JSON.stringify({ args, cwd: process.cwd(), schemaRequired: schema.required, prompt: args.at(-1) }));
+writeFileSync(${JSON.stringify(auditPath)}, JSON.stringify({ args, cwd: process.cwd(), schemaRequired: schema.required, prompt }));
+if (args.at(-1) !== '-') process.exit(22);
 writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(payload)}));
 process.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');
 `,
@@ -1405,6 +1409,7 @@ process.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');
   assert.equal(audit.args.includes('--ephemeral'), true);
   assert.equal(audit.args.includes('--ignore-user-config'), true);
   assert.equal(audit.args.includes('--dangerously-bypass-approvals-and-sandbox'), false);
+  assert.equal(audit.args.at(-1), '-');
   assert.deepEqual(audit.schemaRequired, [
     'loadedContext',
     'contextCharactersUsed',
@@ -1482,7 +1487,11 @@ test('execute CLI routes a read-only stage through the secure runtime with struc
 import { writeFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const option = (name) => args[args.indexOf(name) + 1];
+let prompt = '';
+process.stdin.setEncoding('utf8');
+for await (const chunk of process.stdin) prompt += chunk;
 writeFileSync(${JSON.stringify(auditPath)}, JSON.stringify({ args, cwd: process.cwd() }));
+if (args.at(-1) !== '-') process.exit(22);
 writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(payload)}));
 `,
     'utf8'
@@ -1506,6 +1515,10 @@ writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(p
     subjectPath,
     '--codex-executable',
     executable,
+    '--codex-ignore-user-config',
+    'false',
+    '--codex-output-schema',
+    'false',
     '--json'
   ]);
   const result = JSON.parse(executed.stdout) as {
@@ -1538,6 +1551,9 @@ writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(p
   assert.equal(audit.args[audit.args.indexOf('--cd') + 1], tempWorkspace);
   assert.equal(audit.args[audit.args.indexOf('--sandbox') + 1], 'read-only');
   assert.equal(audit.args.includes('--ephemeral'), true);
+  assert.equal(audit.args.includes('--ignore-user-config'), false);
+  assert.equal(audit.args.includes('--output-schema'), false);
+  assert.equal(audit.args.at(-1), '-');
 
   const persistedEvents = (await readText(
     path.join(tempWorkspace, 'memory', 'loops', 'morning-triage', 'stage-events.jsonl')

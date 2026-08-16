@@ -35,7 +35,7 @@
 - [x] 5.1 Add Codex writable provider profile that runs only inside a claimed workspace lease with explicit cwd and configured sandbox. / 新增 Codex 可写 provider profile，只允许它在已领取 workspace lease 内以显式 cwd 和配置 sandbox 运行。
 - [x] 5.2 Extend provider result parsing to include changed files, diff summary, evidence, verification commands, and structured failure reasons. / 扩展 provider 结果解析，包含变更文件、diff 摘要、证据、验证命令和结构化失败原因。
 - [x] 5.3 Block writable execution when no lease exists, the lease is stale, the cwd is outside the lease root, or provider capability is read-only. / 在无 lease、lease 陈旧、cwd 位于 lease root 外或 provider 能力只读时阻断可写执行。
-- [ ] 5.4 Add a fixture task proving Codex can make a small leased worktree edit without push or merge authority. / 增加 fixture 任务，证明 Codex 能在 leased worktree 内完成小修改且没有 push 或 merge 权限。
+- [x] 5.4 Add a fixture task proving Codex can make a small leased worktree edit without push or merge authority. / 增加 fixture 任务，证明 Codex 能在 leased worktree 内完成小修改且没有 push 或 merge 权限。
 
 ## 6. Repository Broker And Merge Queue / 仓库 Broker 与 Merge Queue
 
@@ -56,7 +56,7 @@
 ## 8. Provider Certification / Provider 认证
 
 - [x] 8.1 Add provider registry entries for Codex read-only, Codex writable, Claude managed, Gemini managed, and client-submission. / 新增 Codex 只读、Codex 可写、Claude managed、Gemini managed 和 client-submission 的 provider registry 条目。
-- [ ] 8.2 Run and record writable smoke tests for Codex, Claude, and Gemini before marking each verified profile as supported. / 对 Codex、Claude 和 Gemini 运行并记录可写冒烟测试，再把已验证 profile 标记为 supported。
+- [x] 8.2 Run and record writable smoke tests for Codex, Claude, and Gemini before marking each verified profile as supported. / 对 Codex、Claude 和 Gemini 运行并记录可写冒烟测试，再把已验证 profile 标记为 supported。
 - [x] 8.3 Keep ZCode and WorkBuddy as experimental or client-only until local smoke tests prove managed execution, output parsing, and sandbox boundaries. / 在本机冒烟测试证明 managed 执行、输出解析和 sandbox 边界前，将 ZCode 和 WorkBuddy 保持为 experimental 或 client-only。
 - [x] 8.4 Document provider support levels, known sandbox assumptions, required local commands, and failure modes in bilingual Markdown. / 用中英双语 Markdown 记录 provider 支持等级、已知 sandbox 假设、必需本机命令和失败模式。
 
@@ -65,4 +65,4 @@
 - [x] 9.1 Validate this OpenSpec change with `openspec validate portable-multi-agent-execution --json`. / 使用 `openspec validate portable-multi-agent-execution --json` 校验本 OpenSpec 变更。
 - [x] 9.2 Before implementation merge, ask for explicit approval before running repository-wide `npm run validate` or `npm test`. / 实现合并前，运行仓库级 `npm run validate` 或 `npm test` 前必须先请求明确批准。
 - [x] 9.3 Verify `git status --short -uall` does not include external repositories, local mounts, `.local`, or machine-specific path files. / 校验 `git status --short -uall` 不包含外部仓库、本机挂载、`.local` 或机器专属路径文件。
-- [ ] 9.4 Archive the change only after implementation tasks, smoke tests, security gates, and provider certification evidence are complete. / 只有实现任务、冒烟测试、安全门禁和 provider 认证证据全部完成后才归档本变更。
+- [x] 9.4 Archive the change only after implementation tasks, smoke tests, security gates, and provider certification evidence are complete. / 只有实现任务、冒烟测试、安全门禁和 provider 认证证据全部完成后才归档本变更。
