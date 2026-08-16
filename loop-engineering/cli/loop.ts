@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
+import { startAcpJsonlServer } from '../packages/acp-server/src/acpStdioServer';
+import { ClientSubmissionRuntime } from '../packages/client-submission-runtime/src/clientSubmissionRuntime';
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
 import { generateCapabilityCatalog } from '../packages/capability-catalog/src/capabilityCatalog';
@@ -9,10 +11,16 @@ import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
-import { GatePassEvidence, HarnessEvidenceType, JsonRecord, LoopSpec } from '../packages/shared/src/types';
+import { GatePassEvidence, HarnessEvidenceType, JsonRecord, LoopSpec, TaskEnvelope } from '../packages/shared/src/types';
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
+import { parseRepositoryAction, TaskRuntime } from '../packages/task-runtime/src/taskRuntime';
+import {
+  codexReadOnlyProfileId,
+  codexWritableProfileId,
+  ProviderRuntime
+} from '../packages/provider-runtime/src/providerRuntime';
 
 interface CliOptions {
   command: string;
@@ -75,8 +83,18 @@ async function main(argv: string[]): Promise<void> {
 
   const loopPath = await findLoopSpec(workspaceRoot, options.loop);
 
+  if (options.command === 'acp') {
+    await runAcpCommand(options, workspaceRoot, loopPath);
+    return;
+  }
+
   if (options.command === 'gate') {
     await runGateCommand(options, workspaceRoot, loopPath);
+    return;
+  }
+
+  if (options.command === 'task') {
+    await runTaskCommand(options, workspaceRoot, loopPath);
     return;
   }
 
@@ -309,6 +327,46 @@ async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPa
   throw new Error('gate requires one of: list, approve, check, revoke');
 }
 
+async function runAcpCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const [subcommand = 'help', ...args] = options.rest;
+  const flags = parseCommandFlags(args, [], 'acp');
+  if (flags.size > 0) throw new Error(`acp ${subcommand} does not accept options`);
+  if (subcommand !== 'serve') throw new Error('acp requires: serve');
+
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetProject: options.targetProject,
+    targetRepository: options.targetRepository,
+    targetCwd: options.targetCwd,
+    targetRemote: options.targetRemote
+  });
+  const memoryRoot = await resolveMemoryRoot(workspaceRoot);
+  startAcpJsonlServer({
+    taskRuntime: new TaskRuntime({
+      workspaceRoot,
+      memoryRoot,
+      loop,
+      plan
+    }),
+    clientSubmissionRuntime: new ClientSubmissionRuntime({
+      workspaceRoot,
+      loop
+    }),
+    providerRuntime: new ProviderRuntime(),
+    defaultProjectId: plan.orchestrator?.routesTo.project.projectId ?? loop.handoff.project,
+    defaultRepositoryId: plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId
+  });
+}
+
 async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
   const validation = await validateWorkspace(workspaceRoot, loopPath);
   if (!validation.ok) {
@@ -319,7 +377,7 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
 
   const flags = parseCommandFlags(
     options.rest,
-    ['run-id', 'task-id', 'stage', 'attempt', 'action', 'subject-file', 'codex-executable'],
+    ['run-id', 'task-id', 'stage', 'attempt', 'action', 'subject-file', 'codex-executable', 'provider-profile'],
     'execute'
   );
   const loop = await readYamlFile<LoopSpec>(loopPath);
@@ -332,6 +390,19 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
     targetRemote: options.targetRemote
   });
   const attemptValue = optionalGateFlag(flags, 'attempt');
+  const providerRuntime = new ProviderRuntime();
+  const providerProfileId = optionalGateFlag(flags, 'provider-profile') ?? codexReadOnlyProfileId;
+  const { adapter } = providerRuntime.createExecutorAdapter({
+    profileId: providerProfileId,
+    requestedActions: providerProfileId === codexWritableProfileId ? ['write'] : ['read'],
+    factories: {
+      [codexReadOnlyProfileId]: () => new CodexCliAdapter({ executable: optionalGateFlag(flags, 'codex-executable') }),
+      [codexWritableProfileId]: () => new CodexCliAdapter({
+        executable: optionalGateFlag(flags, 'codex-executable'),
+        sandbox: 'workspace-write'
+      })
+    }
+  });
   const result = await new ExecutionRuntime({
     workspaceRoot,
     memoryRoot: await resolveMemoryRoot(workspaceRoot),
@@ -347,12 +418,154 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
       subject: await readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'execution subject'),
       worktreePath: options.targetCwd
     },
-    new CodexCliAdapter({ executable: optionalGateFlag(flags, 'codex-executable') })
+    adapter
   );
 
   if (options.json) process.stdout.write(formatJson(result));
   else printExecutionResult(result);
   process.exitCode = result.status === 'passed' ? 0 : 1;
+}
+
+async function runTaskCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const [subcommand = 'help', ...args] = options.rest;
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const memoryRoot = await resolveMemoryRoot(workspaceRoot);
+  const runtime = new TaskRuntime({
+    workspaceRoot,
+    memoryRoot,
+    loop
+  });
+
+  if (subcommand === 'create') {
+    const flags = parseCommandFlags(
+      args,
+      ['task-id', 'subject-file', 'action', 'provider-profile', 'provider-mode', 'title', 'created-by', 'run-id'],
+      'task create'
+    );
+    const plan = await new LoopRuntime().dryRun({
+      workspaceRoot,
+      loopPath,
+      targetProject: options.targetProject,
+      targetRepository: options.targetRepository,
+      targetCwd: options.targetCwd,
+      targetRemote: options.targetRemote
+    });
+    const createRuntime = new TaskRuntime({
+      workspaceRoot,
+      memoryRoot,
+      loop,
+      plan
+    });
+    const task = await createRuntime.create({
+      taskId: optionalGateFlag(flags, 'task-id'),
+      request: {
+        entryPoint: 'cli',
+        projectId: plan.orchestrator?.routesTo.project.projectId ?? loop.handoff.project,
+        repositoryId: plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId,
+        loopId: loop.metadata.id,
+        runId: optionalGateFlag(flags, 'run-id'),
+        title: optionalGateFlag(flags, 'title'),
+        subject: await readJsonObjectFile(requireGateFlag(flags, 'subject-file'), 'task subject'),
+        requestedActions: (flags.get('action') ?? ['read']).map(parseRepositoryAction),
+        provider: {
+          profileId: optionalGateFlag(flags, 'provider-profile'),
+          mode: parseProviderMode(optionalGateFlag(flags, 'provider-mode'))
+        },
+        createdBy: optionalGateFlag(flags, 'created-by')
+      }
+    });
+    printTaskCommandResult(task, options.json);
+    return;
+  }
+
+  if (subcommand === 'list') {
+    const flags = parseCommandFlags(args, [], 'task list');
+    assertNoTaskFlags(flags, subcommand);
+    const tasks = await runtime.list();
+    if (options.json) process.stdout.write(formatJson(tasks));
+    else {
+      for (const task of tasks) printTaskSummary(task);
+    }
+    return;
+  }
+
+  if (subcommand === 'status') {
+    const flags = parseCommandFlags(args, ['task-id'], 'task status');
+    const task = await runtime.require(requireGateFlag(flags, 'task-id'));
+    printTaskCommandResult(task, options.json);
+    return;
+  }
+
+  if (subcommand === 'claim') {
+    const flags = parseCommandFlags(args, ['task-id', 'lease-id', 'owner'], 'task claim');
+    const task = await runtime.transition({
+      taskId: requireGateFlag(flags, 'task-id'),
+      eventType: 'task/leased',
+      state: 'leased',
+      actor: 'runtime',
+      data: {
+        workspaceLeaseId: requireGateFlag(flags, 'lease-id'),
+        owner: optionalGateFlag(flags, 'owner') ?? 'cli'
+      }
+    });
+    printTaskCommandResult(task, options.json);
+    return;
+  }
+
+  if (subcommand === 'run') {
+    const flags = parseCommandFlags(args, ['task-id'], 'task run');
+    const task = await runtime.transition({
+      taskId: requireGateFlag(flags, 'task-id'),
+      eventType: 'task/running',
+      state: 'running',
+      actor: 'runtime'
+    });
+    printTaskCommandResult(task, options.json);
+    return;
+  }
+
+  if (subcommand === 'submit') {
+    const flags = parseCommandFlags(args, ['task-id', 'result-file', 'stage', 'worktree-path', 'run-id'], 'task submit');
+    const verifier = new ClientSubmissionRuntime({
+      workspaceRoot,
+      loop
+    });
+    const task = await verifier.submit({
+      taskRuntime: runtime,
+      taskId: requireGateFlag(flags, 'task-id'),
+      submission: await readJsonObjectFile(requireGateFlag(flags, 'result-file'), 'task result'),
+      runId: optionalGateFlag(flags, 'run-id'),
+      stageId: optionalGateFlag(flags, 'stage'),
+      worktreePath: optionalGateFlag(flags, 'worktree-path') ?? options.targetCwd
+    });
+    printTaskCommandResult(task, options.json);
+    return;
+  }
+
+  if (subcommand === 'cancel') {
+    const flags = parseCommandFlags(args, ['task-id', 'reason'], 'task cancel');
+    const task = await runtime.transition({
+      taskId: requireGateFlag(flags, 'task-id'),
+      eventType: 'task/blocked',
+      state: 'blocked',
+      actor: 'human',
+      data: {
+        cancelled: true,
+        reason: requireGateFlag(flags, 'reason')
+      }
+    });
+    printTaskCommandResult(task, options.json);
+    return;
+  }
+
+  throw new Error('task requires one of: create, list, status, claim, run, submit, cancel');
 }
 
 function parseGateFlags(args: string[], allowed: string[]): Map<string, string[]> {
@@ -378,6 +591,10 @@ function assertNoGateFlags(flags: Map<string, string[]>, command: string): void 
   if (flags.size > 0) throw new Error(`gate ${command} does not accept options`);
 }
 
+function assertNoTaskFlags(flags: Map<string, string[]>, command: string): void {
+  if (flags.size > 0) throw new Error(`task ${command} does not accept options`);
+}
+
 function requireGateFlag(flags: Map<string, string[]>, name: string): string {
   const value = optionalGateFlag(flags, name);
   if (!value) throw new Error(`Missing value for --${name}`);
@@ -401,6 +618,12 @@ function parseGateEvidence(value: string): GatePassEvidence {
     type: value.slice(0, separator) as HarnessEvidenceType,
     value: value.slice(separator + 1)
   };
+}
+
+function parseProviderMode(value: string | undefined): 'managed' | 'client' {
+  if (value === undefined) return 'client';
+  if (value === 'managed' || value === 'client') return value;
+  throw new Error(`Unsupported provider mode: ${value}`);
 }
 
 async function readGateSubject(flags: Map<string, string[]>): Promise<JsonRecord> {
@@ -516,6 +739,24 @@ function printExecutionResult(result: Awaited<ReturnType<ExecutionRuntime['execu
   for (const reason of result.reasons) process.stdout.write(`- ${reason}\n`);
 }
 
+function printTaskCommandResult(task: TaskEnvelope, json: boolean): void {
+  if (json) process.stdout.write(formatJson(task));
+  else printTaskSummary(task);
+}
+
+function printTaskSummary(task: TaskEnvelope): void {
+  process.stdout.write(`Task: ${task.taskId}\n`);
+  process.stdout.write(`State: ${task.state}\n`);
+  process.stdout.write(`Project: ${task.projectId}`);
+  if (task.repositoryId) process.stdout.write(`/${task.repositoryId}`);
+  process.stdout.write('\n');
+  process.stdout.write(`Actions: ${task.requestedActions.join(', ')}\n`);
+  process.stdout.write(`Provider mode: ${task.providerMode}\n`);
+  if (task.providerProfileId) process.stdout.write(`Provider profile: ${task.providerProfileId}\n`);
+  if (task.workspaceLeaseId) process.stdout.write(`Workspace lease: ${task.workspaceLeaseId}\n`);
+  process.stdout.write(`Events: ${task.events.length}\n`);
+}
+
 function printCapabilityCatalog(result: Awaited<ReturnType<typeof generateCapabilityCatalog>>): void {
   process.stdout.write(`Capability catalog: ${result.loops.length} loop(s)\n`);
   for (const loop of result.loops) {
@@ -563,8 +804,16 @@ function printHelp(): void {
   loop gate list --loop <loop-id> [--workspace workspace] [--json]
   loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-file <json-file> --issuer <reviewer> --evidence <type:value>... [--json]
   loop gate check --loop <loop-id> --run-id <id> --task-id <id> [--stage <stage-id>] [--action <action>]... --subject-file <json-file> [--json]
-  loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
-  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--codex-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
+	  loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
+	  loop acp serve --loop <loop-id> [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace]
+	  loop task create --loop <loop-id> --subject-file <json-file> [--action <action>]... [--provider-profile <id>] [--provider-mode <managed|client>] [--task-id <id>] [--title <text>] [--created-by <id>] [--run-id <id>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
+	  loop task list --loop <loop-id> [--workspace workspace] [--json]
+	  loop task status --loop <loop-id> --task-id <id> [--workspace workspace] [--json]
+	  loop task claim --loop <loop-id> --task-id <id> --lease-id <id> [--owner <id>] [--workspace workspace] [--json]
+	  loop task run --loop <loop-id> --task-id <id> [--workspace workspace] [--json]
+	  loop task submit --loop <loop-id> --task-id <id> --result-file <json-file> [--stage <stage-id>] [--worktree-path <path>] [--run-id <id>] [--target-cwd path] [--workspace workspace] [--json]
+	  loop task cancel --loop <loop-id> --task-id <id> --reason <text> [--workspace workspace] [--json]
+	  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--provider-profile codex-cli-read-only] [--codex-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]

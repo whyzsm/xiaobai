@@ -845,3 +845,234 @@ export interface ValidationResult {
   ok: boolean;
   errors: string[];
 }
+
+export type TaskEntryPoint = 'cli' | 'mcp' | 'acp' | 'http';
+
+export type TaskState =
+  | 'created'
+  | 'prepared'
+  | 'leased'
+  | 'running'
+  | 'submitted'
+  | 'verifying'
+  | 'ready_to_merge'
+  | 'merged'
+  | 'blocked'
+  | 'failed';
+
+export type ProviderMode = 'managed' | 'client';
+
+export type RepositoryAction =
+  | 'read'
+  | 'write'
+  | 'push'
+  | 'pull_request'
+  | 'merge'
+  | 'protected_branch_update'
+  | 'delete_branch'
+  | 'delete_worktree'
+  | 'destructive_cleanup';
+
+export type TaskEventType =
+  | 'task/created'
+  | 'task/prepared'
+  | 'task/leased'
+  | 'task/running'
+  | 'task/submitted'
+  | 'task/verifying'
+  | 'task/ready_to_merge'
+  | 'task/merged'
+  | 'task/blocked'
+  | 'task/failed'
+  | 'task/cancelled';
+
+export interface TaskProviderPreference {
+  profileId?: string;
+  mode?: ProviderMode;
+}
+
+export interface TaskRequest {
+  entryPoint: TaskEntryPoint;
+  projectId: string;
+  repositoryId?: string;
+  loopId?: string;
+  runId?: string;
+  title?: string;
+  subject: JsonRecord;
+  requestedActions: RepositoryAction[];
+  provider?: TaskProviderPreference;
+  createdBy?: string;
+  metadata?: JsonRecord;
+}
+
+export interface TaskEvent {
+  kind: 'TaskEvent';
+  version: 1;
+  id: string;
+  seq: number;
+  taskId: string;
+  eventType: TaskEventType;
+  occurredAt: string;
+  actor: 'runtime' | 'entrypoint' | 'provider' | 'broker' | 'evaluator' | 'human';
+  state?: TaskState;
+  data: JsonRecord;
+  evidence: GatePassEvidence[];
+}
+
+export interface TaskEnvelope {
+  kind: 'TaskEnvelope';
+  version: 1;
+  taskId: string;
+  state: TaskState;
+  entryPoint: TaskEntryPoint;
+  projectId: string;
+  repositoryId?: string;
+  loopId?: string;
+  runId?: string;
+  projectRoute?: ProjectRoutePlan;
+  subject: JsonRecord;
+  requestedActions: RepositoryAction[];
+  providerMode: ProviderMode;
+  providerProfileId?: string;
+  workspaceLeaseId?: string;
+  gateRequirements: string[];
+  promptDigest?: string;
+  events: TaskEvent[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WorkspaceLeaseState =
+  | 'prepared'
+  | 'claimed'
+  | 'active'
+  | 'stale'
+  | 'released'
+  | 'failed'
+  | 'dirty_retained';
+
+export type WorkspaceLeaseOwnerRole = 'writer' | 'reader';
+
+export interface WorkspaceLeaseOwner {
+  id: string;
+  role: WorkspaceLeaseOwnerRole;
+  providerProfileId?: string;
+  claimedAt: string;
+}
+
+export interface WorkspaceLeaseHeartbeat {
+  intervalMs: number;
+  lastSeenAt: string;
+  expiresAt: string;
+}
+
+export type WorkspaceLeaseDirtyPolicy = 'retain_dirty' | 'delete_when_clean';
+
+export interface WorkspaceLease {
+  kind: 'WorkspaceLease';
+  version: 1;
+  leaseId: string;
+  taskId: string;
+  projectId: string;
+  repositoryId: string;
+  repositoryPath: string;
+  baseRef: string;
+  branch: string;
+  path: string;
+  state: WorkspaceLeaseState;
+  owner?: WorkspaceLeaseOwner;
+  heartbeat?: WorkspaceLeaseHeartbeat;
+  dirtyPolicy: WorkspaceLeaseDirtyPolicy;
+  evidence: GatePassEvidence[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProviderTransport = 'cli' | 'stdio' | 'mcp' | 'http' | 'client';
+
+export type ProviderSupportLevel = 'supported' | 'experimental' | 'client_only';
+
+export type ProviderSandboxProfile = 'read-only' | 'workspace-write' | 'external' | 'none';
+
+export interface ProviderSandboxSpec {
+  profile: ProviderSandboxProfile;
+  assumptions: string[];
+}
+
+export interface ProviderProfile {
+  kind: 'ProviderProfile';
+  version: 1;
+  id: string;
+  displayName: string;
+  mode: ProviderMode;
+  transport: ProviderTransport;
+  supportLevel: ProviderSupportLevel;
+  executable?: string;
+  args?: string[];
+  supportedActions: RepositoryAction[];
+  writable: boolean;
+  sandbox: ProviderSandboxSpec;
+  outputSchema?: JsonRecord;
+  timeoutMs: number;
+  requiredVerification: string[];
+}
+
+export interface ProviderRunRequest {
+  taskId: string;
+  providerProfileId: string;
+  mode: ProviderMode;
+  prompt: string;
+  promptDigest: string;
+  requestedActions: RepositoryAction[];
+  cwd?: string;
+  workspaceLeaseId?: string;
+  metadata?: JsonRecord;
+}
+
+export interface ProviderRunResult {
+  taskId: string;
+  providerProfileId: string;
+  status: 'completed' | 'failed' | 'blocked';
+  startedAt: string;
+  finishedAt: string;
+  changedFiles: string[];
+  diffSummary?: string;
+  verificationCommands: string[];
+  output: JsonRecord;
+  evidence: GatePassEvidence[];
+  reason?: string;
+}
+
+export type BrokerDecisionStatus = 'authorized' | 'blocked' | 'completed' | 'failed';
+
+export interface BrokerDecision {
+  action: RepositoryAction;
+  status: BrokerDecisionStatus;
+  reasons: string[];
+  evidence: GatePassEvidence[];
+  decidedAt: string;
+}
+
+export type MergeQueueState = 'queued' | 'checking' | 'blocked' | 'ready' | 'merged' | 'failed';
+
+export interface MergeConflictEvidence {
+  file: string;
+  reason: string;
+  evidence: GatePassEvidence[];
+}
+
+export interface PromotionPlan {
+  kind: 'PromotionPlan';
+  version: 1;
+  promotionId: string;
+  taskId: string;
+  sourceBranch: string;
+  targetBranch: string;
+  state: MergeQueueState;
+  requiredGates: string[];
+  brokerDecisions: BrokerDecision[];
+  conflicts: MergeConflictEvidence[];
+  evidence: GatePassEvidence[];
+  createdAt: string;
+  updatedAt: string;
+}
