@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
     <link rel="icon" href="data:," />
-    <title>小白智能体运维</title>
+    <title>小白需求耗时日志看板</title>
     <style>
       :root {
         --page: #f3f5f5;
@@ -493,7 +493,64 @@
         min-width: 1680px;
       }
 
+      #timing-content .timing-request-table {
+        min-width: 1260px;
+      }
+
+      #timing-content .timing-stage-table {
+        min-width: 1040px;
+      }
+
       #timing-content td {
+        white-space: nowrap;
+      }
+
+      .timing-note {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .timing-section-label {
+        margin: 20px 0 10px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .timing-section-label:first-child {
+        margin-top: 0;
+      }
+
+      .timing-cell-list {
+        display: grid;
+        gap: 3px;
+        min-width: 160px;
+        white-space: normal;
+      }
+
+      .timing-cell-list .cell-meta {
+        white-space: nowrap;
+      }
+
+      .timing-evidence {
+        max-width: 280px;
+        white-space: normal;
+      }
+
+      .timing-evidence code {
+        display: inline-block;
+        margin: 2px 0;
+      }
+
+      .timing-distribution .panel-body {
+        min-height: 132px;
+      }
+
+      .timing-bar-value {
+        color: var(--muted);
+        text-align: right;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
         white-space: nowrap;
       }
 
@@ -838,6 +895,10 @@
         .bar-row {
           grid-template-columns: minmax(84px, 0.7fr) minmax(88px, 1fr) 36px;
         }
+
+        .timing-bar-value {
+          font-size: 10px;
+        }
       }
     </style>
   </head>
@@ -847,16 +908,16 @@
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">白</div>
           <div>
-            <h1>小白智能体运维</h1>
-            <p>循环工程运行监控</p>
+          <h1>小白需求日志看板</h1>
+          <p>需求处理全链路耗时分析</p>
           </div>
         </div>
         <nav class="nav" aria-label="页面导航">
-          <a class="is-active" href="#overview"><span>总览</span><span class="nav-index">01</span></a>
-          <a href="#workflow"><span>工作流</span><span class="nav-index">02</span></a>
-          <a href="#agents"><span>智能体与执行框架</span><span class="nav-index">03</span></a>
-          <a href="#projects"><span>路由与项目</span><span class="nav-index">04</span></a>
-          <a href="#timing"><span>节点计时</span><span class="nav-index">05</span></a>
+          <a class="is-active" href="#timing"><span>日志看板</span><span class="nav-index">01</span></a>
+          <a href="#overview"><span>系统总览</span><span class="nav-index">02</span></a>
+          <a href="#workflow"><span>工作流</span><span class="nav-index">03</span></a>
+          <a href="#agents"><span>智能体与执行框架</span><span class="nav-index">04</span></a>
+          <a href="#projects"><span>路由与项目</span><span class="nav-index">05</span></a>
           <a href="#evaluation"><span>评价与门禁</span><span class="nav-index">06</span></a>
           <a href="#memory"><span>记忆</span><span class="nav-index">07</span></a>
           <a href="#graph"><span>知识图谱</span><span class="nav-index">08</span></a>
@@ -867,7 +928,7 @@
             <span class="health-dot" id="health-dot"></span>
             <span id="rail-health">正在读取快照</span>
           </div>
-          <div>真源：工作空间、Git、记忆、知识图谱</div>
+          <div>真源：TaskEvent、StageEvent、ExecutionEvent、StageTimingMetric</div>
         </div>
       </aside>
 
@@ -982,7 +1043,7 @@
             <section class="section" id="timing">
               <div class="section-heading">
                 <div>
-                  <h2>节点停留时间</h2>
+                  <h2>需求耗时日志</h2>
                   <p class="section-fact" id="timing-fact">--</p>
                 </div>
                 <span class="status unmeasured" id="timing-status">未采集</span>
@@ -1181,6 +1242,12 @@
             exports: '导出',
             'local-override': '本机覆盖',
             'command-override': '命令指定',
+            human_input: '等待用户输入',
+            tool_running: '工具运行',
+            external_api: '外部接口',
+            missing_context: '缺少上下文',
+            approval_required: '等待审批',
+            error_blocker: '错误阻塞',
             missing_instrumentation: '缺少采集机制',
           };
           return labels[String(value)] || String(value ?? '--');
@@ -1470,6 +1537,117 @@
           }).join('');
         }
 
+        function formatPercent(value) {
+          if (value === null || value === undefined || !Number.isFinite(Number(value))) return '--';
+          return `${(Number(value) * 100).toFixed(1)}%`;
+        }
+
+        function sumTimingField(items, field) {
+          const values = items
+            .map((item) => item[field])
+            .filter((value) => typeof value === 'number' && Number.isFinite(value));
+          return values.length > 0 ? values.reduce((total, value) => total + value, 0) : null;
+        }
+
+        function percentileValue(values, ratio) {
+          const sorted = values
+            .filter((value) => typeof value === 'number' && Number.isFinite(value))
+            .sort((left, right) => left - right);
+          if (sorted.length < 2) return null;
+          const rank = (sorted.length - 1) * ratio;
+          const lower = Math.floor(rank);
+          const upper = Math.ceil(rank);
+          if (lower === upper) return sorted[lower];
+          return sorted[lower] + (sorted[upper] - sorted[lower]) * (rank - lower);
+        }
+
+        function countTimingValues(values) {
+          return values.reduce((counts, value) => {
+            if (value === null || value === undefined || value === '') return counts;
+            const key = String(value);
+            counts[key] = (counts[key] || 0) + 1;
+            return counts;
+          }, {});
+        }
+
+        function timingEntries(values) {
+          return Object.entries(values || {})
+            .map(([label, value]) => ({ label: displayLabel(label), value }))
+            .filter((item) => typeof item.value === 'number' && Number.isFinite(item.value))
+            .sort((left, right) => right.value - left.value)
+            .slice(0, 8);
+        }
+
+        function getTimingAggregate(requests, stageAggregates) {
+          const durations = requests
+            .map((request) => request.durationMs)
+            .filter((value) => typeof value === 'number' && Number.isFinite(value));
+          const durationMs = sumTimingField(requests, 'durationMs');
+          const waitingMs = sumTimingField(requests, 'waitingMs');
+          const waitingByReason = requests.reduce((totals, request) => {
+            Object.entries(request.waitingByReason || {}).forEach(([reason, duration]) => {
+              if (typeof duration !== 'number' || !Number.isFinite(duration)) return;
+              totals[reason] = (totals[reason] || 0) + duration;
+            });
+            return totals;
+          }, {});
+          const measuredRequestCount = requests.filter((request) => request.status === 'measured').length;
+          const failureReasons = countTimingValues(requests.flatMap((request) => request.failureReasons || []));
+          const bottleneckStages = countTimingValues(requests.map((request) => request.bottleneckStageId).filter(Boolean));
+          return {
+            requestCount: requests.length,
+            measuredRequestCount,
+            measurementRate: requests.length > 0 ? measuredRequestCount / requests.length : null,
+            durationMs,
+            activeMs: sumTimingField(requests, 'activeMs'),
+            waitingMs,
+            waitingRatio: durationMs > 0 ? waitingMs / durationMs : null,
+            retryCount: requests.reduce((total, request) => total + (Number(request.retryCount) || 0), 0),
+            waitingByReason,
+            failureReasons,
+            bottleneckStages,
+            distribution: {
+              sampleCount: durations.length,
+              averageMs: durations.length > 0 ? durations.reduce((total, value) => total + value, 0) / durations.length : null,
+              p50Ms: percentileValue(durations, 0.5),
+              p95Ms: percentileValue(durations, 0.95),
+            },
+            stageAggregates,
+          };
+        }
+
+        function timingStatus(requests, fallback) {
+          if (!requests.length) return fallback || 'unmeasured';
+          if (requests.some((request) => request.status === 'invalid')) return 'invalid';
+          const measured = requests.filter((request) => request.status === 'measured').length;
+          if (measured === requests.length) return 'measured';
+          if (measured > 0 || requests.some((request) => request.status === 'partial')) return 'partial';
+          return 'unmeasured';
+        }
+
+        function timingEvidence(evidence) {
+          const paths = Array.isArray(evidence) ? evidence.filter(Boolean) : [];
+          return paths.length
+            ? paths.map((path) => `<code>${escapeHtml(path)}</code>`).join('<br />')
+            : '<span class="cell-meta">无</span>';
+        }
+
+        function renderTimingBars(selector, entries, valueFormatter, emptyTitle, emptyText) {
+          const container = $(selector);
+          if (!entries.length) {
+            container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(emptyTitle)}</strong>${escapeHtml(emptyText)}</div>`;
+            return;
+          }
+          const maximum = Math.max(...entries.map((entry) => entry.value), 1);
+          container.innerHTML = entries.map((entry) => `
+            <div class="bar-row">
+              <span class="bar-label" title="${escapeHtml(entry.label)}">${escapeHtml(entry.label)}</span>
+              <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width: ${Math.max(4, (entry.value / maximum) * 100)}%"></span></span>
+              <span class="timing-bar-value">${escapeHtml(valueFormatter(entry.value))}</span>
+            </div>
+          `).join('');
+        }
+
         function renderTiming() {
           const data = state.snapshot;
           const loop = data.loops.find((item) => item.id === state.timingLoopId) || data.loops[0];
@@ -1479,74 +1657,192 @@
             state.timingLoopId = loopId;
             renderTiming();
           });
-          const stages = data.timing.stages.filter((stage) => stage.loopId === loop.id);
-          const source = data.timing.sources?.find((item) => item.loopId === loop.id);
-          const measuredStages = stages.filter((stage) => stage.valid).length;
-          $('#timing-fact').textContent = source?.selectedRunId
-            ? `${loopLabel(loop)} · ${source.selectedRunId} · ${measuredStages}/${stages.length} 个节点有效`
-            : `${loopLabel(loop)} · 缺少运行时节点计时事件`;
-          const timingStatus = $('#timing-status');
-          const loopTimingStatus = source?.status || data.timing.status;
-          timingStatus.className = `status ${statusClass(loopTimingStatus)}`;
-          timingStatus.textContent = displayLabel(loopTimingStatus);
-
-          if (!stages.length) {
-            $('#timing-content').innerHTML = `
-              <div class="empty-state">
-                <strong>${escapeHtml(loopLabel(loop))} 没有可计时的阶段契约</strong>
-                先在工作流规范中声明阶段，再接入追加式计时事件。
-              </div>
-            `;
-            return;
-          }
+          const timing = data.timing || {};
+          const stages = Array.isArray(timing.stages) ? timing.stages.filter((stage) => stage.loopId === loop.id) : [];
+          const requests = Array.isArray(timing.requests) ? timing.requests.filter((request) => request.loopId === loop.id) : [];
+          const stageAggregates = Array.isArray(timing.aggregate?.stageAggregates)
+            ? timing.aggregate.stageAggregates.filter((stage) => stage.loopId === loop.id)
+            : [];
+          const source = timing.sources?.find((item) => item.loopId === loop.id);
+          const aggregate = getTimingAggregate(requests, stageAggregates);
+          const loopTimingStatus = timingStatus(requests, source?.status || timing.status);
+          const sourceFact = source?.selectedRunId
+            ? `最近运行 ${source.selectedRunId}`
+            : source?.eventCount
+              ? `${formatNumber(source.eventCount)} 条节点事件`
+              : '等待运行时追加式计时事件';
+          $('#timing-fact').textContent = `${loopLabel(loop)} · ${formatNumber(requests.length)} 个需求样本 · ${sourceFact}`;
+          const timingStatusBadge = $('#timing-status');
+          timingStatusBadge.className = `status ${statusClass(loopTimingStatus)}`;
+          timingStatusBadge.textContent = displayLabel(loopTimingStatus);
 
           $('#timing-content').innerHTML = `
-            <div class="table-wrap">
-              <table>
+            <div class="metric-grid">
+              ${metric('需求样本', formatNumber(aggregate.requestCount), `${formatNumber(aggregate.measuredRequestCount)} 个已测量`)}
+              ${metric('已测量率', formatPercent(aggregate.measurementRate), `${formatNumber(aggregate.measuredRequestCount)}/${formatNumber(aggregate.requestCount)} 个需求`)}
+              ${metric('平均耗时', formatDuration(aggregate.distribution.averageMs), '仅统计有效样本')}
+              ${metric('P50', formatDuration(aggregate.distribution.p50Ms), '至少 2 个样本')}
+              ${metric('P95', formatDuration(aggregate.distribution.p95Ms), '至少 2 个样本')}
+              ${metric('等待占比', formatPercent(aggregate.waitingRatio), `${formatDuration(aggregate.waitingMs)} / ${formatDuration(aggregate.durationMs)}`)}
+            </div>
+            <p class="timing-note">真实阶段指标 ${formatNumber(timing.metrics?.realTimingCount || 0)} 条 · simulation 指标 ${formatNumber(timing.metrics?.legacySimulationCount || 0)} 条不进入耗时分布 · 证据仅显示相对路径</p>
+            ${requests.length ? `
+              <h3 class="timing-section-label">需求汇总</h3>
+              <div class="table-wrap">
+                <table class="timing-request-table">
                 <thead>
                   <tr>
-                    <th>阶段</th>
-                    <th>任务</th>
-                    <th>尝试</th>
-                    <th>类型</th>
-                    <th>负责人</th>
+                    <th>需求 / 运行</th>
                     <th>状态</th>
-                    <th>进入时间</th>
-                    <th>首次动作时间</th>
-                    <th>退出时间</th>
+                    <th>节点</th>
                     <th>总耗时</th>
-                    <th>活动耗时</th>
-                    <th>等待耗时</th>
-                    <th>等待原因</th>
+                    <th>活动 / 等待</th>
+                    <th>重试</th>
+                    <th>瓶颈节点</th>
+                    <th>失败原因</th>
                     <th>证据</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${stages.map((stage) => `
+                  ${requests.map((request) => `
                     <tr>
-                      <td class="nowrap">
-                        <div class="cell-title">${escapeHtml(stageLabel(stage.stageId))}</div>
-                        <div class="cell-meta">${escapeHtml(stage.stageId)}</div>
+                      <td>
+                        <div class="cell-title">${escapeHtml(request.taskId)}</div>
+                        <div class="cell-meta">${escapeHtml(request.runId || '未关联运行')}</div>
                       </td>
-                      <td><code>${escapeHtml(stage.taskId || '--')}</code></td>
-                      <td class="numeric">${escapeHtml(stage.attempt ?? '--')}</td>
-                      <td>${escapeHtml(displayLabel(stage.stageKind))}</td>
-                      <td>${escapeHtml(stage.owner)}</td>
-                      <td>${status(stage.status, displayLabel(stage.status))}</td>
-                      <td>${escapeHtml(stage.enteredAt || '未采集')}</td>
-                      <td>${escapeHtml(stage.firstActionAt || '未采集')}</td>
-                      <td>${escapeHtml(stage.exitedAt || '未采集')}</td>
-                      <td>${formatDuration(stage.durationMs)}</td>
-                      <td>${formatDuration(stage.activeMs)}</td>
-                      <td>${formatDuration(stage.waitingMs)}</td>
-                      <td>${escapeHtml(displayLabel(stage.waitingReason))}</td>
-                      <td><code>${escapeHtml(stage.evidence)}</code></td>
+                      <td>${status(request.status, displayLabel(request.status))}</td>
+                      <td class="numeric">${formatNumber(request.stageCount)} <span class="cell-meta">${formatNumber(request.measuredStageCount)} 已测量</span></td>
+                      <td>${formatDuration(request.durationMs)}</td>
+                      <td>${formatDuration(request.activeMs)} <span class="cell-meta">活动</span><br />${formatDuration(request.waitingMs)} <span class="cell-meta">等待</span></td>
+                      <td class="numeric">${formatNumber(request.retryCount)}</td>
+                      <td>${request.bottleneckStageId ? escapeHtml(stageLabel(request.bottleneckStageId)) : '--'}${request.bottleneckStageId ? `<div class="cell-meta">${escapeHtml(request.bottleneckStageId)}</div>` : ''}</td>
+                      <td class="timing-cell-list">${request.failureReasons?.length ? request.failureReasons.map((reason) => escapeHtml(displayLabel(reason))).join('<br />') : '<span class="cell-meta">无</span>'}</td>
+                      <td class="timing-evidence">${timingEvidence(request.evidence)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
               </table>
-            </div>
+              </div>
+
+              <h3 class="timing-section-label">阶段 / Owner 聚合</h3>
+              ${stageAggregates.length ? `
+                <div class="table-wrap">
+                  <table class="timing-stage-table">
+                    <thead>
+                      <tr>
+                        <th>阶段</th>
+                        <th>Owner</th>
+                        <th>状态</th>
+                        <th>样本 / 已测量率</th>
+                        <th>平均</th>
+                        <th>P50</th>
+                        <th>P95</th>
+                        <th>等待占比</th>
+                        <th>重试</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${stageAggregates.map((stage) => `
+                        <tr>
+                          <td><div class="cell-title">${escapeHtml(stageLabel(stage.stageId))}</div><div class="cell-meta">${escapeHtml(stage.stageId)} · ${escapeHtml(displayLabel(stage.stageKind))}</div></td>
+                          <td>${escapeHtml(stage.owner)}</td>
+                          <td>${status(stage.status, displayLabel(stage.status))}</td>
+                          <td class="numeric">${formatNumber(stage.sampleCount)} / ${formatPercent(stage.measurementRate)}</td>
+                          <td>${formatDuration(stage.distribution?.averageMs)}</td>
+                          <td>${formatDuration(stage.distribution?.p50Ms)}</td>
+                          <td>${formatDuration(stage.distribution?.p95Ms)}</td>
+                          <td>${formatPercent(stage.waitingRatio)}</td>
+                          <td class="numeric">${formatNumber(stage.retryCount)}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              ` : '<div class="empty-state"><strong>尚未形成阶段聚合</strong>等待有效 StageTimingMetric 写入后再比较阶段和 Owner。</div>'}
+
+              <div class="distribution-grid timing-distribution">
+                <div class="panel">
+                  <div class="panel-heading"><h3>等待原因</h3></div>
+                  <div class="panel-body"><div class="bar-list" id="timing-waiting-bars"></div></div>
+                </div>
+                <div class="panel">
+                  <div class="panel-heading"><h3 id="timing-secondary-distribution-title">瓶颈节点</h3></div>
+                  <div class="panel-body"><div class="bar-list" id="timing-secondary-distribution-bars"></div></div>
+                </div>
+              </div>
+
+              ${stages.length ? `
+                <h3 class="timing-section-label">节点明细</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>阶段</th>
+                        <th>任务</th>
+                        <th>尝试</th>
+                        <th>类型</th>
+                        <th>负责人</th>
+                        <th>状态</th>
+                        <th>进入时间</th>
+                        <th>首次动作时间</th>
+                        <th>退出时间</th>
+                        <th>总耗时</th>
+                        <th>活动耗时</th>
+                        <th>等待耗时</th>
+                        <th>等待原因</th>
+                        <th>证据</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${stages.map((stage) => `
+                        <tr>
+                          <td class="nowrap"><div class="cell-title">${escapeHtml(stageLabel(stage.stageId))}</div><div class="cell-meta">${escapeHtml(stage.stageId)}</div></td>
+                          <td><code>${escapeHtml(stage.taskId || '--')}</code></td>
+                          <td class="numeric">${escapeHtml(stage.attempt ?? '--')}</td>
+                          <td>${escapeHtml(displayLabel(stage.stageKind))}</td>
+                          <td>${escapeHtml(stage.owner)}</td>
+                          <td>${status(stage.status, displayLabel(stage.status))}</td>
+                          <td>${escapeHtml(stage.enteredAt || '未采集')}</td>
+                          <td>${escapeHtml(stage.firstActionAt || '未采集')}</td>
+                          <td>${escapeHtml(stage.exitedAt || '未采集')}</td>
+                          <td>${formatDuration(stage.durationMs)}</td>
+                          <td>${formatDuration(stage.activeMs)}</td>
+                          <td>${formatDuration(stage.waitingMs)}</td>
+                          <td>${escapeHtml(displayLabel(stage.waitingReason))}</td>
+                          <td><code>${escapeHtml(stage.evidence)}</code></td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              ` : ''}
+            ` : `
+              <div class="empty-state">
+                <strong>尚未形成需求级样本</strong>
+                执行一个完整需求并让运行时追加 TaskEvent、StageEvent、ExecutionEvent 和 StageTimingMetric 后，这里才会显示耗时分布。
+              </div>
+            `}
           `;
+
+          if (!requests.length) return;
+          renderTimingBars(
+            '#timing-waiting-bars',
+            timingEntries(aggregate.waitingByReason),
+            formatDuration,
+            '没有等待原因',
+            '当前有效样本未记录等待区间。'
+          );
+          const failureEntries = timingEntries(aggregate.failureReasons);
+          const bottleneckEntries = timingEntries(aggregate.bottleneckStages);
+          const secondaryEntries = failureEntries.length ? failureEntries : bottleneckEntries;
+          $('#timing-secondary-distribution-title').textContent = failureEntries.length ? '失败原因' : '瓶颈节点';
+          renderTimingBars(
+            '#timing-secondary-distribution-bars',
+            secondaryEntries,
+            formatNumber,
+            failureEntries.length ? '没有失败原因' : '没有瓶颈节点',
+            failureEntries.length ? '当前需求样本未记录失败原因。' : '当前有效样本未形成瓶颈节点。'
+          );
         }
 
         function renderEvaluation(data) {

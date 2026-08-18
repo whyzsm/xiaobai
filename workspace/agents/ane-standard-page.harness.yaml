@@ -31,7 +31,9 @@ context:
     - xiaoneng-page-contract
     - xiaoneng-import-rule
     - previous-memory
-  maxCharacters: 30000
+  # The selected Xiaoneng evidence bundles include schemas, validators, templates,
+  # and reference pages; the runtime reserves 25% headroom for task context.
+  maxCharacters: 160000
 completion:
   type: staged-objective
   conditions:

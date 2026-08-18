@@ -490,8 +490,94 @@ export interface StageTimingProjection extends StageEventKey {
   activeMs: number | null;
   waitingMs: number | null;
   waitingReason: StageWaitingReason | 'missing_instrumentation' | null;
+  waitingByReason: Partial<Record<StageWaitingReason, number>>;
   evidence: GatePassEvidence[];
   errors: string[];
+}
+
+export type TimingMeasurementStatus = 'measured' | 'partial' | 'unmeasured' | 'invalid';
+
+export interface TimingDistribution {
+  sampleCount: number;
+  averageMs: number | null;
+  p50Ms: number | null;
+  p95Ms: number | null;
+}
+
+export interface StageTimingMetric extends Omit<StageTimingProjection, 'valid'> {
+  kind: 'StageTimingMetric';
+  version: 1;
+  sourceKey: string;
+  measurementStatus: 'measured';
+  valid: true;
+}
+
+export type TimingMetricWriteStatus = 'written' | 'duplicate' | 'skipped' | 'failed';
+
+export interface TimingMetricWriteResult {
+  status: TimingMetricWriteStatus;
+  sourceKey?: string;
+  reason?: string;
+}
+
+export interface TimingStageDefinition {
+  id: string;
+  kind: string;
+  owner: string;
+}
+
+export interface RequestTimingStageSummary {
+  stageId: string;
+  stageKind: string;
+  owner: string;
+  status: TimingMeasurementStatus;
+  attempts: number;
+  measuredAttempts: number;
+  retryCount: number;
+  durationMs: number | null;
+  activeMs: number | null;
+  waitingMs: number | null;
+  waitingByReason: Partial<Record<StageWaitingReason, number>>;
+  distribution: TimingDistribution;
+  failureReasons: string[];
+  errors: string[];
+}
+
+export interface RequestTimingSummary {
+  kind: 'RequestTimingSummary';
+  version: 1;
+  loopId: string;
+  runId: string | null;
+  taskId: string;
+  taskState: TaskState | null;
+  status: TimingMeasurementStatus;
+  enteredAt: string | null;
+  firstActionAt: string | null;
+  exitedAt: string | null;
+  stageCount: number;
+  measuredStageCount: number;
+  measurementRate: number;
+  durationMs: number | null;
+  activeMs: number | null;
+  waitingMs: number | null;
+  waitingByReason: Partial<Record<StageWaitingReason, number>>;
+  distribution: TimingDistribution;
+  retryCount: number;
+  bottleneckStageId: string | null;
+  failureReasons: string[];
+  errors: string[];
+  evidence: string[];
+  stages: RequestTimingStageSummary[];
+}
+
+export interface TimingAggregationInput {
+  loopId: string;
+  taskEvents?: TaskEvent[];
+  stageEvents: StageEvent[];
+  executionEvents?: ExecutionEvent[];
+  metrics?: StageTimingMetric[];
+  stages?: TimingStageDefinition[];
+  sourceErrors?: string[];
 }
 
 export type ExecutionEventType =
@@ -615,6 +701,8 @@ export interface ExecutionStageResult {
   harnessResult: HarnessRunResult | null;
   evaluationVerdict: EvaluationVerdict | null;
   stageEvents: StageEvent[];
+  stageTiming: StageTimingProjection | null;
+  timingMetric?: TimingMetricWriteResult;
   executionEvents: ExecutionEvent[];
 }
 

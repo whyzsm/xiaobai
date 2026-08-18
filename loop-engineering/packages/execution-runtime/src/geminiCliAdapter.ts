@@ -1,9 +1,8 @@
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { canonicalizeJson } from '../../human-gate/src/subjectDigest';
+import { canonicalizeJson, sha256Hex } from '../../shared/src/canonicalDigest';
 import { specializeHarnessForStage } from '../../harness-runtime/src/harnessRuntime';
 import { readYamlFile } from '../../shared/src/fs';
 import {
@@ -98,10 +97,10 @@ export class GeminiCliAdapter implements ExecutorAdapter {
       const requestId = `${input.runId}:${input.taskId}:${input.stage.id}:${input.attempt}`;
       await reportExecutorEvent(input, 'prompt/assembled', {
         requestId,
-        promptDigest: sha256(prompt),
+        promptDigest: sha256Hex(prompt),
         promptCharacters: prompt.length,
-        subjectDigest: sha256(subjectJson),
-        outputSchemaDigest: sha256(JSON.stringify(geminiOutputSchema)),
+        subjectDigest: sha256Hex(subjectJson),
+        outputSchemaDigest: sha256Hex(canonicalizeJson(geminiOutputSchema)),
         harnessId: harness.metadata.id,
         contextDigest: input.backgroundContext?.skillContext.contextDigest ?? null,
         contextLoaders: harness.context.loaders,
@@ -494,9 +493,6 @@ function isHarnessPayload(value: JsonRecord): boolean {
     Array.isArray(value.evidence);
 }
 
-function sha256(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
 
 function containsPath(root: string, candidate: string): boolean {
   const resolvedRoot = path.resolve(root);

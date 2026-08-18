@@ -142,7 +142,7 @@ function main() {
   const snapshot = refreshSnapshot();
   const server = http.createServer(createRequestHandler());
   listen(server, args.port, (port) => {
-    const dashboardUrl = `http://${HOST}:${port}/dashboard.html?token=${ACCESS_TOKEN}#overview`;
+    const dashboardUrl = `http://${HOST}:${port}/dashboard.html?token=${ACCESS_TOKEN}#timing`;
     process.stdout.write(`\n  小白 Agent Ops / Xiaobai Agent Ops\n`);
     process.stdout.write(`  Snapshot: ${snapshot.health} (${snapshot.warnings.length} warnings)\n`);
     process.stdout.write(`  Dashboard URL: ${dashboardUrl}\n\n`);

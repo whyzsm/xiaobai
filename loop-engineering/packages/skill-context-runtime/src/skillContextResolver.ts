@@ -1,12 +1,12 @@
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { AnySchema, ErrorObject } from 'ajv';
 import Ajv2020 from 'ajv/dist/2020';
 import YAML from 'yaml';
-import { canonicalizeJson } from '../../human-gate/src/subjectDigest';
+import { canonicalizeJson } from '../../shared/src/canonicalDigest';
+import { sha256Hex } from '../../shared/src/canonicalDigest';
 import {
   BackgroundContextDocument,
   BackgroundContextPlan,
@@ -512,7 +512,7 @@ function containsPath(parent: string, candidate: string): boolean {
 }
 
 function digest(content: string): string {
-  return createHash('sha256').update(content, 'utf8').digest('hex');
+  return sha256Hex(content);
 }
 
 function formatAjvErrors(errors: ErrorObject[] | null | undefined): string[] {

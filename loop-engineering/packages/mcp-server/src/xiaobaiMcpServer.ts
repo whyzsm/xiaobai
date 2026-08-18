@@ -69,10 +69,9 @@ export async function callXiaobaiMcpTool(
         }
       });
     case 'xiaobai_task_run':
-      return runtime.taskRuntime.transition({
+      return runtime.taskRuntime.run({
         taskId: requiredString(input, 'taskId'),
-        eventType: 'task/running',
-        state: 'running'
+        stageId: stringValue(input.stageId)
       });
     case 'xiaobai_task_submit':
       if (!runtime.clientSubmissionRuntime) {

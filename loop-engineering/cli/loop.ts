@@ -553,12 +553,10 @@ async function runTaskCommand(options: CliOptions, workspaceRoot: string, loopPa
   }
 
   if (subcommand === 'run') {
-    const flags = parseCommandFlags(args, ['task-id'], 'task run');
-    const task = await runtime.transition({
+    const flags = parseCommandFlags(args, ['task-id', 'stage'], 'task run');
+    const task = await runtime.run({
       taskId: requireGateFlag(flags, 'task-id'),
-      eventType: 'task/running',
-      state: 'running',
-      actor: 'runtime'
+      stageId: optionalGateFlag(flags, 'stage')
     });
     printTaskCommandResult(task, options.json);
     return;
@@ -777,6 +775,12 @@ function printExecutionResult(result: Awaited<ReturnType<ExecutionRuntime['execu
   process.stdout.write(`Adapter: ${result.adapterId}\n`);
   process.stdout.write(`Authority: ${result.authority.scope} (${result.authority.executorInstance})\n`);
   process.stdout.write(`Stage events: ${result.stageEvents.length}\n`);
+  process.stdout.write(
+    `Stage timing: ${result.stageTiming?.status ?? 'unmeasured'}${result.stageTiming?.durationMs === null || result.stageTiming?.durationMs === undefined ? '' : ` (${result.stageTiming.durationMs}ms)`}\n`
+  );
+  if (result.timingMetric) {
+    process.stdout.write(`Timing metric: ${result.timingMetric.status}${result.timingMetric.reason ? ` (${result.timingMetric.reason})` : ''}\n`);
+  }
   process.stdout.write(`Execution events: ${result.executionEvents.length}\n`);
   if (result.evaluationVerdict) {
     process.stdout.write(

@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { AnySchema } from 'ajv';
+import Ajv2020 from 'ajv/dist/2020';
+import YAML from 'yaml';
 import { EvaluatorRuntime } from '../../evaluator-runtime/src/evaluatorRuntime';
 import { HarnessRuntime, specializeHarnessForStage } from '../../harness-runtime/src/harnessRuntime';
-import { GatePassStore, HumanGate } from '../../human-gate/src/humanGate';
+import { GateCheckService } from '../../human-gate/src/gateCheck';
+import { GatePassStore } from '../../human-gate/src/humanGate';
 import { SkillContextResolver } from '../../skill-context-runtime/src/skillContextResolver';
 import {
+  BackgroundContextLock,
   ExecutionStageInput,
   ExecutionStageResult,
   ExecutionEvent,
@@ -26,10 +30,12 @@ import {
   WorkflowStagePlan
 } from '../../shared/src/types';
 import { pathExists } from '../../shared/src/fs';
+import { digestJsonHex, sha256Hex } from '../../shared/src/canonicalDigest';
 import { resolveMemoryPath } from '../../shared/src/memoryRoot';
 import { standardPageArtifactRoot, standardPageArtifactsForStage } from '../../shared/src/taskArtifacts';
 import { ExecutionEventStore } from './executionEvents';
-import { createStageEvent, StageEventStore, validateStageEventSequence } from './stageEvents';
+import { createStageEvent, projectStageTiming, StageEventStore, validateStageEventSequence } from './stageEvents';
+import { StageTimingMetricStore, stageTimingSourceKey } from './timingMetrics';
 
 export interface ExecutionRuntimeOptions {
   workspaceRoot: string;
@@ -41,41 +47,21 @@ export interface ExecutionRuntimeOptions {
 }
 
 export class GateGuard {
-  private readonly humanGate: HumanGate;
+  private readonly service: GateCheckService;
 
-  constructor(
-    private readonly loop: LoopSpec,
-    private readonly passStore: GatePassStore
-  ) {
-    this.humanGate = new HumanGate(loop);
+  constructor(loop: LoopSpec, passStore: GatePassStore) {
+    this.service = new GateCheckService(loop, passStore);
   }
 
   async check(input: GateCheckInput): Promise<GateDecision> {
-    const preliminary = this.humanGate.check(input, []);
-    if (preliminary.status === 'passed' && preliminary.requiredGates.length === 0) {
-      return preliminary;
-    }
-
-    try {
-      return this.humanGate.check(input, await this.passStore.readAll());
-    } catch (error) {
-      return {
-        status: 'blocked',
-        requiredGates: preliminary.requiredGates,
-        satisfiedGates: [],
-        blockingReasons: [
-          ...preliminary.blockingReasons,
-          `GatePass store unavailable: ${error instanceof Error ? error.message : String(error)}`
-        ],
-        passes: []
-      };
-    }
+    return this.service.check(input);
   }
 }
 
 export class ExecutionRuntime {
   private readonly stageStore: StageEventStore;
   private readonly gateGuard: GateGuard;
+  private readonly timingMetricStore: StageTimingMetricStore;
   private readonly executorInstance: string;
   private readonly clock: () => Date;
 
@@ -84,6 +70,7 @@ export class ExecutionRuntime {
       throw new Error(`Runtime plan loop does not match loop spec: ${options.plan.loopId}`);
     }
     this.stageStore = new StageEventStore(options.memoryRoot, options.loop.metadata.id);
+    this.timingMetricStore = new StageTimingMetricStore(options.memoryRoot, options.loop.metadata.id);
     this.gateGuard = new GateGuard(
       options.loop,
       new GatePassStore(options.memoryRoot, options.loop.metadata.id)
@@ -112,7 +99,20 @@ export class ExecutionRuntime {
     }
 
     try {
-      return await this.executeLocked(input, adapter, authority);
+      const result = await this.executeLocked(input, adapter, authority);
+      try {
+        const timingMetric = await this.timingMetricStore.append(result.stageTiming);
+        return { ...result, timingMetric };
+      } catch (error) {
+        return {
+          ...result,
+          timingMetric: {
+            status: 'failed',
+            sourceKey: result.stageTiming ? stageTimingSourceKey(result.stageTiming) : undefined,
+            reason: `StageTimingMetric write failed: ${error instanceof Error ? error.message : String(error)}`
+          }
+        };
+      }
     } catch (error) {
       return {
         ...blockedResult(adapter.id, authority, [
@@ -208,7 +208,8 @@ export class ExecutionRuntime {
       taskId: input.taskId,
       stageId: stage.id,
       actions,
-      subject: input.subject
+      subject: input.subject,
+      now: this.clock()
     });
     await appendExecution({
       actor: 'runtime',
@@ -247,6 +248,11 @@ export class ExecutionRuntime {
 
     await append('first_action');
     let backgroundContext: ResolvedBackgroundContext | undefined;
+    if (this.options.loop.metadata.id === 'ane-standard-page' && !this.options.plan.backgroundContext) {
+      const reasons = ['XIAONENG_CONTEXT_REQUIRED: StandardPage execution has no background context plan'];
+      await append('failed', [otherEvidence(reasons[0])]);
+      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+    }
     if (this.options.plan.backgroundContext) {
       try {
         backgroundContext = await new SkillContextResolver(this.options.workspaceRoot).resolve(
@@ -259,6 +265,19 @@ export class ExecutionRuntime {
           this.options.loop.metadata.id,
           scope.taskId
         );
+        if (this.options.loop.metadata.id === 'ane-standard-page' && !lock) {
+          throw new Error('XIAONENG_CONTEXT_LOCK_REQUIRED: StandardPage task context lock is missing');
+        }
+        if (
+          lock &&
+          (lock.projectId !== this.options.plan.backgroundContext.projectId ||
+            lock.backgroundId !== this.options.plan.backgroundContext.backgroundId ||
+            lock.skillCommit !== backgroundContext.skillContext.skillCommit ||
+            JSON.stringify(lock.selectedEvidenceBundles) !==
+              JSON.stringify(this.options.plan.backgroundContext.evidenceBundles ?? []))
+        ) {
+          throw new Error('XIAONENG_CONTEXT_LOCK_MISMATCH: lock identity or selected evidence differs from the plan');
+        }
         if (lock && lock.contextDigest !== backgroundContext.skillContext.contextDigest) {
           throw new Error(
             `XIAONENG_CONTEXT_DIGEST_MISMATCH: locked ${lock.contextDigest}, resolved ${backgroundContext.skillContext.contextDigest}`
@@ -283,7 +302,8 @@ export class ExecutionRuntime {
         this.options.workspaceRoot,
         this.options.plan,
         scope.taskId,
-        stage.id
+        stage.id,
+        backgroundContext
       );
     } catch (error) {
       const reasons = [`Task artifact loading failed closed: ${error instanceof Error ? error.message : String(error)}`];
@@ -456,7 +476,7 @@ async function readBackgroundContextLock(
   memoryRoot: string,
   loopId: string,
   taskId: string
-): Promise<{ contextDigest: string } | undefined> {
+): Promise<BackgroundContextLock | undefined> {
   const artifactRoot = standardPageArtifactRoot(workspaceRoot, plan, taskId);
   const candidates = [
     ...(artifactRoot ? [path.join(artifactRoot, 'background-context.json')] : []),
@@ -468,11 +488,21 @@ async function readBackgroundContextLock(
   for (const filePath of candidates) {
     if (!(await pathExists(filePath))) continue;
     try {
-      const value = JSON.parse(await readFile(filePath, 'utf8')) as { contextDigest?: unknown };
-      if (typeof value.contextDigest !== 'string') {
-        throw new Error('contextDigest must be a string');
+      const value = JSON.parse(await readFile(filePath, 'utf8')) as Partial<BackgroundContextLock>;
+      if (
+        value.kind !== 'BackgroundContextLock' ||
+        value.version !== 1 ||
+        value.taskId !== taskId ||
+        typeof value.projectId !== 'string' ||
+        typeof value.backgroundId !== 'string' ||
+        typeof value.skillCommit !== 'string' ||
+        typeof value.contextDigest !== 'string' ||
+        !Array.isArray(value.selectedEvidenceBundles) ||
+        typeof value.lockedAt !== 'string'
+      ) {
+        throw new Error('context lock fields are incomplete or do not match the task');
       }
-      return { contextDigest: value.contextDigest };
+      return value as BackgroundContextLock;
     } catch (error) {
       throw new Error(`XIAONENG_CONTEXT_LOCK_INVALID: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -484,7 +514,8 @@ async function readStandardPageArtifacts(
   workspaceRoot: string,
   plan: RuntimePlan,
   taskId: string,
-  stageId: string
+  stageId: string,
+  backgroundContext?: ResolvedBackgroundContext
 ): Promise<JsonRecord | undefined> {
   const required = standardPageArtifactsForStage(stageId);
   if (required.length === 0) return undefined;
@@ -503,12 +534,169 @@ async function readStandardPageArtifacts(
     } catch (error) {
       throw new Error(`XIAONENG_TASK_ARTIFACT_INVALID: ${name}: ${error instanceof Error ? error.message : String(error)}`);
     }
-    const digest = createHash('sha256').update(raw, 'utf8').digest('hex');
+    const digest = digestJsonHex(value);
     files[name] = { path: filePath, digest, value };
     (summary.files as Array<JsonRecord>).push({ name, digest });
     evidence.push({ type: 'file', value: `xiaobai-task-artifact:${name}:${digest}` });
   }
+  if (backgroundContext) {
+    validateStandardPageArtifacts(files, backgroundContext, plan, taskId);
+  }
   return { summary, files, evidence };
+}
+
+function validateStandardPageArtifacts(
+  files: JsonRecord,
+  backgroundContext: ResolvedBackgroundContext,
+  plan: RuntimePlan,
+  taskId: string
+): void {
+  const pageContract = requiredArtifactRecord(files, 'page-contract.json');
+  if (pageContract) {
+    const schemaDocument = backgroundContext.documents.find((document) =>
+      document.path.endsWith('standard-page-contract.schema.json')
+    );
+    if (!schemaDocument) throw new Error('XIAONENG_PAGE_CONTRACT_SCHEMA_REQUIRED: evidence schema is missing');
+    let schema: unknown;
+    try {
+      schema = JSON.parse(schemaDocument.content) as unknown;
+    } catch (error) {
+      throw new Error(`XIAONENG_PAGE_CONTRACT_SCHEMA_INVALID: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    const validate = ajv.compile(schema as AnySchema);
+    if (!validate(pageContract)) {
+      throw new Error(`XIAONENG_PAGE_CONTRACT_SCHEMA_FAILED: ${JSON.stringify(validate.errors ?? [])}`);
+    }
+    const contract = pageContract as JsonRecord;
+    const project = plan.orchestrator?.routesTo.project;
+    const repositoryId = project?.resolution.matchedRepositoryId;
+    if (contract.taskId !== taskId) throw new Error('XIAONENG_PAGE_CONTRACT_TASK_MISMATCH');
+    if (contract.projectId !== backgroundContext.projectId) throw new Error('XIAONENG_PAGE_CONTRACT_PROJECT_MISMATCH');
+    if (repositoryId && contract.repositoryId !== repositoryId) {
+      throw new Error('XIAONENG_PAGE_CONTRACT_REPOSITORY_MISMATCH');
+    }
+    if (contract.contextDigest !== backgroundContext.skillContext.contextDigest) {
+      throw new Error('XIAONENG_CONTEXT_DIGEST_MISMATCH: page contract contextDigest differs from locked context');
+    }
+    const { contractDigest, ...contractWithoutDigest } = contract;
+    if (contractDigest !== digestJsonHex(contractWithoutDigest)) {
+      throw new Error('XIAONENG_CONTRACT_DIGEST_MISMATCH: page contract digest does not match canonical content');
+    }
+  }
+
+  const backgroundLock = requiredArtifactRecord(files, 'background-context.json');
+  if (backgroundLock) {
+    if (
+      backgroundLock.kind !== 'BackgroundContextLock' ||
+      backgroundLock.version !== 1 ||
+      backgroundLock.taskId !== taskId ||
+      backgroundLock.projectId !== backgroundContext.projectId ||
+      backgroundLock.backgroundId !== backgroundContext.backgroundId ||
+      backgroundLock.skillCommit !== backgroundContext.skillContext.skillCommit ||
+      backgroundLock.contextDigest !== backgroundContext.skillContext.contextDigest ||
+      !Array.isArray(backgroundLock.selectedEvidenceBundles) ||
+      digestJsonHex(backgroundLock.selectedEvidenceBundles) !==
+        digestJsonHex(backgroundContext.skillContext.evidenceBundles ?? [])
+    ) {
+      throw new Error('XIAONENG_CONTEXT_LOCK_MISMATCH: background-context artifact differs from locked context');
+    }
+  }
+
+  const evidenceSelection = requiredArtifactRecord(files, 'evidence-selection.json');
+  if (evidenceSelection) {
+    if (
+      evidenceSelection.kind !== 'XiaonengEvidenceSelection' ||
+      evidenceSelection.version !== 1 ||
+      evidenceSelection.taskId !== taskId ||
+      evidenceSelection.projectId !== backgroundContext.projectId ||
+      evidenceSelection.backgroundId !== backgroundContext.backgroundId ||
+      evidenceSelection.skillCommit !== backgroundContext.skillContext.skillCommit ||
+      evidenceSelection.contextDigest !== backgroundContext.skillContext.contextDigest ||
+      !Array.isArray(evidenceSelection.bundles) ||
+      digestJsonHex(evidenceSelection.bundles) !== digestJsonHex(backgroundContext.skillContext.evidenceBundles ?? [])
+    ) {
+      throw new Error('XIAONENG_EVIDENCE_SELECTION_MISMATCH');
+    }
+  }
+
+  const importRuleArtifact = requiredArtifactRecord(files, 'import-rule.json');
+  if (importRuleArtifact) {
+    if (!pageContract) throw new Error('XIAONENG_PAGE_CONTRACT_REQUIRED: import-rule requires page-contract');
+    validateImportRule(pageContract, importRuleArtifact, backgroundContext);
+  }
+}
+
+function requiredArtifactRecord(files: JsonRecord, name: string): JsonRecord | undefined {
+  const artifact = files[name];
+  if (artifact === undefined) return undefined;
+  if (!isRecord(artifact) || !isRecord(artifact.value)) {
+    throw new Error(`XIAONENG_TASK_ARTIFACT_INVALID: ${name} must contain a JSON object`);
+  }
+  return artifact.value;
+}
+
+function validateImportRule(
+  contract: JsonRecord,
+  artifact: JsonRecord,
+  backgroundContext: ResolvedBackgroundContext
+): void {
+  const importContract = isRecord(contract.import) ? contract.import : undefined;
+  if (!importContract) throw new Error('XIAONENG_PAGE_CONTRACT_IMPORT_INVALID: import must be an object');
+  const importRule = backgroundContext.documents.find((document) =>
+    document.path.endsWith('tmax-standard-import.yaml')
+  );
+  if (!importRule) throw new Error('IMPORT_RULE_NOT_FROM_XIAONENG: source rule is missing');
+
+  let source: unknown;
+  try {
+    source = YAML.parse(importRule.content) as unknown;
+  } catch (error) {
+    throw new Error(`IMPORT_RULE_SOURCE_INVALID: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!isRecord(source)) throw new Error('IMPORT_RULE_SOURCE_INVALID: source must be an object');
+  if (importContract.enabled !== true) {
+    if (
+      importContract.ruleRef !== 'none' ||
+      importContract.templateRef !== 'none' ||
+      importContract.adapterRef !== 'none' ||
+      artifact.enabled !== false
+    ) {
+      throw new Error('IMPORT_RULE_DISABLED_MISMATCH');
+    }
+    return;
+  }
+  if (importContract.ruleRef !== source.ruleId || importContract.ruleRef !== 'tmax-standard-import') {
+    throw new Error('IMPORT_RULE_NOT_FROM_XIAONENG: unexpected ruleRef');
+  }
+  if (importContract.ruleVersion !== source.version) throw new Error('IMPORT_RULE_VERSION_MISMATCH');
+  if (importContract.ruleSource !== source.source) throw new Error('IMPORT_RULE_SOURCE_MISMATCH');
+  if (importContract.adapterRef !== source.adapter) throw new Error('IMPORT_RULE_ADAPTER_MISMATCH');
+  if (importContract.sourceCommit !== backgroundContext.skillContext.skillCommit) {
+    throw new Error('IMPORT_RULE_SOURCE_COMMIT_MISMATCH');
+  }
+  if (importContract.sourcePath !== importRule.path) {
+    throw new Error('IMPORT_RULE_SOURCE_PATH_MISMATCH');
+  }
+  if (importContract.sourceDigest !== sha256Hex(importRule.content)) {
+    throw new Error('IMPORT_RULE_SOURCE_DIGEST_MISMATCH');
+  }
+  if (importContract.ruleDigest !== importContract.sourceDigest) {
+    throw new Error('IMPORT_RULE_DIGEST_MISMATCH');
+  }
+  if (
+    artifact.ruleId !== source.ruleId ||
+    artifact.version !== source.version ||
+    artifact.pageType !== source.pageType ||
+    artifact.source !== source.source ||
+    artifact.adapter !== source.adapter ||
+    artifact.ruleDigest !== importContract.ruleDigest ||
+    artifact.sourceDigest !== importContract.sourceDigest ||
+    artifact.sourcePath !== importContract.sourcePath ||
+    artifact.sourceCommit !== importContract.sourceCommit
+  ) {
+    throw new Error('IMPORT_RULE_ARTIFACT_MISMATCH');
+  }
 }
 
 class LocalRunLock {
@@ -604,6 +792,7 @@ function executionResult(
     harnessResult,
     evaluationVerdict,
     stageEvents,
+    stageTiming: stageEvents.length > 0 ? projectStageTiming(stageEvents, stageEvents[0]) : null,
     executionEvents
   };
 }
@@ -695,5 +884,5 @@ function isErrno(error: unknown, code: string): boolean {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

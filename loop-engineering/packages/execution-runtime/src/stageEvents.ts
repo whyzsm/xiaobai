@@ -231,20 +231,24 @@ export function projectStageTiming(events: StageEvent[], scope: StageProjectionS
   );
   const waits = collectWaitingIntervals(relevant);
   const waitingReason = waits.at(-1)?.start.waitingReason ?? null;
-  if (errors.length > 0) {
-    return {
-      ...unmeasuredProjection(scope, evidence, errors, waitingReason),
-      enteredAt: entered?.occurredAt ?? null,
-      firstActionAt: firstAction?.occurredAt ?? null,
-      exitedAt: terminal?.occurredAt ?? null
-    };
+  const lastWait = waits.at(-1);
+  if (errors.length > 0 || (lastWait && lastWait.end === undefined)) {
+    const projectionErrors = lastWait && lastWait.end === undefined
+      ? [...errors, 'StageEvent sequence contains an open wait']
+      : errors;
+    return unmeasuredProjection(scope, evidence, projectionErrors, waitingReason);
   }
 
-  const lastWait = waits.at(-1);
-  const waiting = Boolean(lastWait && lastWait.end === undefined);
-  const waitingMs = waiting
-    ? null
-    : waits.reduce((total, interval) => total + Date.parse(interval.end!.occurredAt) - Date.parse(interval.start.occurredAt), 0);
+  const waitingMs = waits.reduce(
+    (total, interval) => total + Date.parse(interval.end!.occurredAt) - Date.parse(interval.start.occurredAt),
+    0
+  );
+  const waitingByReason = waits.reduce<Partial<Record<StageWaitingReason, number>>>((totals, interval) => {
+    const reason = interval.start.waitingReason;
+    if (!reason || !interval.end) return totals;
+    totals[reason] = (totals[reason] ?? 0) + Date.parse(interval.end.occurredAt) - Date.parse(interval.start.occurredAt);
+    return totals;
+  }, {});
   const durationMs = terminal && entered ? Date.parse(terminal.occurredAt) - Date.parse(entered.occurredAt) : null;
   return {
     loopId: scope.loopId,
@@ -254,15 +258,16 @@ export function projectStageTiming(events: StageEvent[], scope: StageProjectionS
     attempt: scope.attempt,
     stageKind: scope.stageKind,
     owner: scope.owner,
-    status: terminal?.eventType ?? (waiting ? 'waiting' : 'running'),
+    status: terminal?.eventType ?? 'running',
     valid: true,
     enteredAt: entered?.occurredAt ?? null,
     firstActionAt: firstAction?.occurredAt ?? null,
     exitedAt: terminal?.occurredAt ?? null,
     durationMs,
-    activeMs: durationMs === null || waitingMs === null ? null : durationMs - waitingMs,
+    activeMs: durationMs === null ? null : durationMs - waitingMs,
     waitingMs,
     waitingReason,
+    waitingByReason,
     evidence,
     errors: []
   };
@@ -331,6 +336,7 @@ function unmeasuredProjection(
     activeMs: null,
     waitingMs: null,
     waitingReason,
+    waitingByReason: {},
     evidence,
     errors
   };

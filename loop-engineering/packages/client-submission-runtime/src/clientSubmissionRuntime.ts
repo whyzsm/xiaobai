@@ -3,6 +3,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { EvaluatorRuntime } from '../../evaluator-runtime/src/evaluatorRuntime';
 import { HarnessRuntime } from '../../harness-runtime/src/harnessRuntime';
+import { GateCheckService } from '../../human-gate/src/gateCheck';
 import { clientSubmissionProfileId, parseProviderRunResult } from '../../provider-runtime/src/providerRuntime';
 import {
   EvaluationVerdict,
@@ -78,6 +79,21 @@ export class ClientSubmissionRuntime {
 
   async submit(input: ClientSubmissionInput): Promise<TaskEnvelope> {
     const task = await input.taskRuntime.require(input.taskId);
+    const runId = input.runId ?? task.runId ?? `client-${task.taskId}`;
+    const gateDecision = await GateCheckService.forMemoryRoot(
+      this.options.loop,
+      input.taskRuntime.memoryRoot()
+    ).check({
+      runId,
+      taskId: task.taskId,
+      stageId: input.stageId,
+      actions: protectedGateActions(this.options.loop, task.requestedActions),
+      subject: task.subject,
+      now: this.clock()
+    });
+    if (gateDecision.status === 'blocked') {
+      throw new Error(`GATE_CHECK_BLOCKED: ${gateDecision.blockingReasons.join('; ')}`);
+    }
     const submitted = await input.taskRuntime.transition({
       taskId: task.taskId,
       eventType: 'task/submitted',
@@ -87,7 +103,10 @@ export class ClientSubmissionRuntime {
         submission: input.submission,
         trustBoundary: 'external-client-untrusted'
       },
-      evidence: [{ type: 'other', value: 'client submission received as untrusted input' }]
+      evidence: [
+        { type: 'other', value: 'client submission received as untrusted input' },
+        ...gateDecision.passes.flatMap((pass) => pass.evidence)
+      ]
     });
     await input.taskRuntime.transition({
       taskId: task.taskId,
@@ -104,7 +123,7 @@ export class ClientSubmissionRuntime {
     const verification = await this.verify({
       task: submitted,
       submission: input.submission,
-      runId: input.runId,
+      runId,
       worktreePath: input.worktreePath,
       stageId: input.stageId
     });
@@ -336,6 +355,11 @@ export class ClientSubmissionRuntime {
       ]
     };
   }
+}
+
+function protectedGateActions(loop: LoopSpec, actions: RepositoryAction[]): string[] {
+  const protectedActions = new Set(loop.humanGate.gates.map((gate) => gate.requiredBefore));
+  return actions.filter((action) => protectedActions.has(action));
 }
 
 function readReportedChangedFiles(submission: JsonRecord): string[] {

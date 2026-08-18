@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { canonicalizeJson } from '../../human-gate/src/subjectDigest';
+import { canonicalizeJson, sha256Hex } from '../../shared/src/canonicalDigest';
 import {
   GatePassEvidence,
   HarnessSpec,
@@ -30,7 +29,7 @@ export class PromptRuntime {
   assemble(input: ProviderPromptInput): ProviderPromptPayload {
     const payload = buildPayload(input);
     const canonical = canonicalizeJson(payload);
-    const promptDigest = sha256(canonical);
+    const promptDigest = sha256Hex(canonical);
     return {
       taskId: input.task.taskId,
       stageId: input.stage.id,
@@ -96,8 +95,4 @@ function buildPayload(input: ProviderPromptInput): JsonRecord {
       : null,
     outputSchema: input.outputSchema
   };
-}
-
-function sha256(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
 }

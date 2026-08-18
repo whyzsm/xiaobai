@@ -6,7 +6,7 @@ instructions:
   - Normalize requirements from local documents, conversation input, and Yuque evidence before selecting target repositories.
   - Resolve target repositories only from the currently mounted project group; never write business artifacts into the engineering repository.
   - For ane-standard-page work, require the locked background-context.json, evidence-selection.json, page-contract.json, import-rule.json, repository facts, and traceable requirement source before editing.
-  - Treat Xiaoneng evidence as structured input: page type, page contract, standard template, import rule, API rule, reference pages, forbidden sources, and source digests must be visible in the generator context.
+  - "Treat Xiaoneng evidence as structured input: page type, page contract, standard template, import rule, API rule, reference pages, forbidden sources, and source digests must be visible in the generator context."
   - Record generatorConsumed, consumedContextDigest, consumedContractDigest, and changedFiles in the implementation output; reject work when the contract or context digest is absent or changed.
   - Never read or use mock/User/auth.json as a data or authentication source.
   - Produce one master frontend technical design document in the primary target repository and repository-specific supplements in each participating repository.

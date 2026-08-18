@@ -5,6 +5,7 @@ import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { createGateSubject } from '../packages/human-gate/src/subjectDigest';
+import { canonicalizeJson, digestJsonHex } from '../packages/shared/src/canonicalDigest';
 import {
   createStageEvent,
   projectStageTiming,
@@ -14,8 +15,10 @@ import {
   ExecutionEventStore,
   projectExecutionTrace
 } from '../packages/execution-runtime/src/executionEvents';
+import { stageTimingMetricFromProjection } from '../packages/execution-runtime/src/timingMetrics';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
+import { TaskRuntime } from '../packages/task-runtime/src/taskRuntime';
 import { generateCapabilityCatalog } from '../packages/capability-catalog/src/capabilityCatalog';
 import { SkillContextResolver } from '../packages/skill-context-runtime/src/skillContextResolver';
 import { chmod, mkdir, mkdtemp, stat, symlink, writeFile } from 'node:fs/promises';
@@ -33,6 +36,7 @@ import {
   WorkflowStagePlan
 } from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
+import { standardPageArtifactRoot } from '../packages/shared/src/taskArtifacts';
 
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, 'workspace');
@@ -57,13 +61,17 @@ async function createExecutionFixture(loopId: string) {
   const tempWorkspace = path.join(tempRoot, 'workspace');
   await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
   await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+  if (loopId === 'ane-standard-page') {
+    await mkdir(path.join(tempWorkspace, 'memory', 'loops', loopId), { recursive: true });
+    await writeFile(path.join(tempWorkspace, 'memory', 'loops', loopId, 'state.md'), '# test state\n', 'utf8');
+  }
   const loopPath = await findLoopSpec(tempWorkspace, loopId);
   const loop = await readYamlFile<LoopSpec>(loopPath);
   const plan = await new LoopRuntime().dryRun({
     workspaceRoot: tempWorkspace,
     loopPath,
     now: new Date('2026-08-10T00:00:00.000Z'),
-    targetRepository: loopId === 'frontend-delivery' ? 'operateBusiness' : undefined
+    targetRepository: loopId === 'frontend-delivery' || loopId === 'ane-standard-page' ? 'operateBusiness' : undefined
   });
   return {
     tempRoot,
@@ -307,8 +315,143 @@ async function generateMonitorSnapshot(memoryRoot: string) {
         evidence: string;
         errors: string[];
       }>;
+      requests: Array<{
+        runId: string | null;
+        taskId: string;
+        status: string;
+        durationMs: number | null;
+      }>;
+      metrics: {
+        realTimingCount: number;
+        legacySimulationCount: number;
+      };
+      aggregate: {
+        stageAggregates: Array<{
+          loopId: string;
+          stageId: string;
+          owner: string;
+          status: string;
+          sampleCount: number;
+          measurementRate: number;
+          waitingRatio: number | null;
+        }>;
+      };
     };
   };
+}
+
+async function prepareStandardPageTask(
+  fixture: Awaited<ReturnType<typeof createExecutionFixture>>,
+  taskId: string
+) {
+  assert(fixture.plan.backgroundContext);
+  const taskRuntime = new TaskRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    now: () => new Date('2026-08-10T00:00:00.000Z')
+  });
+  await taskRuntime.create({
+    taskId,
+    request: {
+      entryPoint: 'cli',
+      projectId: 't-max',
+      repositoryId: 'operateBusiness',
+      subject: { title: 'standard page fixture' },
+      requestedActions: ['read']
+    }
+  });
+  const context = await new SkillContextResolver(fixture.workspaceRoot).resolve(fixture.plan.backgroundContext);
+  const root = standardPageArtifactRoot(fixture.workspaceRoot, fixture.plan, taskId);
+  assert(root);
+  return { context, root };
+}
+
+async function markDependencyPassed(
+  fixture: Awaited<ReturnType<typeof createExecutionFixture>>,
+  runId: string,
+  taskId: string,
+  stageId: string
+): Promise<void> {
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === stageId);
+  assert(stage);
+  const owner = (stage.agent ?? stage.evaluator ?? fixture.loop.metadata.owner).replace(/\.agent\.yaml$/, '');
+  const scope = {
+    loopId: fixture.loop.metadata.id,
+    runId,
+    taskId,
+    stageId,
+    attempt: 1,
+    stageKind: stage.kind,
+    owner
+  };
+  const store = new StageEventStore(fixture.memoryRoot, fixture.loop.metadata.id);
+  await store.append(createStageEvent({ ...scope, eventType: 'entered', occurredAt: '2026-08-10T00:00:00.000Z' }));
+  await store.append(createStageEvent({ ...scope, eventType: 'passed', occurredAt: '2026-08-10T00:00:01.000Z' }));
+}
+
+function standardPageContract(
+  fixture: Awaited<ReturnType<typeof createExecutionFixture>>,
+  context: Awaited<ReturnType<SkillContextResolver['resolve']>>,
+  taskId: string,
+  importConfig: Record<string, unknown> = {
+    enabled: false,
+    ruleRef: 'none',
+    templateRef: 'none',
+    adapterRef: 'none'
+  }
+) {
+  const contract = {
+    contractVersion: '2.0.0',
+    taskId,
+    projectId: 't-max',
+    repositoryId: fixture.plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId,
+    pageType: 'StandardPage',
+    standardPageProfile: 'standard-list',
+    routes: [],
+    menus: [],
+    fields: [],
+    apis: [],
+    import: importConfig,
+    references: [],
+    rules: [],
+    sourceEvidence: [],
+    contextDigest: context.skillContext.contextDigest
+  };
+  return { ...contract, contractDigest: digestJsonHex(contract) };
+}
+
+async function executeStandardPageStage(
+  fixture: Awaited<ReturnType<typeof createExecutionFixture>>,
+  input: {
+    runId: string;
+    taskId: string;
+    stageId: string;
+    calls: () => void;
+  }
+) {
+  return new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: `executor-${input.runId}`
+  }).execute(
+    {
+      runId: input.runId,
+      taskId: input.taskId,
+      stageId: input.stageId,
+      subject: {}
+    },
+    {
+      id: 'fake-standard-page-adapter',
+      async execute() {
+        input.calls();
+        return { status: 'blocked' as const, reason: 'must not run', evidence: [] };
+      }
+    }
+  );
 }
 
 test('workspace validates against schemas and referenced files', async () => {
@@ -545,6 +688,14 @@ test('gate subjects are canonical, order-sensitive for arrays, and reject missin
   );
   const { masterDesignPath: _missing, ...missingSubject } = designSubject;
   assert.throws(() => createGateSubject(gate, missingSubject), /missing field: masterDesignPath/);
+});
+
+test('canonical digest is shared, stable for object order, array-order-sensitive, and rejects invalid Unicode', () => {
+  assert.equal(canonicalizeJson({ b: 2, a: 1 }), '{"a":1,"b":2}');
+  assert.equal(digestJsonHex({ b: 2, a: 1 }), digestJsonHex({ a: 1, b: 2 }));
+  assert.notEqual(digestJsonHex({ values: ['a', 'b'] }), digestJsonHex({ values: ['b', 'a'] }));
+  assert.equal(digestJsonHex({ text: 'e\u0301' }), digestJsonHex({ text: 'e\u0301' }));
+  assert.throws(() => canonicalizeJson('\ud800'), /invalid Unicode/);
 });
 
 test('gate pass grant rejects unauthorized reviewers, missing evidence, and unrelated stages', async () => {
@@ -933,6 +1084,19 @@ test('monitoring projects the latest real run and keeps missing or invalid strea
     createStageEvent({ ...base, runId: 'run-new', eventType: 'passed', occurredAt: '2026-08-10T01:00:10.000Z' })
   ];
   await writeFile(eventPath, `${events.map((event) => JSON.stringify(event)).join('\n')}\n`, 'utf8');
+  const realMetric = stageTimingMetricFromProjection(
+    projectStageTiming(events.filter((event) => event.runId === 'run-new'), {
+      ...base,
+      runId: 'run-new'
+    })
+  );
+  assert(realMetric);
+  const metricPath = path.join(validMemoryRoot, 'loops', 'morning-triage', 'metrics.jsonl');
+  await writeFile(
+    metricPath,
+    `${JSON.stringify({ runId: 'sim-legacy', mode: 'simulation', stages: 1 })}\n${JSON.stringify(realMetric)}\n`,
+    'utf8'
+  );
 
   const validSnapshot = await generateMonitorSnapshot(validMemoryRoot);
   const source = validSnapshot.timing.sources.find((item) => item.loopId === 'morning-triage');
@@ -947,6 +1111,20 @@ test('monitoring projects the latest real run and keeps missing or invalid strea
   assert.equal(measured?.activeMs, 5_000);
   assert.equal(measured?.waitingMs, 5_000);
   assert.equal(measured?.evidence, 'memory/loops/morning-triage/stage-events.jsonl');
+  assert.equal(validSnapshot.timing.metrics.realTimingCount, 1);
+  assert.equal(validSnapshot.timing.metrics.legacySimulationCount, 1);
+  const request = validSnapshot.timing.requests.find(
+    (item) => item.runId === 'run-new' && item.taskId === 'task-monitor'
+  );
+  assert.equal(request?.status, 'partial');
+  assert.equal(request?.durationMs, 10_000);
+  const stageAggregate = validSnapshot.timing.aggregate.stageAggregates.find(
+    (item) => item.loopId === 'morning-triage' && item.stageId === 'triage-discovery'
+  );
+  assert.equal(stageAggregate?.status, 'measured');
+  assert.equal(stageAggregate?.sampleCount, 2);
+  assert.equal(stageAggregate?.measurementRate, 1);
+  assert.equal(stageAggregate?.waitingRatio, 5_000 / 11_000);
   const missing = validSnapshot.timing.stages.find(
     (stage) => stage.loopId === 'morning-triage' && stage.stageId === 'finding-isolation'
   );
@@ -1045,6 +1223,12 @@ test('execution runtime checks action gates before the adapter and Harness after
   assert.equal(result.status, 'passed', result.reasons.join('\n'));
   assert.equal(result.gateDecision?.status, 'passed');
   assert.equal(result.harnessResult?.status, 'passed');
+  assert.equal(result.stageTiming?.status, 'passed');
+  assert.equal(result.stageTiming?.valid, true);
+  assert.equal(result.stageTiming?.durationMs, 0);
+  assert.equal(result.stageTiming?.activeMs, 0);
+  assert.equal(result.stageTiming?.waitingMs, 0);
+  assert.equal(result.timingMetric?.status, 'written');
   assert.equal(calls, 1);
   assert.deepEqual(result.stageEvents.map((event) => event.eventType), [
     'entered',
@@ -1107,6 +1291,10 @@ test('execution runtime blocks missing dependencies and stage gates without invo
   );
   assert.equal(missingGate.status, 'blocked');
   assert.equal(missingGate.gateDecision?.status, 'blocked');
+  assert.equal(missingGate.stageTiming?.status, 'blocked');
+  assert.equal(missingGate.stageTiming?.valid, true);
+  assert.equal(missingGate.stageTiming?.durationMs, 0);
+  assert.equal(missingGate.timingMetric?.status, 'written');
   assert.match(missingGate.reasons.join('\n'), /no active pass/);
   assert.equal(calls, 0);
   assert.deepEqual(missingGate.stageEvents.map((event) => event.eventType), ['entered', 'blocked']);
@@ -1179,6 +1367,215 @@ test('execution runtime fails only the opted-in run when skill context cannot be
   assert.match(result.reasons.join('\n'), /SKILL_CONTEXT_SOURCE_MISSING/);
   assert.equal(calls, 0);
   assert.deepEqual(result.stageEvents.map((event) => event.eventType), ['entered', 'first_action', 'failed']);
+});
+
+test('StandardPage requires a task-scoped context lock before invoking the adapter', async () => {
+  const fixture = await createExecutionFixture('ane-standard-page');
+  let calls = 0;
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-standard-missing-lock'
+  }).execute(
+    {
+      runId: 'run-standard-missing-lock',
+      taskId: 'task-standard-missing-lock',
+      stageId: 'requirement-intake',
+      subject: {}
+    },
+    {
+      id: 'fake-standard-page-adapter',
+      async execute() {
+        calls += 1;
+        return { status: 'blocked' as const, reason: 'must not run', evidence: [] };
+      }
+    }
+  );
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /XIAONENG_CONTEXT_LOCK_REQUIRED/);
+  assert.equal(result.stageTiming?.status, 'failed');
+  assert.equal(calls, 0);
+});
+
+test('StandardPage managed Codex smoke consumes Xiaoneng context and writes a timing metric', async () => {
+  const fixture = await createExecutionFixture('ane-standard-page');
+  const prepared = await prepareStandardPageTask(fixture, 'task-standard-managed-smoke');
+  const executable = path.join(fixture.tempRoot, 'fake-standard-codex.mjs');
+  const auditPath = path.join(fixture.tempRoot, 'standard-codex-audit.json');
+  const payload = {
+    loadedContext: [
+      'repository-skill',
+      'project-skill',
+      'requirement-brief',
+      'dynamic-mounted-repositories',
+      'xiaoneng-skill-context',
+      'xiaoneng-evidence-selection',
+      'xiaoneng-page-contract',
+      'xiaoneng-import-rule',
+      'previous-memory'
+    ],
+    contextCharactersUsed: 100,
+    toolsUsed: ['read_file', 'git_diff'],
+    completedConditions: ['requirement-source-traceable'],
+    output: {
+      requirementBrief: 'standard page smoke',
+      sourceTrace: { type: 'fixture', ref: 'smoke' }
+    },
+    evidence: [{ checkId: 'requirement-source-traceable', type: 'review', value: 'smoke source trace' }]
+  };
+  await writeFile(
+    executable,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nconst option = (name) => args[args.indexOf(name) + 1];\nlet prompt = '';\nprocess.stdin.setEncoding('utf8');\nfor await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(${JSON.stringify(auditPath)}, JSON.stringify({ args, prompt }));\nwriteFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(payload)}));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed' }) + '\\n');\n`,
+    'utf8'
+  );
+  await chmod(executable, 0o755);
+
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-standard-managed-smoke',
+    now: () => new Date('2026-08-10T00:00:00.000Z')
+  }).execute(
+    {
+      runId: 'run-standard-managed-smoke',
+      taskId: 'task-standard-managed-smoke',
+      stageId: 'requirement-intake',
+      subject: { title: 'managed standard page smoke' }
+    },
+    new CodexCliAdapter({ executable })
+  );
+
+  assert.equal(result.status, 'passed', `${result.reasons.join('\\n')}\\n${JSON.stringify(result.harnessResult)}`);
+  assert.equal(result.stageTiming?.status, 'passed');
+  assert.equal(result.stageTiming?.valid, true);
+  assert.equal(result.timingMetric?.status, 'written');
+  assert.equal(await pathExists(path.join(fixture.memoryRoot, 'loops', fixture.loop.metadata.id, 'metrics.jsonl')), true);
+  const audit = JSON.parse(await readText(auditPath)) as { prompt: string };
+  assert.match(audit.prompt, new RegExp(prepared.context.skillContext.contextDigest));
+});
+
+test('StandardPage rejects context-lock drift before invoking the adapter', async () => {
+  const fixture = await createExecutionFixture('ane-standard-page');
+  const prepared = await prepareStandardPageTask(fixture, 'task-standard-lock-drift');
+  await writeFile(
+    path.join(prepared.root, 'background-context.json'),
+    `${JSON.stringify({
+      kind: 'BackgroundContextLock',
+      version: 1,
+      taskId: 'task-standard-lock-drift',
+      projectId: prepared.context.projectId,
+      backgroundId: prepared.context.backgroundId,
+      skillCommit: prepared.context.skillContext.skillCommit,
+      contextDigest: 'f'.repeat(64),
+      selectedEvidenceBundles: prepared.context.skillContext.evidenceBundles ?? [],
+      lockedAt: '2026-08-10T00:00:00.000Z'
+    })}\n`,
+    'utf8'
+  );
+  let calls = 0;
+  const result = await executeStandardPageStage(fixture, {
+    runId: 'run-standard-lock-drift',
+    taskId: 'task-standard-lock-drift',
+    stageId: 'requirement-intake',
+    calls: () => { calls += 1; }
+  });
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /XIAONENG_CONTEXT_DIGEST_MISMATCH/);
+  assert.equal(calls, 0);
+});
+
+test('StandardPage rejects schema and canonical contract digest errors before invoking the adapter', async () => {
+  const schemaFixture = await createExecutionFixture('ane-standard-page');
+  const schemaPrepared = await prepareStandardPageTask(schemaFixture, 'task-standard-schema');
+  await writeFile(path.join(schemaPrepared.root, 'page-contract.json'), '[]\n', 'utf8');
+  await markDependencyPassed(schemaFixture, 'run-standard-schema', 'task-standard-schema', 'page-contract-generation');
+  let schemaCalls = 0;
+  const schemaResult = await executeStandardPageStage(schemaFixture, {
+    runId: 'run-standard-schema',
+    taskId: 'task-standard-schema',
+    stageId: 'page-contract-preflight',
+    calls: () => { schemaCalls += 1; }
+  });
+  assert.equal(schemaResult.status, 'failed');
+  assert.match(schemaResult.reasons.join('\n'), /XIAONENG_TASK_ARTIFACT_INVALID/);
+  assert.equal(schemaCalls, 0);
+
+  const digestFixture = await createExecutionFixture('ane-standard-page');
+  const digestPrepared = await prepareStandardPageTask(digestFixture, 'task-standard-digest');
+  const validContract = standardPageContract(digestFixture, digestPrepared.context, 'task-standard-digest');
+  await writeFile(
+    path.join(digestPrepared.root, 'page-contract.json'),
+    `${JSON.stringify({ ...validContract, contractDigest: '0'.repeat(64) })}\n`,
+    'utf8'
+  );
+  await markDependencyPassed(digestFixture, 'run-standard-digest', 'task-standard-digest', 'page-contract-generation');
+  let digestCalls = 0;
+  const digestResult = await executeStandardPageStage(digestFixture, {
+    runId: 'run-standard-digest',
+    taskId: 'task-standard-digest',
+    stageId: 'page-contract-preflight',
+    calls: () => { digestCalls += 1; }
+  });
+  assert.equal(digestResult.status, 'failed');
+  assert.match(digestResult.reasons.join('\n'), /XIAONENG_CONTRACT_DIGEST_MISMATCH/);
+  assert.equal(digestCalls, 0);
+});
+
+test('StandardPage rejects an import artifact whose source digest is not Xiaoneng evidence', async () => {
+  const fixture = await createExecutionFixture('ane-standard-page');
+  const prepared = await prepareStandardPageTask(fixture, 'task-standard-import');
+  const sourceDocument = prepared.context.documents.find((document) =>
+    document.path.endsWith('tmax-standard-import.yaml')
+  );
+  assert(sourceDocument);
+  const invalidDigest = '0'.repeat(64);
+  const contract = standardPageContract(fixture, prepared.context, 'task-standard-import', {
+    enabled: true,
+    ruleRef: 'tmax-standard-import',
+    ruleVersion: '1.0.0',
+    ruleSource: 'xiaoneng-reference',
+    ruleDigest: invalidDigest,
+    sourceCommit: prepared.context.skillContext.skillCommit,
+    sourceDigest: invalidDigest,
+    sourcePath: sourceDocument.path,
+    templateRef: 'xlsx-template',
+    adapterRef: 'tmax-import-adapter'
+  });
+  await writeFile(path.join(prepared.root, 'page-contract.json'), `${JSON.stringify(contract)}\n`, 'utf8');
+  await writeFile(
+    path.join(prepared.root, 'import-rule.json'),
+    `${JSON.stringify({
+      kind: 'XiaonengImportRule',
+      ruleId: 'tmax-standard-import',
+      version: '1.0.0',
+      pageType: 'StandardPage',
+      source: 'xiaoneng-reference',
+      adapter: 'tmax-import-adapter',
+      ruleDigest: invalidDigest,
+      sourceDigest: invalidDigest,
+      sourcePath: sourceDocument.path,
+      sourceCommit: prepared.context.skillContext.skillCommit
+    })}\n`,
+    'utf8'
+  );
+  await markDependencyPassed(fixture, 'run-standard-import', 'task-standard-import', 'frontend-implementation');
+  let calls = 0;
+  const result = await executeStandardPageStage(fixture, {
+    runId: 'run-standard-import',
+    taskId: 'task-standard-import',
+    stageId: 'import-rule-verification',
+    calls: () => { calls += 1; }
+  });
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /IMPORT_RULE_SOURCE_DIGEST_MISMATCH/);
+  assert.equal(calls, 0);
 });
 
 test('execution runtime fails a stage when Harness rejects a successful adapter result', async () => {
@@ -1683,6 +2080,14 @@ test('frontend delivery loop gates design approval before implementation', async
     manifestPath: 'harness/runtime/manifest.yaml',
     contractPath: 'harness/contracts/runtime/skill-context.schema.json',
     executionMode: 'FullWorkflow',
+    evidenceBundles: [
+      'ane-page-rules',
+      'standard-page-contract',
+      'import-rules',
+      'api-binding-rules',
+      'reference-pages'
+    ],
+    validators: ['page-contract', 'page-structure', 'import-rule'],
     maxCharacters: 18000
   });
   assert.equal(

@@ -4,6 +4,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import { TaskRuntime } from '../packages/task-runtime/src/taskRuntime';
+import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopSpec, RuntimePlan } from '../packages/shared/src/types';
 
 const nowValues = [
@@ -15,13 +16,13 @@ const nowValues = [
   '2026-08-15T00:05:00.000Z'
 ];
 
-async function createRuntime() {
+async function createRuntime(loop = loopFixture()) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'task-runtime-'));
   let index = 0;
   const runtime = new TaskRuntime({
     workspaceRoot: tempRoot,
     memoryRoot: path.join(tempRoot, 'memory'),
-    loop: loopFixture(),
+    loop,
     plan: planFixture(),
     now: () => new Date(nowValues[Math.min(index++, nowValues.length - 1)])
   });
@@ -161,6 +162,46 @@ test('task runtime blocks cancelled tasks from continuing', async () => {
   );
 });
 
+test('task runtime runs the shared gate check before appending running', async () => {
+  const loop = gatedLoopFixture();
+  const { runtime, tempRoot } = await createRuntime(loop);
+  await runtime.create({
+    taskId: 'task-gated',
+    request: {
+      entryPoint: 'cli',
+      projectId: 't-max',
+      runId: 'run-gated',
+      subject: { title: 'protected change' },
+      requestedActions: ['write']
+    }
+  });
+
+  await assert.rejects(() => runtime.run({ taskId: 'task-gated' }), /GATE_CHECK_BLOCKED/);
+  assert.equal((await runtime.readEvents()).length, 2);
+
+  await runtime.transition({
+    taskId: 'task-gated',
+    eventType: 'task/leased',
+    state: 'leased',
+    data: { workspaceLeaseId: 'lease-gated' }
+  });
+  const gate = new HumanGate(loop);
+  const passStore = new GatePassStore(path.join(tempRoot, 'memory'), loop.metadata.id);
+  await passStore.append(gate.grant({
+    gateId: 'write-approval',
+    runId: 'run-gated',
+    taskId: 'task-gated',
+    issuer: 'loop',
+    subject: { title: 'protected change' },
+    evidence: [{ type: 'human-approval', value: 'owner approved' }],
+    now: new Date('2026-08-15T00:02:00.000Z')
+  }));
+
+  const running = await runtime.run({ taskId: 'task-gated' });
+  assert.equal(running.state, 'running');
+  assert.equal(running.events.at(-1)?.data.gateStatus, 'passed');
+});
+
 function loopFixture(): LoopSpec {
   return {
     kind: 'Loop',
@@ -213,6 +254,23 @@ function loopFixture(): LoopSpec {
       gates: []
     }
   };
+}
+
+function gatedLoopFixture(): LoopSpec {
+  const loop = loopFixture();
+  loop.humanGate = {
+    requiredBefore: ['write'],
+    reviewers: ['owner'],
+    gates: [{
+      id: 'write-approval',
+      requiredBefore: 'write',
+      reviewers: ['owner'],
+      subjectFields: ['title'],
+      requiredEvidenceTypes: ['human-approval'],
+      maxAgeMinutes: 60
+    }]
+  };
+  return loop;
 }
 
 function planFixture(): RuntimePlan {

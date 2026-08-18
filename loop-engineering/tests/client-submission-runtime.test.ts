@@ -131,6 +131,70 @@ test('client submission fails when external success has no inspected diff', asyn
   assert(verification.reasons.some((reason) => /no inspected diff/.test(reason)));
 });
 
+test('client submission runs the shared gate check before submitted/verifying', async () => {
+  const fixture = await createFixture({ dirty: true });
+  fixture.loop.humanGate = {
+    requiredBefore: ['write'],
+    reviewers: ['owner'],
+    gates: [{
+      id: 'write-approval',
+      requiredBefore: 'write',
+      reviewers: ['owner'],
+      subjectFields: ['title'],
+      requiredEvidenceTypes: ['human-approval'],
+      maxAgeMinutes: 60
+    }]
+  };
+  const taskRuntime = new TaskRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    now: fixedClock()
+  });
+  await taskRuntime.create({
+    taskId: 'task-gated-submit',
+    request: {
+      entryPoint: 'mcp',
+      projectId: 't-max',
+      subject: { title: 'protected client edit' },
+      requestedActions: ['write'],
+      provider: { profileId: 'client-submission', mode: 'client' }
+    }
+  });
+  await taskRuntime.transition({
+    taskId: 'task-gated-submit',
+    eventType: 'task/leased',
+    state: 'leased',
+    data: { workspaceLeaseId: 'lease-gated-submit' }
+  });
+  await taskRuntime.transition({
+    taskId: 'task-gated-submit',
+    eventType: 'task/running',
+    state: 'running'
+  });
+
+  await assert.rejects(
+    () => new ClientSubmissionRuntime({
+      workspaceRoot: fixture.workspaceRoot,
+      loop: fixture.loop,
+      now: () => new Date('2026-08-15T00:09:00.000Z')
+    }).submit({
+      taskRuntime,
+      taskId: 'task-gated-submit',
+      submission: validSubmission('task-gated-submit'),
+      worktreePath: fixture.repositoryPath
+    }),
+    /GATE_CHECK_BLOCKED/
+  );
+  assert.deepEqual((await taskRuntime.readEvents()).map((event) => event.eventType), [
+    'task/created',
+    'task/prepared',
+    'task/leased',
+    'task/running'
+  ]);
+});
+
 async function createFixture(input: { dirty: boolean }) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'client-submission-'));
   const workspaceRoot = path.join(tempRoot, 'workspace');

@@ -11,6 +11,7 @@ const WORKSPACE_ROOT = path.join(PROJECT_ROOT, 'workspace');
 const DEFAULT_OUTPUT = path.join(WORKSPACE_ROOT, '.local/monitoring/monitor-data.json');
 const require = createRequire(import.meta.url);
 let timingProjector;
+let timingAnalyzer;
 
 function relativeToProject(filePath) {
   return path.relative(PROJECT_ROOT, filePath).split(path.sep).join('/');
@@ -387,6 +388,21 @@ function loadTimingProjector() {
   return timingProjector;
 }
 
+function loadTimingAnalyzer() {
+  if (timingAnalyzer !== undefined) return timingAnalyzer;
+  const modulePath = path.join(
+    PROJECT_ROOT,
+    'dist/loop-engineering/packages/execution-runtime/src/timingMetrics.js',
+  );
+  if (!fs.existsSync(modulePath)) {
+    timingAnalyzer = null;
+    return timingAnalyzer;
+  }
+  const module = require(modulePath);
+  timingAnalyzer = typeof module.aggregateRequestTimings === 'function' ? module : null;
+  return timingAnalyzer;
+}
+
 function readStageEventSource(loopId, memoryRoot) {
   const evidence = `memory/loops/${loopId}/stage-events.jsonl`;
   const filePath = path.join(memoryRoot, 'loops', loopId, 'stage-events.jsonl');
@@ -412,6 +428,125 @@ function readStageEventSource(loopId, memoryRoot) {
     events.push(event);
   });
   return { loopId, evidence, available: true, eventCount: lines.length, events, errors };
+}
+
+function readTaskEventSource(loopId, memoryRoot) {
+  const evidence = `memory/tasks/${loopId}/task-events.jsonl`;
+  const filePath = path.join(memoryRoot, 'tasks', encodeURIComponent(loopId), 'task-events.jsonl');
+  if (!fs.existsSync(filePath)) {
+    return { loopId, evidence, available: false, eventCount: 0, events: [], errors: [] };
+  }
+
+  const lines = readText(filePath).split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const events = [];
+  const errors = [];
+  lines.forEach((line, index) => {
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      errors.push(`Line ${index + 1}: invalid JSON`);
+      return;
+    }
+    if (!event || typeof event !== 'object' || typeof event.taskId !== 'string' || typeof event.eventType !== 'string') {
+      errors.push(`Line ${index + 1}: task event identity or type is invalid`);
+      return;
+    }
+    events.push(event);
+  });
+  return { loopId, evidence, available: true, eventCount: lines.length, events, errors };
+}
+
+function readExecutionEventSource(loopId, memoryRoot) {
+  const evidence = `memory/loops/${loopId}/runs/*/execution-events.jsonl`;
+  const runsDirectory = path.join(memoryRoot, 'loops', encodeURIComponent(loopId), 'runs');
+  if (!fs.existsSync(runsDirectory)) {
+    return { loopId, evidence, available: false, eventCount: 0, events: [], errors: [] };
+  }
+
+  const events = [];
+  const errors = [];
+  const runDirectories = fs.readdirSync(runsDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(runsDirectory, entry.name))
+    .sort();
+  for (const runDirectory of runDirectories) {
+    const filePath = path.join(runDirectory, 'execution-events.jsonl');
+    if (!fs.existsSync(filePath)) continue;
+    const lines = readText(filePath).split(/\r?\n/).filter((line) => line.trim().length > 0);
+    lines.forEach((line, index) => {
+      let event;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        errors.push(`${relativeToProject(filePath)}:${index + 1}: invalid JSON`);
+        return;
+      }
+      if (!event || typeof event !== 'object' || event.loopId !== loopId || typeof event.runId !== 'string') {
+        errors.push(`${relativeToProject(filePath)}:${index + 1}: execution event identity is invalid`);
+        return;
+      }
+      events.push(event);
+    });
+  }
+  return { loopId, evidence, available: true, eventCount: events.length, events, errors };
+}
+
+function readTimingMetricSource(loopId, memoryRoot) {
+  const evidence = `memory/loops/${loopId}/metrics.jsonl`;
+  const filePath = path.join(memoryRoot, 'loops', loopId, 'metrics.jsonl');
+  if (!fs.existsSync(filePath)) {
+    return { loopId, evidence, available: false, eventCount: 0, metricCount: 0, legacyCount: 0, metrics: [], errors: [] };
+  }
+
+  const lines = readText(filePath).split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const metrics = [];
+  const errors = [];
+  let legacyCount = 0;
+  lines.forEach((line, index) => {
+    let value;
+    try {
+      value = JSON.parse(line);
+    } catch {
+      errors.push(`Line ${index + 1}: invalid JSON`);
+      return;
+    }
+    if (value?.kind !== 'StageTimingMetric') {
+      legacyCount += 1;
+      return;
+    }
+    const analyzer = loadTimingAnalyzer();
+    const validationErrors = analyzer?.validateStageTimingMetric
+      ? analyzer.validateStageTimingMetric(value)
+      : isMinimalTimingMetric(value) ? [] : ['StageTimingMetric fields are incomplete'];
+    if (validationErrors.length > 0) {
+      errors.push(`Line ${index + 1}: ${validationErrors.join('; ')}`);
+      return;
+    }
+    metrics.push(value);
+  });
+  return {
+    loopId,
+    evidence,
+    available: true,
+    eventCount: lines.length,
+    metricCount: metrics.length,
+    legacyCount,
+    metrics,
+    errors,
+  };
+}
+
+function isMinimalTimingMetric(value) {
+  return value !== null
+    && typeof value === 'object'
+    && value.kind === 'StageTimingMetric'
+    && value.version === 1
+    && typeof value.sourceKey === 'string'
+    && typeof value.loopId === 'string'
+    && typeof value.runId === 'string'
+    && typeof value.taskId === 'string'
+    && typeof value.stageId === 'string';
 }
 
 function isScopedStageEvent(event, loopId) {
@@ -535,9 +670,58 @@ function projectLoopTiming(loop, memoryRoot) {
 }
 
 export function buildTiming(loops, memoryRoot) {
-  const projections = loops.map((loop) => projectLoopTiming(loop, memoryRoot));
+  const analyzer = loadTimingAnalyzer();
+  const analyses = loops.map((loop) => {
+    const stageSource = readStageEventSource(loop.id, memoryRoot);
+    const projection = projectLoopTiming(loop, memoryRoot);
+    const taskSource = readTaskEventSource(loop.id, memoryRoot);
+    const executionSource = readExecutionEventSource(loop.id, memoryRoot);
+    const metricSource = readTimingMetricSource(loop.id, memoryRoot);
+    const sourceErrors = [
+      ...projection.source.errors,
+      ...taskSource.errors,
+      ...executionSource.errors,
+      ...metricSource.errors,
+    ];
+    const requestEvidence = [
+      taskSource.evidence,
+      stageSource.evidence,
+      executionSource.evidence,
+      metricSource.evidence,
+    ];
+    const requests = analyzer
+      ? analyzer.aggregateRequestTimings({
+        loopId: loop.id,
+        taskEvents: taskSource.events,
+        stageEvents: stageSource.events,
+        executionEvents: executionSource.events,
+        metrics: metricSource.metrics,
+        stages: loop.stages.map((stage) => ({ id: stage.id, kind: stage.kind, owner: stage.owner })),
+        sourceErrors,
+      }).map((request) => ({ ...request, evidence: requestEvidence }))
+      : [];
+    const source = {
+      ...projection.source,
+      errors: sourceErrors,
+      status: sourceErrors.length > 0
+        ? 'invalid'
+        : projection.source.status,
+      metricCount: metricSource.metricCount,
+      legacyMetricCount: metricSource.legacyCount,
+      metricEvidence: metricSource.evidence,
+      taskEventCount: taskSource.eventCount,
+      executionEventCount: executionSource.eventCount,
+    };
+    return {
+      projection: { ...projection, source },
+      requests,
+      metricSource,
+    };
+  });
+  const projections = analyses.map((analysis) => analysis.projection);
   const sources = projections.map((projection) => projection.source);
   const stages = projections.flatMap((projection) => projection.stages);
+  const requests = analyses.flatMap((analysis) => analysis.requests);
   const measured = stages.filter((stage) => stage.valid);
   const status = measured.length === stages.length && stages.length > 0
     ? 'measured'
@@ -546,6 +730,47 @@ export function buildTiming(loops, memoryRoot) {
       : sources.some((source) => source.errors.length > 0)
         ? 'invalid'
         : 'unmeasured';
+  const realMetricCount = analyses.reduce((total, analysis) => total + analysis.metricSource.metricCount, 0);
+  const legacyMetricCount = analyses.reduce((total, analysis) => total + analysis.metricSource.legacyCount, 0);
+  const measuredRequests = requests.filter((request) => request.status === 'measured');
+  const requestDurations = requests.map((request) => request.durationMs).filter((value) => typeof value === 'number');
+  const requestDistribution = analyzer?.percentile
+    ? {
+      sampleCount: requestDurations.length,
+      averageMs: requestDurations.length > 0
+        ? requestDurations.reduce((total, value) => total + value, 0) / requestDurations.length
+        : null,
+      p50Ms: analyzer.percentile(requestDurations, 0.5),
+      p95Ms: analyzer.percentile(requestDurations, 0.95),
+    }
+    : { sampleCount: 0, averageMs: null, p50Ms: null, p95Ms: null };
+  const aggregate = {
+    requestCount: requests.length,
+    measuredRequestCount: measuredRequests.length,
+    partialRequestCount: requests.filter((request) => request.status === 'partial').length,
+    unmeasuredRequestCount: requests.filter((request) => request.status === 'unmeasured').length,
+    invalidRequestCount: requests.filter((request) => request.status === 'invalid').length,
+    measurementRate: requests.length === 0 ? 0 : measuredRequests.length / requests.length,
+    durationMs: requests.reduce((total, request) => total + (request.durationMs ?? 0), 0),
+    activeMs: requests.reduce((total, request) => total + (request.activeMs ?? 0), 0),
+    waitingMs: requests.reduce((total, request) => total + (request.waitingMs ?? 0), 0),
+    retryCount: requests.reduce((total, request) => total + request.retryCount, 0),
+    waitingByReason: requests.reduce((totals, request) => {
+      for (const [reason, duration] of Object.entries(request.waitingByReason)) {
+        totals[reason] = (totals[reason] || 0) + duration;
+      }
+      return totals;
+    }, {}),
+    distribution: requestDistribution,
+    waitingRatio: totalRatio(
+      requests.reduce((total, request) => total + (request.durationMs ?? 0), 0),
+      requests.reduce((total, request) => total + (request.waitingMs ?? 0), 0),
+    ),
+    retryDistribution: countValues(requests.map((request) => request.retryCount)),
+    bottleneckStages: countValues(requests.map((request) => request.bottleneckStageId).filter(Boolean)),
+    failureReasons: countStrings(requests.flatMap((request) => request.failureReasons)),
+    stageAggregates: buildStageAggregates(analyses, requests, analyzer),
+  };
   return {
     instrumented: sources.some((source) => source.eventCount > 0),
     status,
@@ -554,7 +779,131 @@ export function buildTiming(loops, memoryRoot) {
       : null,
     sources,
     stages,
+    requests,
+    aggregate,
+    metrics: {
+      realTimingCount: realMetricCount,
+      legacySimulationCount: legacyMetricCount,
+      sourceCount: analyses.length,
+      evidence: analyses.map((analysis) => ({
+        loopId: analysis.metricSource.loopId,
+        source: analysis.metricSource.evidence,
+        errors: analysis.metricSource.errors,
+      })),
+    },
   };
+}
+
+function buildStageAggregates(analyses, requests, analyzer) {
+  const buckets = new Map();
+  const persistedDurations = new Map();
+  for (const analysis of analyses) {
+    for (const metric of analysis.metricSource.metrics) {
+      const key = `${metric.loopId}/${metric.stageId}/${metric.owner}`;
+      const values = persistedDurations.get(key) || [];
+      values.push(metric.durationMs);
+      persistedDurations.set(key, values);
+    }
+  }
+
+  for (const request of requests) {
+    for (const stage of request.stages) {
+      const key = `${request.loopId}/${stage.stageId}/${stage.owner}`;
+      const bucket = buckets.get(key) || {
+        loopId: request.loopId,
+        stageId: stage.stageId,
+        stageKind: stage.stageKind,
+        owner: stage.owner,
+        sampleCount: 0,
+        measuredSampleCount: 0,
+        durationMs: 0,
+        activeMs: 0,
+        waitingMs: 0,
+        retryCount: 0,
+        waitingByReason: {},
+        failureReasons: [],
+        errors: [],
+        fallbackDurations: [],
+        invalid: false,
+      };
+      bucket.sampleCount += stage.attempts;
+      bucket.measuredSampleCount += stage.measuredAttempts;
+      bucket.durationMs += stage.durationMs || 0;
+      bucket.activeMs += stage.activeMs || 0;
+      bucket.waitingMs += stage.waitingMs || 0;
+      bucket.retryCount += stage.retryCount;
+      bucket.invalid = bucket.invalid || stage.status === 'invalid';
+      bucket.failureReasons.push(...stage.failureReasons);
+      bucket.errors.push(...stage.errors);
+      if (stage.durationMs !== null && stage.distribution.sampleCount === 1) {
+        bucket.fallbackDurations.push(stage.durationMs);
+      }
+      for (const [reason, duration] of Object.entries(stage.waitingByReason)) {
+        bucket.waitingByReason[reason] = (bucket.waitingByReason[reason] || 0) + duration;
+      }
+      buckets.set(key, bucket);
+    }
+  }
+
+  return [...buckets.values()].sort((left, right) =>
+    `${left.loopId}/${left.stageId}/${left.owner}`.localeCompare(`${right.loopId}/${right.stageId}/${right.owner}`)
+  ).map((bucket) => {
+    const values = persistedDurations.get(`${bucket.loopId}/${bucket.stageId}/${bucket.owner}`)
+      || bucket.fallbackDurations;
+    const sorted = values.filter((value) => typeof value === 'number').sort((left, right) => left - right);
+    const measuredSampleCount = bucket.measuredSampleCount;
+    const status = bucket.invalid
+      ? 'invalid'
+      : bucket.sampleCount === 0
+        ? 'unmeasured'
+        : measuredSampleCount === bucket.sampleCount
+          ? 'measured'
+          : measuredSampleCount > 0
+            ? 'partial'
+            : 'unmeasured';
+    return {
+      loopId: bucket.loopId,
+      stageId: bucket.stageId,
+      stageKind: bucket.stageKind,
+      owner: bucket.owner,
+      status,
+      sampleCount: bucket.sampleCount,
+      measuredSampleCount,
+      measurementRate: bucket.sampleCount === 0 ? 0 : measuredSampleCount / bucket.sampleCount,
+      durationMs: measuredSampleCount > 0 ? bucket.durationMs : null,
+      activeMs: measuredSampleCount > 0 ? bucket.activeMs : null,
+      waitingMs: measuredSampleCount > 0 ? bucket.waitingMs : null,
+      waitingRatio: totalRatio(bucket.durationMs, bucket.waitingMs),
+      waitingByReason: bucket.waitingByReason,
+      retryCount: bucket.retryCount,
+      distribution: {
+        sampleCount: sorted.length,
+        averageMs: sorted.length > 0 ? sorted.reduce((total, value) => total + value, 0) / sorted.length : null,
+        p50Ms: analyzer?.percentile ? analyzer.percentile(sorted, 0.5) : null,
+        p95Ms: analyzer?.percentile ? analyzer.percentile(sorted, 0.95) : null,
+      },
+      failureReasons: countStrings(bucket.failureReasons),
+      errors: [...new Set(bucket.errors)],
+    };
+  });
+}
+
+function totalRatio(total, part) {
+  return total > 0 ? part / total : null;
+}
+
+function countValues(values) {
+  const counts = {};
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue;
+    const key = String(value);
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return counts;
+}
+
+function countStrings(values) {
+  return countValues(values.filter((value) => typeof value === 'string' && value.length > 0));
 }
 
 function buildEvaluation(loops, agents, timing) {

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathExists, readText } from '../../shared/src/fs';
 import { resolveMemoryPath } from '../../shared/src/memoryRoot';
 import { standardPageArtifactRoot } from '../../shared/src/taskArtifacts';
+import { GateCheckService } from '../../human-gate/src/gateCheck';
 import {
   GatePassEvidence,
   JsonRecord,
@@ -178,6 +179,34 @@ export class TaskRuntime {
     return this.require(input.taskId);
   }
 
+  async run(input: { taskId: string; stageId?: string }): Promise<TaskEnvelope> {
+    const task = await this.require(input.taskId);
+    const actions = protectedGateActions(this.options.loop, task.requestedActions);
+    const decision = await GateCheckService.forMemoryRoot(this.options.loop, this.options.memoryRoot).check({
+      runId: task.runId ?? task.taskId,
+      taskId: task.taskId,
+      stageId: input.stageId,
+      actions,
+      subject: task.subject,
+      now: this.clock()
+    });
+    if (decision.status === 'blocked') {
+      throw new Error(`GATE_CHECK_BLOCKED: ${decision.blockingReasons.join('; ')}`);
+    }
+    return this.transition({
+      taskId: task.taskId,
+      eventType: 'task/running',
+      state: 'running',
+      actor: 'runtime',
+      data: {
+        stageId: input.stageId ?? null,
+        gateStatus: decision.status,
+        satisfiedGates: decision.satisfiedGates
+      },
+      evidence: decision.passes.flatMap((pass) => pass.evidence)
+    });
+  }
+
   async readEvents(): Promise<TaskEvent[]> {
     const filePath = this.filePath();
     if (!(await pathExists(filePath))) return [];
@@ -198,6 +227,10 @@ export class TaskRuntime {
       this.options.memoryRoot,
       `memory/tasks/${encodeURIComponent(this.options.loop.metadata.id)}/${encodeURIComponent(taskId)}/background-context.json`
     );
+  }
+
+  memoryRoot(): string {
+    return this.options.memoryRoot;
   }
 
   private async lockBackgroundContext(taskId: string): Promise<BackgroundContextLock | undefined> {
@@ -265,6 +298,11 @@ export class TaskRuntime {
     await mkdir(path.dirname(filePath), { recursive: true });
     await appendFile(filePath, `${JSON.stringify(event)}\n`, 'utf8');
   }
+}
+
+function protectedGateActions(loop: LoopSpec, actions: TaskEnvelope['requestedActions']): string[] {
+  const protectedActions = new Set(loop.humanGate.gates.map((gate) => gate.requiredBefore));
+  return actions.filter((action) => protectedActions.has(action));
 }
 
 function projectTaskEnvelope(loop: LoopSpec, events: TaskEvent[]): TaskEnvelope {
