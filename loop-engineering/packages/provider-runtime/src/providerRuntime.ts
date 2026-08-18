@@ -26,11 +26,13 @@ export const workbuddyClientProfileId = 'workbuddy-client';
 export interface ProviderSelectionInput {
   profileId?: string;
   requestedActions: RepositoryAction[];
+  allowExperimental?: boolean;
 }
 
 export interface ProviderAdapterFactoryInput {
   profileId?: string;
   requestedActions: RepositoryAction[];
+  allowExperimental?: boolean;
   factories: Record<string, (profile: ProviderProfile) => ExecutorAdapter>;
 }
 
@@ -102,11 +104,17 @@ export class ProviderRuntime {
       : this.requireProfile(codexReadOnlyProfileId);
     const errors = validateProviderCanHandle(profile, input.requestedActions);
     if (errors.length > 0) throw new Error(`Provider capability mismatch: ${errors.join('; ')}`);
+    if (profile.supportLevel === 'experimental' && input.allowExperimental !== true) {
+      throw new Error(`Experimental provider requires explicit opt-in: ${profile.id}`);
+    }
     return profile;
   }
 
   createExecutorAdapter(input: ProviderAdapterFactoryInput): ProviderAdapterSelection {
     const profile = this.selectProfile(input);
+    if (profile.mode !== 'managed') {
+      throw new Error(`Provider profile ${profile.id} cannot create a managed executor adapter`);
+    }
     const factory = input.factories[profile.id];
     if (!factory) throw new Error(`No executor adapter factory registered for provider profile: ${profile.id}`);
     return { profile, adapter: factory(profile) };

@@ -83,6 +83,22 @@ test('provider runtime selects default read-only Codex profile and blocks writab
   assert.throws(() => runtime.selectProfile({ requestedActions: ['write'] }), /capability mismatch/);
 });
 
+test('provider runtime requires explicit opt-in for experimental profiles', () => {
+  const runtime = new ProviderRuntime();
+  const experimentalProfiles = [codexWritableProfileId, claudeManagedProfileId, geminiManagedProfileId];
+
+  for (const profileId of experimentalProfiles) {
+    assert.throws(
+      () => runtime.selectProfile({ profileId, requestedActions: ['write'] }),
+      new RegExp(`Experimental provider requires explicit opt-in: ${profileId}`)
+    );
+    assert.equal(
+      runtime.selectProfile({ profileId, requestedActions: ['write'], allowExperimental: true }).id,
+      profileId
+    );
+  }
+});
+
 test('provider runtime exposes writable Codex profile and validates lease scoped cwd', () => {
   const runtime = new ProviderRuntime();
   const profile = runtime.requireProfile(codexWritableProfileId);
@@ -142,6 +158,46 @@ test('provider runtime creates adapters through registered factories', () => {
 
   assert.equal(selected.profile.id, codexReadOnlyProfileId);
   assert.equal(selected.adapter.id, 'dummy');
+});
+
+test('provider runtime creates experimental adapters only after opt-in', () => {
+  const runtime = new ProviderRuntime();
+  const factories = {
+    [claudeManagedProfileId]: () => new DummyAdapter()
+  };
+
+  assert.throws(
+    () => runtime.createExecutorAdapter({
+      profileId: claudeManagedProfileId,
+      requestedActions: ['write'],
+      factories
+    }),
+    /Experimental provider requires explicit opt-in/
+  );
+  assert.equal(
+    runtime.createExecutorAdapter({
+      profileId: claudeManagedProfileId,
+      requestedActions: ['write'],
+      allowExperimental: true,
+      factories
+    }).profile.id,
+    claudeManagedProfileId
+  );
+});
+
+test('provider runtime never creates managed adapters for client-only profiles', () => {
+  const runtime = new ProviderRuntime();
+
+  assert.throws(
+    () => runtime.createExecutorAdapter({
+      profileId: clientSubmissionProfileId,
+      requestedActions: ['read'],
+      factories: {
+        [clientSubmissionProfileId]: () => new DummyAdapter()
+      }
+    }),
+    /cannot create a managed executor adapter/
+  );
 });
 
 test('provider runtime normalizes provider events into executor reported events', () => {

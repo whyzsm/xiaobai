@@ -356,6 +356,7 @@ function runProcessWithInput(
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let timedOut = false;
     let killTimer: NodeJS.Timeout | undefined;
     const finish = (callback: () => void): void => {
       if (settled) return;
@@ -377,8 +378,8 @@ function runProcessWithInput(
       }
     };
     const timer = setTimeout(() => {
+      timedOut = true;
       terminateChild(child);
-      fail({ code: 'ETIMEDOUT' });
     }, options.timeout);
 
     child.stdout?.on('data', (chunk: Buffer | string) => append('stdout', chunk));
@@ -392,20 +393,19 @@ function runProcessWithInput(
     }));
     child.on('close', (code, signal) => {
       if (settled) return;
-      clearTimeout(timer);
-      if (killTimer) clearTimeout(killTimer);
-      settled = true;
-      if (code === 0) resolve({ stdout, stderr });
-      else reject({ code: code ?? 'UNKNOWN', signal: signal ?? undefined, stdout, stderr });
+      if (timedOut) {
+        fail({ code: 'ETIMEDOUT', signal: signal ?? undefined });
+      } else if (code === 0) {
+        finish(() => resolve({ stdout, stderr }));
+      } else {
+        fail({ code: code ?? 'UNKNOWN', signal: signal ?? undefined });
+      }
     });
     child.stdin?.end(options.input);
 
     function terminateChild(process: typeof child): void {
       process.kill('SIGTERM');
       process.stdin?.destroy();
-      process.stdout?.destroy();
-      process.stderr?.destroy();
-      process.unref();
       killTimer = setTimeout(() => process.kill('SIGKILL'), 1000);
       killTimer.unref?.();
     }

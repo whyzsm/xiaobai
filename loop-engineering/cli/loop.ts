@@ -393,7 +393,8 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
       'codex-output-schema',
       'claude-executable',
       'gemini-executable',
-      'provider-profile'
+      'provider-profile',
+      'allow-experimental-provider'
     ],
     'execute'
   );
@@ -414,6 +415,7 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
   const { adapter } = providerRuntime.createExecutorAdapter({
     profileId: providerProfileId,
     requestedActions,
+    allowExperimental: parseBooleanFlag(flags, 'allow-experimental-provider', false),
     factories: {
       [codexReadOnlyProfileId]: () => new CodexCliAdapter({
         executable: optionalGateFlag(flags, 'codex-executable'),
@@ -858,7 +860,7 @@ function printHelp(): void {
 	  loop task run --loop <loop-id> --task-id <id> [--workspace workspace] [--json]
 	  loop task submit --loop <loop-id> --task-id <id> --result-file <json-file> [--stage <stage-id>] [--worktree-path <path>] [--run-id <id>] [--target-cwd path] [--workspace workspace] [--json]
 	  loop task cancel --loop <loop-id> --task-id <id> --reason <text> [--workspace workspace] [--json]
-	  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--provider-profile codex-cli-read-only|codex-cli-writable|claude-code-managed|gemini-cli-managed] [--codex-executable <path>] [--codex-ignore-user-config <true|false>] [--codex-output-schema <true|false>] [--claude-executable <path>] [--gemini-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
+	  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--provider-profile codex-cli-read-only|codex-cli-writable|claude-code-managed|gemini-cli-managed] [--allow-experimental-provider <true|false>] [--codex-executable <path>] [--codex-ignore-user-config <true|false>] [--codex-output-schema <true|false>] [--claude-executable <path>] [--gemini-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]

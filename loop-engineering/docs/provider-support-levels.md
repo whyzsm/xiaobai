@@ -16,6 +16,8 @@ Xiaobai separates AI tools into entry points and providers. Entry points only su
 - `experimental`：registry 已有 profile，但尚未完成真实写入冒烟或版本认证；只能用于受控实验。
 - `client_only`：外部 AI 可以通过 CLI、MCP 或 ACP 提交结果，但小白不负责启动该 AI，也不信任其 sandbox；提交结果必须重新经过 Harness、evaluator、diff 和策略检查。
 
+`loop execute` 默认拒绝 `experimental` profile。受控实验必须显式传入 `--allow-experimental-provider true`；该开关只授权当前执行尝试，不会改变 profile 的支持等级，也不会绕过 workspace、Harness、evaluator、diff 或人类门禁。
+
 ## English
 
 Support level meanings:
@@ -23,6 +25,8 @@ Support level meanings:
 - `supported`: local or CI smoke tests have passed, with recorded output shape, sandbox assumptions, failure paths, and verification evidence.
 - `experimental`: a registry profile exists, but real writable smoke tests or version certification are not complete; use only for controlled experiments.
 - `client_only`: the external AI may submit results through CLI, MCP, or ACP, but Xiaobai does not launch that AI or trust its sandbox; submissions must be rechecked through Harness, evaluator, diff, and policy gates.
+
+`loop execute` rejects `experimental` profiles by default. A controlled experiment must explicitly pass `--allow-experimental-provider true`; this flag authorizes only the current execution attempt, does not change the profile support level, and does not bypass workspace, Harness, evaluator, diff, or human gates.
 
 ## 中文
 
