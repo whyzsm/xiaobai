@@ -8,7 +8,9 @@ instructions:
   - Read the matched project SKILL.md and project background before arranging concrete work.
   - For project groups, route repository names through .loop/project.yaml and use the declared background mount.
   - Classify an existing local deletion or replacement as a micro patch, but route first-time data-dictionary integration, shared request-parameter sourcing, or other API data-source changes to Xiaoneng ApiIntegration.dictParam even when only one field is named.
-  - Route frontend page work to the frontend-delivery loop when the target project is a mounted frontend repository, except for work classified as a micro patch.
+  - Route a mounted ANE StandardPage request with a page contract, menu/route additions, or standard import behavior to the ane-standard-page loop; the route must consume Xiaoneng evidence bundles before coding.
+  - Reserve frontend-delivery for cross-repository complex delivery, major page redesign, external API contract changes, or explicit full design review requests; do not use it as the default for every frontend page.
+  - Never route mock/User/auth.json as an authentication or data source; record MOCK_AUTH_SOURCE_FORBIDDEN when it appears in a task or implementation.
   - Arrange work through the configured generator, harness, evaluator, workflow stages, and human gates.
   - When asked to evaluate Xiaobai, evaluate it as the full Loop Engineering system using loop-engineering/docs/xiaobai-evaluation-engineering-system.md; do not evaluate only a prompt, one agent reply, or the final text.
   - Xiaobai evaluation reports must include workflow stage dwell time; if the current run lacks timing data, mark the affected stages as unmeasured and report the missing instrumentation as an observability gap instead of estimating durations.

@@ -36,9 +36,19 @@ interface SkillManifest extends JsonRecord {
   version: string;
   orchestrator: string;
   skillContext: SkillContextPolicy;
-  executionModes: JsonRecord & {
-    modes: Record<string, ExecutionMode>;
+  executionModes?: JsonRecord & {
+    modes?: Record<string, ExecutionMode>;
   };
+  evidenceBundles?: Record<string, EvidenceBundle>;
+}
+
+interface EvidenceBundle {
+  skills?: string[];
+  agents?: string[];
+  references?: string[];
+  schemas?: string[];
+  templates?: string[];
+  validators?: string[];
 }
 
 export class SkillContextResolver {
@@ -69,31 +79,36 @@ export class SkillContextResolver {
       throw new Error('SKILL_CONTEXT_MANIFEST_MISMATCH: source paths or hash algorithm differ from the project declaration');
     }
 
-    const mode = manifest.executionModes.modes[plan.executionMode];
-    if (!mode) {
-      throw new Error(`SKILL_CONTEXT_MODE_UNAVAILABLE: ${plan.executionMode}`);
+    const mode = plan.executionMode ? manifest.executionModes?.modes?.[plan.executionMode] : undefined;
+    const evidenceSources = await readEvidenceBundleSources(sourceRoot, manifest, plan.evidenceBundles ?? []);
+    const compatibilityMode: ExecutionMode = mode ?? {
+      ownerAgent: manifest.orchestrator,
+      ownerSkills: []
+    };
+    if (!mode && evidenceSources.length === 0) {
+      throw new Error(`SKILL_CONTEXT_MODE_UNAVAILABLE: ${plan.executionMode ?? 'no evidence bundle'}`);
     }
-    validateOwner(mode);
+    validateOwner(compatibilityMode);
 
     const entrySource = await readSourceFile(sourceRoot, policy.entryPath);
-    const ownerAgentPath = mode.ownerAgent === manifest.orchestrator
+    const ownerAgentPath = compatibilityMode.ownerAgent === manifest.orchestrator
       ? policy.entryPath
-      : `agents/${mode.ownerAgent}/SKILL.md`;
+      : `agents/${compatibilityMode.ownerAgent}/SKILL.md`;
     const ownerAgentSource = ownerAgentPath === policy.entryPath
       ? entrySource
       : await readSourceFile(sourceRoot, ownerAgentPath);
     const ownerSkillSources = await Promise.all(
-      mode.ownerSkills.map((skill) => readSourceFile(sourceRoot, `skills/${skill}/SKILL.md`))
+      compatibilityMode.ownerSkills.map((skill) => readSourceFile(sourceRoot, `skills/${skill}/SKILL.md`))
     );
     const referencePaths = unique(ownerSkillSources.flatMap(declaredReferencePaths));
     const referenceSources = await Promise.all(referencePaths.map((referencePath) => readSourceFile(sourceRoot, referencePath)));
 
     const entryContent = selectRelevantMarkdown(
       entrySource.content,
-      [plan.executionMode, mode.ownerAgent, ...mode.ownerSkills],
+      [plan.executionMode ?? '', compatibilityMode.ownerAgent, ...compatibilityMode.ownerSkills],
       maximumEntryCharacters
     );
-    const manifestContent = selectManifestContent(manifest, plan.executionMode, mode);
+    const manifestContent = selectManifestContent(manifest, plan.executionMode, compatibilityMode, plan.evidenceBundles ?? []);
     const documents = buildDocuments({
       entrySource,
       entryContent,
@@ -102,7 +117,8 @@ export class SkillContextResolver {
       ownerAgentSource,
       ownerAgentPath,
       ownerSkillSources,
-      referenceSources
+      referenceSources,
+      evidenceSources
     });
     const characters = documents.reduce((total, document) => total + document.content.length, 0);
     if (characters > plan.maxCharacters) {
@@ -117,15 +133,29 @@ export class SkillContextResolver {
       entryHash: digest(entrySource.content),
       manifestPath: policy.manifestPath,
       manifestDigest: digest(manifestSource.content),
-      executionMode: plan.executionMode,
-      ownerAgent: mode.ownerAgent,
-      ownerSkills: [...mode.ownerSkills],
+      executionMode: plan.executionMode ?? 'evidence-bundle',
+      ownerAgent: compatibilityMode.ownerAgent,
+      ownerSkills: [...compatibilityMode.ownerSkills],
       selectedReferences: referenceSources.map((reference) => ({
         id: referenceId(reference.path),
         path: reference.path,
         digest: digest(reference.content)
-      }))
-    } satisfies Omit<SkillContextContract, 'contextDigest'>;
+      })),
+      ...(plan.evidenceBundles && plan.evidenceBundles.length > 0
+        ? {
+            contractDigest: digest(canonicalizeJson({
+              evidenceBundles: plan.evidenceBundles,
+              sources: evidenceSources.map((source) => ({ path: source.path, digest: digest(source.content) }))
+            })),
+            evidenceBundles: [...plan.evidenceBundles],
+            sourceFiles: evidenceSources.map((source) => ({
+              id: referenceId(source.path),
+              path: source.path,
+              digest: digest(source.content)
+            }))
+          }
+        : {})
+    };
     const contextDigest = digest(canonicalizeJson({
       skillContext: skillContextWithoutDigest,
       documents: documents.map(({ roles, path: sourcePath, sourceDigest, contentDigest, selection }) => ({
@@ -182,13 +212,14 @@ function parseManifest(content: string): SkillManifest {
   if (!isRecord(value)) throw new Error('SKILL_CONTEXT_MANIFEST_INVALID: manifest must be an object');
   const skillContext = value.skillContext;
   const executionModes = value.executionModes;
+  const evidenceBundles = value.evidenceBundles;
   if (
     typeof value.name !== 'string' ||
     typeof value.version !== 'string' ||
     typeof value.orchestrator !== 'string' ||
     !isSkillContextPolicy(skillContext) ||
-    !isRecord(executionModes) ||
-    !isExecutionModeRecord(executionModes.modes)
+    (!isRecord(executionModes) || !isExecutionModeRecord(executionModes.modes)) &&
+    !isEvidenceBundleRecord(evidenceBundles)
   ) {
     throw new Error('SKILL_CONTEXT_MANIFEST_INVALID: required routing fields are missing');
   }
@@ -227,6 +258,7 @@ function buildDocuments(input: {
   ownerAgentPath: string;
   ownerSkillSources: SourceFile[];
   referenceSources: SourceFile[];
+  evidenceSources: SourceFile[];
 }): BackgroundContextDocument[] {
   const documents: BackgroundContextDocument[] = [
     document(
@@ -245,6 +277,9 @@ function buildDocuments(input: {
   }
   for (const referenceSource of input.referenceSources) {
     documents.push(document(referenceSource, referenceSource.content, ['reference'], 'full'));
+  }
+  for (const evidenceSource of input.evidenceSources) {
+    documents.push(document(evidenceSource, evidenceSource.content, ['evidence'], 'evidence-bundle'));
   }
   return documents;
 }
@@ -265,7 +300,12 @@ function document(
   };
 }
 
-function selectManifestContent(manifest: SkillManifest, executionMode: string, mode: ExecutionMode): string {
+function selectManifestContent(
+  manifest: SkillManifest,
+  executionMode: string | undefined,
+  mode: ExecutionMode,
+  evidenceBundles: string[]
+): string {
   const selection: JsonRecord = {
     name: manifest.name,
     version: manifest.version,
@@ -275,21 +315,51 @@ function selectManifestContent(manifest: SkillManifest, executionMode: string, m
     skillContext: manifest.skillContext,
     orchestrator: manifest.orchestrator,
     architecture: manifest.architecture,
-    executionModes: {
-      defaultMode: manifest.executionModes.defaultMode,
-      fullWorkflowTrigger: manifest.executionModes.fullWorkflowTrigger,
-      testTrigger: manifest.executionModes.testTrigger,
-      buildTrigger: manifest.executionModes.buildTrigger,
-      selfCheckScope: manifest.executionModes.selfCheckScope,
-      selfCheckCannotClaim: manifest.executionModes.selfCheckCannotClaim,
-      modes: { [executionMode]: mode }
-    }
+    ...(manifest.executionModes
+      ? {
+          executionModes: {
+            defaultMode: manifest.executionModes.defaultMode,
+            fullWorkflowTrigger: manifest.executionModes.fullWorkflowTrigger,
+            testTrigger: manifest.executionModes.testTrigger,
+            buildTrigger: manifest.executionModes.buildTrigger,
+            selfCheckScope: manifest.executionModes.selfCheckScope,
+            selfCheckCannotClaim: manifest.executionModes.selfCheckCannotClaim,
+            ...(executionMode ? { modes: { [executionMode]: mode } } : {})
+          }
+        }
+      : {}),
+    ...(manifest.evidenceBundles && evidenceBundles.length > 0
+      ? { evidenceBundles: Object.fromEntries(evidenceBundles.map((id) => [id, manifest.evidenceBundles?.[id]])) }
+      : {})
   };
-  if (executionMode === 'FullWorkflow') {
+  if (executionMode === 'FullWorkflow' && manifest.stages) {
     selection.stageOrder = manifest.stageOrder;
     selection.stages = manifest.stages;
   }
   return YAML.stringify(selection);
+}
+
+async function readEvidenceBundleSources(
+  sourceRoot: string,
+  manifest: SkillManifest,
+  bundleIds: string[]
+): Promise<SourceFile[]> {
+  if (bundleIds.length === 0) return [];
+  if (!manifest.evidenceBundles) throw new Error('XIAONENG_EVIDENCE_BUNDLE_UNAVAILABLE: manifest has no evidence bundles');
+  const paths: string[] = [];
+  for (const bundleId of bundleIds) {
+    const bundle = manifest.evidenceBundles[bundleId];
+    if (!bundle) throw new Error(`XIAONENG_EVIDENCE_BUNDLE_UNAVAILABLE: ${bundleId}`);
+    for (const skill of bundle.skills ?? []) paths.push(`skills/${skill}/SKILL.md`);
+    for (const agent of bundle.agents ?? []) paths.push(`agents/${agent}/SKILL.md`);
+    for (const sourcePath of [
+      ...(bundle.references ?? []),
+      ...(bundle.schemas ?? []),
+      ...(bundle.templates ?? []),
+      ...(bundle.validators ?? [])
+    ]) paths.push(sourcePath);
+  }
+  return Promise.all(unique(paths).map((sourcePath) => readSourceFile(sourceRoot, sourcePath)));
 }
 
 function selectRelevantMarkdown(content: string, needles: string[], maxCharacters: number): string {
@@ -376,10 +446,10 @@ function validatePlan(plan: BackgroundContextPlan): void {
   if (
     plan.status !== 'planned' ||
     plan.kind !== 'skill-context' ||
-    plan.contractVersion !== '1.0.0' ||
+    !['1.0.0', '2.0.0'].includes(plan.contractVersion) ||
     !plan.projectId ||
     !plan.backgroundId ||
-    !plan.executionMode ||
+    (!plan.executionMode && (!plan.evidenceBundles || plan.evidenceBundles.length === 0)) ||
     !Number.isInteger(plan.maxCharacters) ||
     plan.maxCharacters <= 0
   ) {
@@ -388,6 +458,9 @@ function validatePlan(plan: BackgroundContextPlan): void {
   assertSafeRelativePath(plan.sourceMount);
   assertSafeRelativePath(plan.manifestPath);
   assertSafeRelativePath(plan.contractPath);
+  if (plan.evidenceBundles && !plan.evidenceBundles.every(isIdentifier)) {
+    throw new Error('SKILL_CONTEXT_EVIDENCE_BUNDLE_INVALID: bundle identifiers must be kebab-case');
+  }
 }
 
 function validateOwner(mode: ExecutionMode): void {
@@ -409,6 +482,10 @@ function isSkillContextPolicy(value: unknown): value is SkillContextPolicy {
 
 function isExecutionModeRecord(value: unknown): value is Record<string, ExecutionMode> {
   return isRecord(value) && Object.values(value).every((mode) => isRecord(mode));
+}
+
+function isEvidenceBundleRecord(value: unknown): value is Record<string, EvidenceBundle> {
+  return isRecord(value) && Object.values(value).every((bundle) => isRecord(bundle));
 }
 
 function isRecord(value: unknown): value is JsonRecord {

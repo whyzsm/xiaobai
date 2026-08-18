@@ -1,0 +1,235 @@
+kind: Loop
+version: 1
+metadata:
+  id: ane-standard-page
+  name: ANE Standard Page Loop
+  owner: wusheng
+schedule:
+  type: manual
+  expression: on-demand
+  timezone: Asia/Shanghai
+discovery:
+  skill: ane-standard-page
+  sources:
+    - type: requirement
+      connector: requirement-input
+    - type: memory
+      path: memory/loops/ane-standard-page/state.md
+orchestrator:
+  agent: xiaobai.orchestrator.agent.yaml
+handoff:
+  strategy: one-worktree-per-target-repository
+  project: t-max
+  targetResolution:
+    required: true
+  worktreeRoot: .local/ane-standard-page/worktrees
+  branchTemplate: "loop/ane-standard-page/{date}/{taskId}"
+generator:
+  agent: frontend-generator.agent.yaml
+  harness: ane-standard-page.harness.yaml
+verification:
+  evaluator: ane-standard-page-evaluator.agent.yaml
+  requiredChecks:
+    - requirement-source-traceable
+    - target-repository-ready
+    - xiaoneng-context-resolved
+    - xiaoneng-evidence-selected
+    - page-contract-generated
+    - page-contract-schema-passed
+    - page-contract-digest-locked
+    - human-contract-approval
+    - generator-consumed-xiaoneng-evidence
+    - import-rule-verified
+    - page-structure-verified
+    - evaluator-reused-contract
+    - stage-timing-recorded
+  allowSelfReview: false
+persistence:
+  memory:
+    stateFile: memory/loops/ane-standard-page/state.md
+    inboxFile: memory/loops/ane-standard-page/inbox.md
+    runLog: memory/loops/ane-standard-page/runs.jsonl
+  outputs:
+    - type: page-contract
+      path: reports/ane-standard-page/contracts
+    - type: delivery-summary
+      path: reports/ane-standard-page/delivery
+budget:
+  maxTokensPerRun: 180000
+  maxRunsPerDay: 4
+  maxRetriesPerTask: 2
+  maxParallelTasks: 2
+humanGate:
+  requiredBefore:
+    - coding
+    - merge
+  reviewers:
+    - owner
+  gates:
+    - id: human-contract-approval
+      requiredBefore: coding
+      reviewers:
+        - owner
+      subjectFields:
+        - taskId
+        - pageContractPath
+        - contextDigest
+        - contractDigest
+      requiredEvidenceTypes:
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+    - id: merge-approval
+      requiredBefore: merge
+      reviewers:
+        - owner
+      subjectFields:
+        - changedFiles
+        - verificationResult
+        - deliverySummary
+      requiredEvidenceTypes:
+        - test
+        - review
+        - human-approval
+      maxAgeMinutes: 1440
+workflow:
+  stages:
+    - id: requirement-intake
+      kind: intake
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      requiredChecks:
+        - requirement-source-traceable
+      outputs:
+        - requirementBrief
+        - sourceTrace
+    - id: target-repository-resolution
+      kind: intake
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - requirement-intake
+      requiredChecks:
+        - target-repository-ready
+      outputs:
+        - targetRepository
+    - id: xiaoneng-background-resolution
+      kind: context
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - target-repository-resolution
+      requiredChecks:
+        - xiaoneng-context-resolved
+      outputs:
+        - backgroundContext
+        - contextDigest
+    - id: evidence-selection
+      kind: context
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - xiaoneng-background-resolution
+      requiredChecks:
+        - xiaoneng-evidence-selected
+      outputs:
+        - evidenceSelection
+    - id: page-contract-generation
+      kind: design
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - evidence-selection
+      requiredChecks:
+        - page-contract-generated
+      outputs:
+        - pageContractPath
+        - contractDigest
+    - id: page-contract-preflight
+      kind: review
+      gate: automatic
+      evaluator: ane-standard-page-evaluator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - page-contract-generation
+      requiredChecks:
+        - page-contract-schema-passed
+        - page-contract-digest-locked
+      outputs:
+        - contractPreflight
+    - id: human-contract-approval
+      kind: human-gate
+      gate: manual
+      dependsOn:
+        - page-contract-preflight
+      requiredBefore:
+        - coding
+      requiredChecks:
+        - human-contract-approval
+      outputs:
+        - humanContractApproval
+    - id: frontend-implementation
+      kind: coding
+      gate: automatic
+      agent: frontend-generator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - human-contract-approval
+      requiredGates:
+        - human-contract-approval
+      requiredBefore:
+        - human-contract-approval
+      requiredChecks:
+        - generator-consumed-xiaoneng-evidence
+      outputs:
+        - changedFiles
+        - generatorEvidence
+    - id: import-rule-verification
+      kind: review
+      gate: automatic
+      evaluator: ane-standard-page-evaluator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - frontend-implementation
+      requiredChecks:
+        - import-rule-verified
+      outputs:
+        - importRuleResult
+    - id: page-structure-verification
+      kind: review
+      gate: automatic
+      evaluator: ane-standard-page-evaluator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - import-rule-verification
+      requiredChecks:
+        - page-structure-verified
+      outputs:
+        - pageStructureResult
+    - id: independent-evaluation
+      kind: review
+      gate: automatic
+      evaluator: ane-standard-page-evaluator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - page-structure-verification
+      requiredChecks:
+        - evaluator-reused-contract
+        - stage-timing-recorded
+      outputs:
+        - evaluationVerdict
+        - stageTiming
+    - id: delivery-summary
+      kind: delivery
+      gate: automatic
+      evaluator: ane-standard-page-evaluator.agent.yaml
+      harness: ane-standard-page.harness.yaml
+      dependsOn:
+        - independent-evaluation
+      outputs:
+        - deliverySummary

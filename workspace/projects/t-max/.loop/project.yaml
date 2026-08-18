@@ -12,9 +12,20 @@ background:
   mount: ../../.local/t-max/mounts/background/xiaoneng
   integration:
     kind: skill-context
-    version: 1.0.0
+    version: 2.0.0
+    contractVersion: 1.0.0
     manifest: harness/runtime/manifest.yaml
     contract: harness/contracts/runtime/skill-context.schema.json
+    evidenceBundles:
+      - ane-page-rules
+      - standard-page-contract
+      - import-rules
+      - api-binding-rules
+      - reference-pages
+    validators:
+      - page-contract
+      - page-structure
+      - import-rule
     executionModes:
       frontend-delivery: FullWorkflow
 repositories:

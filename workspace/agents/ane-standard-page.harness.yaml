@@ -1,7 +1,7 @@
 kind: Harness
 version: 1
 metadata:
-  id: frontend-delivery-harness
+  id: ane-standard-page-harness
 tools:
   allow:
     - read_file
@@ -26,26 +26,20 @@ context:
     - project-skill
     - requirement-brief
     - dynamic-mounted-repositories
-    - frontend-master-design
-    - repository-design-supplements
-    - previous-memory
     - xiaoneng-skill-context
     - xiaoneng-evidence-selection
     - xiaoneng-page-contract
     - xiaoneng-import-rule
-  maxCharacters: 24000
+    - previous-memory
+  maxCharacters: 30000
 completion:
   type: staged-objective
   conditions:
     - requirement_source_traceable
-    - target_repositories_resolved
-    - master_design_written_to_primary_target_repository
-    - repository_design_supplements_written_to_each_target_repository
-    - frontend_design_review_passed
-    - human_design_approval_recorded
-    - code_changed_after_design_approval
+    - target_repository_ready
     - xiaoneng_context_resolved
     - xiaoneng_context_locked
+    - xiaoneng_evidence_selected
     - page_contract_generated
     - page_contract_schema_passed
     - page_contract_digest_locked
@@ -54,13 +48,11 @@ completion:
     - page_structure_verified
     - evaluator_reused_same_contract
     - stage_timing_recorded
-    - tests_attempted
-    - ui_smoke_attempted
-    - pr_ready_summary_written
 failure:
   onRequirementIncomplete: persist-to-inbox
-  onDesignReviewFailure: stop-before-implementation
-  onHumanDesignApprovalMissing: stop-before-implementation
+  onContextMissing: stop-before-implementation
+  onContractFailure: stop-before-implementation
+  onHumanApprovalMissing: stop-before-implementation
   onToolError: retry-once
   onTestFailure: return-to-loop
   onBudgetExceeded: stop-and-persist
@@ -77,13 +69,15 @@ failure:
 output:
   required:
     - requirementBrief
-    - targetRepositories
-    - masterDesignPath
-    - repositoryDesignPaths
-    - designReviewReport
-    - humanDesignApproval
-    - changedFiles
-    - testResult
-    - uiQaResult
-    - pullRequestPlan
-    - riskAndRollback
+    - targetRepository
+    - backgroundContext
+    - evidenceSelection
+    - pageContractPath
+    - contextDigest
+    - contractDigest
+    - generatorEvidence
+    - importRuleResult
+    - pageStructureResult
+    - evaluationVerdict
+    - stageTiming
+    - deliverySummary

@@ -143,10 +143,13 @@ export interface ProjectBackground {
 
 export interface SkillContextIntegration {
   kind: 'skill-context';
-  version: '1.0.0';
+  version: '1.0.0' | '2.0.0';
+  contractVersion?: '1.0.0' | '2.0.0';
   manifest: string;
   contract: string;
-  executionModes: Record<string, string>;
+  executionModes?: Record<string, string>;
+  evidenceBundles?: string[];
+  validators?: string[];
 }
 
 export interface ProjectRepository {
@@ -724,13 +727,15 @@ export interface RuntimePlan {
 export interface BackgroundContextPlan {
   status: 'planned';
   kind: 'skill-context';
-  contractVersion: '1.0.0';
+  contractVersion: '1.0.0' | '2.0.0';
   projectId: string;
   backgroundId: string;
   sourceMount: string;
   manifestPath: string;
   contractPath: string;
-  executionMode: string;
+  executionMode?: string;
+  evidenceBundles?: string[];
+  validators?: string[];
   maxCharacters: number;
 }
 
@@ -741,7 +746,7 @@ export interface SkillContextReference {
 }
 
 export interface SkillContextContract {
-  contractVersion: '1.0.0';
+  contractVersion: '1.0.0' | '2.0.0';
   skillId: string;
   skillCommit: string;
   entryPath: string;
@@ -753,14 +758,17 @@ export interface SkillContextContract {
   ownerSkills: string[];
   selectedReferences: SkillContextReference[];
   contextDigest: string;
+  contractDigest?: string;
+  evidenceBundles?: string[];
+  sourceFiles?: SkillContextReference[];
 }
 
 export interface BackgroundContextDocument {
-  roles: Array<'entry' | 'manifest' | 'owner-agent' | 'owner-skill' | 'reference'>;
+  roles: Array<'entry' | 'manifest' | 'owner-agent' | 'owner-skill' | 'reference' | 'evidence'>;
   path: string;
   sourceDigest: string;
   contentDigest: string;
-  selection: 'full' | 'relevant-sections' | 'selected-manifest';
+  selection: 'full' | 'relevant-sections' | 'selected-manifest' | 'evidence-bundle';
   content: string;
 }
 
@@ -771,6 +779,18 @@ export interface ResolvedBackgroundContext {
   skillContext: SkillContextContract;
   documents: BackgroundContextDocument[];
   characters: number;
+}
+
+export interface BackgroundContextLock {
+  kind: 'BackgroundContextLock';
+  version: 1;
+  taskId: string;
+  projectId: string;
+  backgroundId: string;
+  skillCommit: string;
+  contextDigest: string;
+  selectedEvidenceBundles: string[];
+  lockedAt: string;
 }
 
 export interface SimulationStage {

@@ -45,7 +45,14 @@
     },
     "failure": {
       "type": "object",
-      "additionalProperties": { "type": "string", "minLength": 1 }
+      "additionalProperties": { "type": "string", "minLength": 1 },
+      "properties": {
+        "errorCodes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
     },
     "output": {
       "type": "object",

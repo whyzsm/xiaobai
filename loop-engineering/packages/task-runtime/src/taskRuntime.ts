@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdir } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathExists, readText } from '../../shared/src/fs';
 import { resolveMemoryPath } from '../../shared/src/memoryRoot';
+import { standardPageArtifactRoot } from '../../shared/src/taskArtifacts';
 import {
   GatePassEvidence,
   JsonRecord,
@@ -13,12 +14,14 @@ import {
   TaskEvent,
   TaskEventType,
   TaskRequest,
-  TaskState
+  TaskState,
+  BackgroundContextLock
 } from '../../shared/src/types';
 import {
   assertValidTaskEnvelope,
   validateTaskRequest
 } from '../../shared/src/portableExecutionContracts';
+import { SkillContextResolver } from '../../skill-context-runtime/src/skillContextResolver';
 
 export interface TaskRuntimeOptions {
   workspaceRoot: string;
@@ -92,6 +95,7 @@ export class TaskRuntime {
 
     const taskId = input.taskId ?? randomUUID();
     if (await this.find(taskId)) throw new Error(`Task already exists: ${taskId}`);
+    const backgroundContextLock = await this.lockBackgroundContext(taskId);
     const now = this.clock().toISOString();
     await this.appendEvent({
       kind: 'TaskEvent',
@@ -124,6 +128,7 @@ export class TaskRuntime {
         backgroundContextDigest: this.options.plan.backgroundContext
           ? backgroundPlanDigestInput(this.options.plan.backgroundContext)
           : null,
+        backgroundContextLock: backgroundContextLock ?? null,
         gateRequirements: this.options.plan.humanGate.gates.map((gate) => gate.id)
       },
       evidence: []
@@ -186,6 +191,64 @@ export class TaskRuntime {
       }
       return value as TaskEvent;
     });
+  }
+
+  backgroundContextPath(taskId: string): string {
+    return resolveMemoryPath(
+      this.options.memoryRoot,
+      `memory/tasks/${encodeURIComponent(this.options.loop.metadata.id)}/${encodeURIComponent(taskId)}/background-context.json`
+    );
+  }
+
+  private async lockBackgroundContext(taskId: string): Promise<BackgroundContextLock | undefined> {
+    const plan = this.options.plan?.backgroundContext;
+    if (!plan) return undefined;
+    const mountPath = path.resolve(this.options.workspaceRoot, plan.sourceMount);
+    if (!(await pathExists(mountPath))) {
+      if (this.options.loop.metadata.id === 'ane-standard-page') {
+        throw new Error(`XIAONENG_CONTEXT_REQUIRED: background mount is unavailable: ${mountPath}`);
+      }
+      return undefined;
+    }
+
+    const resolved = await new SkillContextResolver(this.options.workspaceRoot).resolve(plan);
+    const lock: BackgroundContextLock = {
+      kind: 'BackgroundContextLock',
+      version: 1,
+      taskId,
+      projectId: plan.projectId,
+      backgroundId: plan.backgroundId,
+      skillCommit: resolved.skillContext.skillCommit,
+      contextDigest: resolved.skillContext.contextDigest,
+      selectedEvidenceBundles: [...(plan.evidenceBundles ?? [])],
+      lockedAt: this.clock().toISOString()
+    };
+    const filePath = this.backgroundContextPath(taskId);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
+    const runtimePlan = this.options.plan;
+    if (!runtimePlan) return lock;
+    const artifactRoot = standardPageArtifactRoot(this.options.workspaceRoot, runtimePlan, taskId);
+    if (artifactRoot) {
+      await mkdir(artifactRoot, { recursive: true });
+      await writeFile(path.join(artifactRoot, 'background-context.json'), `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
+      await writeFile(
+        path.join(artifactRoot, 'evidence-selection.json'),
+        `${JSON.stringify({
+          kind: 'XiaonengEvidenceSelection',
+          version: 1,
+          taskId,
+          projectId: plan.projectId,
+          backgroundId: plan.backgroundId,
+          contextDigest: resolved.skillContext.contextDigest,
+          skillCommit: resolved.skillContext.skillCommit,
+          bundles: plan.evidenceBundles ?? [],
+          sources: resolved.skillContext.sourceFiles ?? []
+        }, null, 2)}\n`,
+        'utf8'
+      );
+    }
+    return lock;
   }
 
   private async appendEvent(event: TaskEvent): Promise<void> {
@@ -260,7 +323,9 @@ function backgroundPlanDigestInput(plan: RuntimePlan['backgroundContext']): Json
     sourceMount: plan.sourceMount,
     manifestPath: plan.manifestPath,
     contractPath: plan.contractPath,
-    executionMode: plan.executionMode,
+    executionMode: plan.executionMode ?? null,
+    evidenceBundles: plan.evidenceBundles ?? [],
+    validators: plan.validators ?? [],
     maxCharacters: plan.maxCharacters
   };
 }

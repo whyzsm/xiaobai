@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, unlink } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, open, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { EvaluatorRuntime } from '../../evaluator-runtime/src/evaluatorRuntime';
 import { HarnessRuntime, specializeHarnessForStage } from '../../harness-runtime/src/harnessRuntime';
@@ -24,6 +25,9 @@ import {
   StageEventKey,
   WorkflowStagePlan
 } from '../../shared/src/types';
+import { pathExists } from '../../shared/src/fs';
+import { resolveMemoryPath } from '../../shared/src/memoryRoot';
+import { standardPageArtifactRoot, standardPageArtifactsForStage } from '../../shared/src/taskArtifacts';
 import { ExecutionEventStore } from './executionEvents';
 import { createStageEvent, StageEventStore, validateStageEventSequence } from './stageEvents';
 
@@ -248,6 +252,18 @@ export class ExecutionRuntime {
         backgroundContext = await new SkillContextResolver(this.options.workspaceRoot).resolve(
           this.options.plan.backgroundContext
         );
+        const lock = await readBackgroundContextLock(
+          this.options.workspaceRoot,
+          this.options.plan,
+          this.options.memoryRoot,
+          this.options.loop.metadata.id,
+          scope.taskId
+        );
+        if (lock && lock.contextDigest !== backgroundContext.skillContext.contextDigest) {
+          throw new Error(
+            `XIAONENG_CONTEXT_DIGEST_MISMATCH: locked ${lock.contextDigest}, resolved ${backgroundContext.skillContext.contextDigest}`
+          );
+        }
       } catch (error) {
         const reasons = [
           `Background context loading failed closed: ${error instanceof Error ? error.message : String(error)}`
@@ -261,6 +277,30 @@ export class ExecutionRuntime {
         data: backgroundContextEventData(backgroundContext)
       });
     }
+    let standardPageArtifacts: JsonRecord | undefined;
+    try {
+      standardPageArtifacts = await readStandardPageArtifacts(
+        this.options.workspaceRoot,
+        this.options.plan,
+        scope.taskId,
+        stage.id
+      );
+    } catch (error) {
+      const reasons = [`Task artifact loading failed closed: ${error instanceof Error ? error.message : String(error)}`];
+      await append('failed', [otherEvidence(reasons[0])]);
+      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+    }
+    const executorSubject = standardPageArtifacts
+      ? { ...input.subject, xiaobaiStandardPageArtifacts: standardPageArtifacts }
+      : input.subject;
+    if (standardPageArtifacts) {
+      await appendExecution({
+        actor: 'runtime',
+        eventType: 'context/resolved',
+        data: { standardPageArtifacts: standardPageArtifacts.summary as JsonRecord },
+        evidence: standardPageArtifacts.evidence as GatePassEvidence[]
+      });
+    }
     let adapterResult;
     await append('waiting_started', [], 'tool_running');
     try {
@@ -271,7 +311,7 @@ export class ExecutionRuntime {
         stage,
         attempt,
         actions,
-        subject: input.subject,
+        subject: executorSubject,
         workspaceRoot: this.options.workspaceRoot,
         worktreePath: input.worktreePath,
         ...(backgroundContext ? { backgroundContext } : {}),
@@ -298,6 +338,12 @@ export class ExecutionRuntime {
       });
       await append('failed', [otherEvidence(reasons[0])]);
       return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+    }
+    if (standardPageArtifacts) {
+      adapterResult = {
+        ...adapterResult,
+        evidence: [...(standardPageArtifacts.evidence as GatePassEvidence[]), ...adapterResult.evidence]
+      };
     }
     await appendExecution({
       actor: 'runtime',
@@ -402,6 +448,67 @@ export class ExecutionRuntime {
       evaluationVerdict
     );
   }
+}
+
+async function readBackgroundContextLock(
+  workspaceRoot: string,
+  plan: RuntimePlan,
+  memoryRoot: string,
+  loopId: string,
+  taskId: string
+): Promise<{ contextDigest: string } | undefined> {
+  const artifactRoot = standardPageArtifactRoot(workspaceRoot, plan, taskId);
+  const candidates = [
+    ...(artifactRoot ? [path.join(artifactRoot, 'background-context.json')] : []),
+    resolveMemoryPath(
+      memoryRoot,
+      `memory/tasks/${encodeURIComponent(loopId)}/${encodeURIComponent(taskId)}/background-context.json`
+    )
+  ];
+  for (const filePath of candidates) {
+    if (!(await pathExists(filePath))) continue;
+    try {
+      const value = JSON.parse(await readFile(filePath, 'utf8')) as { contextDigest?: unknown };
+      if (typeof value.contextDigest !== 'string') {
+        throw new Error('contextDigest must be a string');
+      }
+      return { contextDigest: value.contextDigest };
+    } catch (error) {
+      throw new Error(`XIAONENG_CONTEXT_LOCK_INVALID: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return undefined;
+}
+
+async function readStandardPageArtifacts(
+  workspaceRoot: string,
+  plan: RuntimePlan,
+  taskId: string,
+  stageId: string
+): Promise<JsonRecord | undefined> {
+  const required = standardPageArtifactsForStage(stageId);
+  if (required.length === 0) return undefined;
+  const root = standardPageArtifactRoot(workspaceRoot, plan, taskId);
+  if (!root) throw new Error(`XIAONENG_TASK_ARTIFACT_ROOT_UNAVAILABLE: ${taskId}`);
+  const files: JsonRecord = {};
+  const summary: JsonRecord = { taskId, stageId, files: [] };
+  const evidence: GatePassEvidence[] = [];
+  for (const name of required) {
+    const filePath = path.join(root, name);
+    if (!(await pathExists(filePath))) throw new Error(`XIAONENG_TASK_ARTIFACT_REQUIRED: ${name}`);
+    const raw = await readFile(filePath, 'utf8');
+    let value: unknown;
+    try {
+      value = JSON.parse(raw) as unknown;
+    } catch (error) {
+      throw new Error(`XIAONENG_TASK_ARTIFACT_INVALID: ${name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const digest = createHash('sha256').update(raw, 'utf8').digest('hex');
+    files[name] = { path: filePath, digest, value };
+    (summary.files as Array<JsonRecord>).push({ name, digest });
+    evidence.push({ type: 'file', value: `xiaobai-task-artifact:${name}:${digest}` });
+  }
+  return { summary, files, evidence };
 }
 
 class LocalRunLock {

@@ -144,27 +144,27 @@ function buildBackgroundContextPlan(
   if (!background || !integration) return undefined;
   if (
     integration.kind !== 'skill-context' ||
-    integration.version !== '1.0.0' ||
+    !['1.0.0', '2.0.0'].includes(integration.version) ||
     typeof integration.manifest !== 'string' ||
     typeof integration.contract !== 'string' ||
-    !integration.executionModes ||
-    typeof integration.executionModes !== 'object' ||
-    Array.isArray(integration.executionModes)
+    (integration.executionModes !== undefined &&
+      (typeof integration.executionModes !== 'object' || Array.isArray(integration.executionModes)))
   ) {
     throw new Error(`Project ${projectRoute.project.id} has an invalid skill-context integration declaration`);
   }
 
-  const executionMode = integration.executionModes[loop.metadata.id];
-  if (typeof executionMode !== 'string' || executionMode.length === 0) {
+  const executionMode = integration.executionModes?.[loop.metadata.id] ?? loop.metadata.id;
+  const evidenceBundles = integration.evidenceBundles ?? [];
+  if ((typeof executionMode !== 'string' || executionMode.length === 0) && evidenceBundles.length === 0) {
     throw new Error(
-      `Project ${projectRoute.project.id} does not declare a skill-context execution mode for loop ${loop.metadata.id}`
+      `Project ${projectRoute.project.id} does not declare a skill-context execution mode or evidence bundle for loop ${loop.metadata.id}`
     );
   }
 
   return {
     status: 'planned',
     kind: 'skill-context',
-    contractVersion: integration.version,
+    contractVersion: integration.contractVersion ?? '1.0.0',
     projectId: projectRoute.project.id,
     backgroundId: background.id,
     sourceMount: displayPath(
@@ -174,6 +174,8 @@ function buildBackgroundContextPlan(
     manifestPath: integration.manifest,
     contractPath: integration.contract,
     executionMode,
+    ...(evidenceBundles.length > 0 ? { evidenceBundles } : {}),
+    ...(integration.validators ? { validators: [...integration.validators] } : {}),
     maxCharacters: Math.floor(harnessMaxCharacters * 0.75)
   };
 }

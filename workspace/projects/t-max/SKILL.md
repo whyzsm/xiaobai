@@ -85,3 +85,13 @@ When the user names a single file, field, constant, or one explicit deletion/rep
 Route first-time data-dictionary integration, shared dynamic request-parameter sourcing, or another API data-source change to Xiaoneng `ApiIntegration.dictParam`, even when only one field is involved. Use the micro patch fast path only for a follow-up that removes a hardcoded value, default, or fallback after the dictionary integration already exists.
 
 The micro patch fast path applies only the smallest requested change. Verification is limited to `rg` lookup/recheck, `git diff --check`, and target-file lint or syntax checks when needed; do not run builds, full tests, checkpoints, audits, commits, or pushes by default.
+
+## ANE 标准页面路径 / ANE Standard Page Path
+
+新增菜单、路由或标准列表页时，优先由小白选择 `ane-standard-page` Loop。该 Loop 在编码前锁定小能背景、证据包、页面契约和导入规则；`frontend-delivery` 只用于跨仓复杂交付、重大页面重构、外部 API 契约变化或明确要求完整设计评审的任务。小能只提供规则、契约、模板、参考实现和纯校验，不创建小白任务、不维护小白状态机、不决定任务完成。
+
+For new menus, routes, or standard list pages, Xiaobai should select the `ane-standard-page` Loop first. That Loop locks the Xiaoneng background, evidence bundles, page contract, and import rule before coding; `frontend-delivery` is reserved for cross-repository complex delivery, major page refactors, external API contract changes, or explicitly requested full design review. Xiaoneng provides rules, contracts, templates, reference implementations, and pure validators only; it does not create Xiaobai tasks, maintain Xiaobai's state machine, or decide task completion.
+
+标准页任务必须记录 `background-context.json`、`evidence-selection.json`、`page-contract.json` 和 `import-rule.json`，并由 Generator 与 Evaluator 复用相同的 `contextDigest`、`contractDigest`。禁止使用 `mock/User/auth.json`、本地 mock 数据和写死的上传结果；小能仓目录不能成为业务页面生产运行时依赖。
+
+Standard-page tasks must record `background-context.json`, `evidence-selection.json`, `page-contract.json`, and `import-rule.json`, and Generator and Evaluator must reuse the same `contextDigest` and `contractDigest`. `mock/User/auth.json`, local mock data, and hardcoded upload results are forbidden; the Xiaoneng checkout must not become a production runtime dependency of a business page.
