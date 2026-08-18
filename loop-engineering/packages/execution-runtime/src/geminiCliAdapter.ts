@@ -137,8 +137,15 @@ export class GeminiCliAdapter implements ExecutorAdapter {
         stdout = result.stdout;
       } catch (error) {
         const stdoutFromFailure = isRecord(error) && typeof error.stdout === 'string' ? error.stdout : '';
+        const stderrFromFailure = isRecord(error) && typeof error.stderr === 'string' ? error.stderr : '';
         const observedFailure = summarizeGeminiFailure(stdoutFromFailure);
-        const reason = `gemini_cli_failed: ${observedFailure ?? formatProcessFailure(error)}`;
+        const failureReason = observedFailure ?? formatProcessFailure(error);
+        const stderrSummary = stderrFromFailure.trim()
+          ? `stderr=${sanitizeSecretLikeText(truncate(stderrFromFailure.trim()))}`
+          : '';
+        const reason = stderrSummary && !failureReason.includes(stderrSummary)
+          ? `gemini_cli_failed: ${failureReason}; ${stderrSummary}`
+          : `gemini_cli_failed: ${failureReason}`;
         await reportExecutorEvent(input, 'model/completed', {
           requestId,
           status: 'failed',
