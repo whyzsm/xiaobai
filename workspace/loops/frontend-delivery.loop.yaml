@@ -70,6 +70,7 @@ humanGate:
     - external-api-contract-change
     - major-dependency-upgrade
     - destructive-file-change
+    - promotion
   reviewers:
     - owner
   gates:
@@ -150,6 +151,28 @@ humanGate:
         - review
         - human-approval
       maxAgeMinutes: 240
+    # ===== 小能 gate-spec 投影门（详见 xiaoneng: harness/runtime/gate-spec.yaml#xiaobaiProjection）=====
+    - id: commit-approval
+      requiredBefore: merge
+      reviewers:
+        - owner
+      subjectFields:
+        - commitSha
+        - authorizationToken
+        - scopedDiff
+      requiredEvidenceTypes:
+        - human-approval
+      maxAgeMinutes: 240
+    - id: promotion-approval
+      requiredBefore: promotion
+      reviewers:
+        - owner
+      subjectFields:
+        - knowledgeArtifact
+        - promotionDecision
+      requiredEvidenceTypes:
+        - human-approval
+      maxAgeMinutes: 1440
 workflow:
   stages:
     - id: requirement-intake
@@ -261,3 +284,15 @@ workflow:
       outputs:
         - pullRequestPlan
         - riskAndRollback
+    - id: retrospective-promotion
+      kind: human-gate
+      gate: manual
+      dependsOn:
+        - pr-readiness
+      requiredBefore:
+        - promotion
+      requiredChecks:
+        - promotion-approval
+      outputs:
+        - knowledgeArtifact
+        - promotionDecision

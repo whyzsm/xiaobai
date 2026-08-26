@@ -63,6 +63,8 @@ humanGate:
   requiredBefore:
     - coding
     - merge
+    - release
+    - promotion
   reviewers:
     - owner
   gates:
@@ -90,6 +92,40 @@ humanGate:
       requiredEvidenceTypes:
         - test
         - review
+        - human-approval
+      maxAgeMinutes: 1440
+    # ===== 小能 gate-spec 投影门（详见 xiaoneng: harness/runtime/gate-spec.yaml#xiaobaiProjection）=====
+    - id: release-approval
+      requiredBefore: release
+      reviewers:
+        - owner
+      subjectFields:
+        - commitSha
+        - remoteSha
+        - releaseVerification
+      requiredEvidenceTypes:
+        - test
+        - human-approval
+      maxAgeMinutes: 240
+    - id: commit-approval
+      requiredBefore: merge
+      reviewers:
+        - owner
+      subjectFields:
+        - commitSha
+        - authorizationToken
+        - scopedDiff
+      requiredEvidenceTypes:
+        - human-approval
+      maxAgeMinutes: 240
+    - id: promotion-approval
+      requiredBefore: promotion
+      reviewers:
+        - owner
+      subjectFields:
+        - knowledgeArtifact
+        - promotionDecision
+      requiredEvidenceTypes:
         - human-approval
       maxAgeMinutes: 1440
 workflow:
@@ -233,3 +269,15 @@ workflow:
         - independent-evaluation
       outputs:
         - deliverySummary
+    - id: retrospective-promotion
+      kind: human-gate
+      gate: manual
+      dependsOn:
+        - delivery-summary
+      requiredBefore:
+        - promotion
+      requiredChecks:
+        - promotion-approval
+      outputs:
+        - knowledgeArtifact
+        - promotionDecision
