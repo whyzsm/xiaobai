@@ -82,22 +82,9 @@ export async function resolveProjectRoute(
     );
   }
 
-  if (loop.handoff.targetResolution?.required) {
-    throw new Error(
-      `Loop ${loop.metadata.id} requires a target project or repository. Pass --target-project, --target-repository, --target-cwd, or --target-remote.`
-    );
-  }
-
-  const defaultEntry = entries.find((entry) => sameAlias(entry.project.id, loop.handoff.project));
-  if (!defaultEntry) {
-    throw new Error(`Loop default project is not registered: ${loop.handoff.project}`);
-  }
-
-  return buildRoute({
-    entry: defaultEntry,
-    source: 'loop-default',
-    target: loop.handoff.project
-  });
+  throw new Error(
+    `Loop ${loop.metadata.id} requires a target project or repository explicitly. Pass --target-project, --target-repository, --target-cwd, or --target-remote.`
+  );
 }
 
 async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegistryEntry[]> {

@@ -15,6 +15,7 @@ import {
   BackgroundContextPlan,
   LoopSpec,
   OrchestratorPlan,
+  ProjectContext,
   ProjectRoutePlan,
   ProjectSpec,
   RuntimePlan,
@@ -27,6 +28,7 @@ import { loadMemoryContext } from '../../memory-context/src';
 import { resolveMemoryProtocolPaths } from '../../memory-protocol/src';
 import { pathExists } from '../../shared/src/fs';
 import { ResolvedProjectRoute, resolveProjectRoute } from '../../project-registry/src/projectRegistry';
+import { buildProjectContext } from '../../shared/src/projectContext';
 
 export interface RuntimeOptions {
   workspaceRoot: string;
@@ -51,6 +53,12 @@ export class LoopRuntime {
       targetRemote: options.targetRemote
     });
     const project = projectRoute.project;
+    const projectContext = buildProjectContext({
+      workspaceRoot,
+      loop,
+      projectRoute
+    });
+    const projectRoutePlan = buildProjectRoutePlan(workspaceRoot, projectRoute, projectContext);
 
     const scheduler = new Scheduler(loop);
     const budget = new BudgetGuard(loop.budget).check();
@@ -107,7 +115,9 @@ export class LoopRuntime {
       loopWorkCount: await memoryStore.runCount(),
       schedule: scheduler.plan(),
       budget,
-      orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, projectRoute),
+      projectContext,
+      projectRoute: projectRoutePlan,
+      orchestrator: buildOrchestratorPlan(loop, orchestrator, projectRoutePlan),
       context: {
         skillPath: path.relative(workspaceRoot, context.skill.path),
         evidenceSources: context.evidence.length,
@@ -230,10 +240,9 @@ async function buildMemoryContextMetadata(input: {
 }
 
 function buildOrchestratorPlan(
-  workspaceRoot: string,
   loop: LoopSpec,
   agent: AgentSpec | undefined,
-  projectRoute: ResolvedProjectRoute
+  projectRoute: ProjectRoutePlan
 ): OrchestratorPlan | undefined {
   if (!loop.orchestrator || !agent) {
     return undefined;
@@ -246,7 +255,7 @@ function buildOrchestratorPlan(
     stance: agent.stance,
     routesTo: {
       discoverySkill: loop.discovery.skill,
-      project: buildProjectRoutePlan(workspaceRoot, projectRoute),
+      project: projectRoute,
       generatorAgent: loop.generator.agent,
       evaluatorAgent: loop.verification.evaluator,
       workflowStages: (loop.workflow?.stages ?? []).map((stage) => stage.id)
@@ -254,10 +263,15 @@ function buildOrchestratorPlan(
   };
 }
 
-function buildProjectRoutePlan(workspaceRoot: string, projectRoute: ResolvedProjectRoute): ProjectRoutePlan {
+function buildProjectRoutePlan(
+  workspaceRoot: string,
+  projectRoute: ResolvedProjectRoute,
+  projectContext: ProjectContext
+): ProjectRoutePlan {
   const project = projectRoute.project;
   const projectRoot = projectRoute.projectRoot;
   return {
+    projectContext,
     projectId: project.id,
     projectKind: project.kind,
     projectName: project.name,

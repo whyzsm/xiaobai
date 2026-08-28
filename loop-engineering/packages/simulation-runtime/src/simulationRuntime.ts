@@ -25,6 +25,10 @@ export interface SimulationOptions {
   loopPath: string;
   repoRoot?: string;
   now?: Date;
+  targetProject?: string;
+  targetRepository?: string;
+  targetCwd?: string;
+  targetRemote?: string;
 }
 
 export class SimulationRuntime {
@@ -33,7 +37,15 @@ export class SimulationRuntime {
     const workspaceRoot = path.resolve(options.workspaceRoot);
     const now = options.now ?? new Date();
     const runId = buildRunId(now);
-    const plan = await new LoopRuntime().dryRun({ workspaceRoot, loopPath: options.loopPath, now });
+    const plan = await new LoopRuntime().dryRun({
+      workspaceRoot,
+      loopPath: options.loopPath,
+      now,
+      targetProject: options.targetProject,
+      targetRepository: options.targetRepository,
+      targetCwd: options.targetCwd,
+      targetRemote: options.targetRemote
+    });
     const memoryConfig = await resolveMemoryRootConfig(workspaceRoot);
     const memoryRoot = memoryConfig.memoryRoot;
     const artifacts = artifactPaths(repoRoot, workspaceRoot, memoryRoot, plan.loopId, runId, now);

@@ -128,6 +128,7 @@ export interface ProjectSpec {
   root: string;
   defaultBranch: string;
   skill: string;
+  discoverySkills?: Record<string, string>;
   localPaths?: string;
   background?: ProjectBackground;
   repositories?: ProjectRepository[];
@@ -164,8 +165,7 @@ export type ProjectRouteSource =
   | 'explicit-project'
   | 'explicit-repository'
   | 'cwd'
-  | 'remote'
-  | 'loop-default';
+  | 'remote';
 
 export interface ProjectRouteResolution {
   source: ProjectRouteSource;
@@ -595,6 +595,7 @@ export type ExecutionEventType =
 export type ExecutionEventActor = 'runtime' | 'executor' | 'harness' | 'evaluator';
 
 export interface ExecutionEventKey {
+  projectId: string;
   loopId: string;
   runId: string;
   taskId: string;
@@ -707,6 +708,7 @@ export interface ExecutionStageResult {
 }
 
 export interface ProjectRoutePlan {
+  projectContext: ProjectContext;
   projectId: string;
   projectKind: ProjectSpec['kind'];
   projectName: string;
@@ -725,6 +727,16 @@ export interface ProjectRoutePlan {
     mount: string;
     remote?: string;
   }>;
+}
+
+export interface ProjectContext {
+  readonly projectId: string;
+  readonly repositoryRoot: string;
+  readonly worktreeRoot: string;
+  readonly skillPackage: string;
+  readonly memoryNamespace: string;
+  readonly artifactRoot: string;
+  readonly policyDigest: string;
 }
 
 export interface OrchestratorPlan {
@@ -762,6 +774,8 @@ export interface WorkflowPlan {
 
 export interface RuntimePlan {
   loopId: string;
+  projectContext: ProjectContext;
+  projectRoute: ProjectRoutePlan;
   loopWorkCount: number;
   schedule: {
     type: string;
@@ -1037,6 +1051,7 @@ export interface TaskEnvelope {
   repositoryId?: string;
   loopId?: string;
   runId?: string;
+  projectContext?: ProjectContext;
   projectRoute?: ProjectRoutePlan;
   subject: JsonRecord;
   requestedActions: RepositoryAction[];

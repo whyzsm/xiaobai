@@ -4,3 +4,5 @@ name: App A
 root: .
 defaultBranch: main
 skill: SKILL.md
+discoverySkills:
+  triage: SKILL.md

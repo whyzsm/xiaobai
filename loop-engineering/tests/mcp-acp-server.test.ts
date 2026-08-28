@@ -213,8 +213,40 @@ function loopFixture(): LoopSpec {
 }
 
 function planFixture(): RuntimePlan {
+  const projectContext = {
+    projectId: 't-max',
+    repositoryRoot: '/workspace/repos/operateBusiness',
+    worktreeRoot: '/workspace/worktrees',
+    skillPackage: '/workspace/projects/t-max/SKILL.md',
+    memoryNamespace: 'project:t-max/loop:frontend-delivery',
+    artifactRoot: '/workspace/.loop/artifacts/frontend-delivery/t-max/operateBusiness',
+    policyDigest: 'a'.repeat(64)
+  };
+  const projectRoute = {
+    projectContext,
+    projectId: 't-max' as const,
+    projectKind: 'ProjectGroup' as const,
+    projectName: 'T-MAX',
+    resolution: {
+      source: 'explicit-repository' as const,
+      target: 'operateBusiness',
+      matchedRepositoryId: 'operateBusiness'
+    },
+    projectSkillPath: 'projects/t-max/SKILL.md',
+    root: '.',
+    defaultBranch: 'main',
+    repositories: [
+      {
+        id: 'operateBusiness',
+        name: 'operateBusiness',
+        mount: 'mounts/operateBusiness'
+      }
+    ]
+  };
   return {
     loopId: 'frontend-delivery',
+    projectContext,
+    projectRoute,
     loopWorkCount: 0,
     schedule: {
       type: 'manual',
@@ -232,26 +264,7 @@ function planFixture(): RuntimePlan {
       role: 'orchestrator',
       routesTo: {
         discoverySkill: 'frontend',
-        project: {
-          projectId: 't-max',
-          projectKind: 'ProjectGroup',
-          projectName: 'T-MAX',
-          resolution: {
-            source: 'explicit-repository',
-            target: 'operateBusiness',
-            matchedRepositoryId: 'operateBusiness'
-          },
-          projectSkillPath: 'projects/t-max/SKILL.md',
-          root: '.',
-          defaultBranch: 'main',
-          repositories: [
-            {
-              id: 'operateBusiness',
-              name: 'operateBusiness',
-              mount: 'mounts/operateBusiness'
-            }
-          ]
-        },
+        project: projectRoute,
         generatorAgent: 'generator.agent.yaml',
         evaluatorAgent: 'evaluator.agent.yaml',
         workflowStages: []

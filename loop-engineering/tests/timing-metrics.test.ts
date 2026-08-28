@@ -160,6 +160,7 @@ test('request timing groups retries, waiting reasons, failures, bottlenecks, and
     version: 1 as const,
     id: 'execution-failure',
     seq: 1,
+    projectId: 't-max',
     loopId: 'loop-timing',
     runId: 'run-timing',
     taskId: 'task-timing',

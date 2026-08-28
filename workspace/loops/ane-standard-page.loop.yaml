@@ -43,6 +43,7 @@ verification:
     - page-structure-verified
     - evaluator-reused-contract
     - stage-timing-recorded
+    - promotion-approval
   allowSelfReview: false
 persistence:
   memory:
@@ -269,7 +270,7 @@ workflow:
         - independent-evaluation
       outputs:
         - deliverySummary
-    - id: retrospective-promotion
+    - id: promotion-approval
       kind: human-gate
       gate: manual
       dependsOn:

@@ -44,6 +44,7 @@ verification:
     - ui-smoke-desktop
     - ui-smoke-mobile
     - pr-ready
+    - promotion-approval
   allowSelfReview: false
 persistence:
   memory:
@@ -284,7 +285,7 @@ workflow:
       outputs:
         - pullRequestPlan
         - riskAndRollback
-    - id: retrospective-promotion
+    - id: promotion-approval
       kind: human-gate
       gate: manual
       dependsOn:

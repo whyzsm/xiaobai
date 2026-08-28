@@ -51,6 +51,7 @@ export class ExecutionEventStore {
 
   constructor(
     private readonly memoryRoot: string,
+    private readonly projectId: string,
     private readonly loopId: string,
     private readonly runId: string,
     options: ExecutionEventStoreOptions = {}
@@ -86,7 +87,7 @@ export class ExecutionEventStore {
       }
       return value as ExecutionEvent;
     });
-    const sequenceErrors = validateExecutionEventSequence(events, this.loopId, this.runId);
+    const sequenceErrors = validateExecutionEventSequence(events, this.projectId, this.loopId, this.runId);
     if (sequenceErrors.length > 0) {
       throw new Error(`Invalid ExecutionEvent sequence at ${filePath}: ${sequenceErrors.join('; ')}`);
     }
@@ -94,8 +95,14 @@ export class ExecutionEventStore {
   }
 
   async append(input: ExecutionEventInput): Promise<ExecutionEvent> {
-    if (input.loopId !== this.loopId || input.runId !== this.runId) {
-      throw new Error(`ExecutionEvent scope does not match store ${this.loopId}/${this.runId}`);
+    if (
+      input.projectId !== this.projectId ||
+      input.loopId !== this.loopId ||
+      input.runId !== this.runId
+    ) {
+      throw new Error(
+        `ExecutionEvent scope does not match store ${this.projectId}/${this.loopId}/${this.runId}`
+      );
     }
     const previous = await this.readAll();
     const id = randomUUID();
@@ -107,6 +114,7 @@ export class ExecutionEventStore {
       version: 1,
       id,
       seq,
+      projectId: input.projectId,
       loopId: input.loopId,
       runId: input.runId,
       taskId: input.taskId,
@@ -120,7 +128,12 @@ export class ExecutionEventStore {
     };
     const errors = [
       ...validateExecutionEvent(event),
-      ...validateExecutionEventSequence([...previous, event], this.loopId, this.runId)
+      ...validateExecutionEventSequence(
+        [...previous, event],
+        this.projectId,
+        this.loopId,
+        this.runId
+      )
     ];
     if (errors.length > 0) throw new Error(`Cannot append ExecutionEvent: ${errors.join('; ')}`);
 
@@ -167,9 +180,10 @@ export class ExecutionEventStore {
 }
 
 export function projectExecutionTrace(events: ExecutionEvent[]): ExecutionTraceProjection {
+  const projectId = events[0]?.projectId ?? '';
   const loopId = events[0]?.loopId ?? '';
   const runId = events[0]?.runId ?? '';
-  const errors = validateExecutionEventSequence(events, loopId, runId);
+  const errors = validateExecutionEventSequence(events, projectId, loopId, runId);
   return {
     loopId,
     runId,
@@ -187,6 +201,7 @@ export function projectExecutionTrace(events: ExecutionEvent[]): ExecutionTraceP
 
 export function validateExecutionEventSequence(
   events: ExecutionEvent[],
+  expectedProjectId = events[0]?.projectId ?? '',
   expectedLoopId = events[0]?.loopId ?? '',
   expectedRunId = events[0]?.runId ?? ''
 ): string[] {
@@ -200,8 +215,12 @@ export function validateExecutionEventSequence(
   events.forEach((event, index) => {
     const position = index + 1;
     if (event.seq !== position) errors.push(`Event ${position}: seq must be ${position}`);
-    if (event.loopId !== expectedLoopId || event.runId !== expectedRunId) {
-      errors.push(`Event ${position}: loopId/runId changed within one execution log`);
+    if (
+      event.projectId !== expectedProjectId ||
+      event.loopId !== expectedLoopId ||
+      event.runId !== expectedRunId
+    ) {
+      errors.push(`Event ${position}: projectId/loopId/runId changed within one execution log`);
     }
     if (ids.has(event.id)) errors.push(`Event ${position}: duplicate id ${event.id}`);
     ids.add(event.id);
@@ -245,7 +264,7 @@ function validateExecutionEvent(value: unknown): string[] {
   if (value.version !== 1) errors.push('version must be 1');
   if (!isNonEmptyString(value.id)) errors.push('id must be a non-empty string');
   if (!Number.isInteger(value.seq) || Number(value.seq) < 1) errors.push('seq must be a positive integer');
-  for (const field of ['loopId', 'runId', 'taskId', 'stageId'] as const) {
+  for (const field of ['projectId', 'loopId', 'runId', 'taskId', 'stageId'] as const) {
     if (!isNonEmptyString(value[field])) errors.push(`${field} must be a non-empty string`);
   }
   if (!Number.isInteger(value.attempt) || Number(value.attempt) < 1) errors.push('attempt must be a positive integer');

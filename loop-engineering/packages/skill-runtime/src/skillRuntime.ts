@@ -1,21 +1,25 @@
 import path from 'node:path';
-import { ConnectorEvidence, Finding, LoopSpec, SkillDocument } from '../../shared/src/types';
-import { pathExists, readText } from '../../shared/src/fs';
+import { ConnectorEvidence, Finding, LoopSpec, ProjectSpec, SkillDocument } from '../../shared/src/types';
+import { pathExists, readText, readYamlFile } from '../../shared/src/fs';
 
 export class SkillRuntime {
   constructor(private readonly workspaceRoot: string) {}
 
-  async loadDiscoverySkill(loop: LoopSpec, projectId = loop.handoff.project): Promise<SkillDocument> {
-    const loopSkillPath = path.join(
-      this.workspaceRoot,
-      'projects',
-      projectId,
-      '.loop',
-      'skills',
-      `${loop.discovery.skill}.SKILL.md`
-    );
-    const projectSkillPath = path.join(this.workspaceRoot, 'projects', projectId, 'SKILL.md');
-    const skillPath = (await pathExists(loopSkillPath)) ? loopSkillPath : projectSkillPath;
+  async loadDiscoverySkill(loop: LoopSpec, projectId: string): Promise<SkillDocument> {
+    const projectRoot = path.join(this.workspaceRoot, 'projects', projectId);
+    const project = await readYamlFile<ProjectSpec>(path.join(projectRoot, '.loop', 'project.yaml'));
+    const mappedSkill = project.discoverySkills?.[loop.discovery.skill];
+    if (!mappedSkill) {
+      throw new Error(`Discovery skill mapping is missing for project ${projectId}: ${loop.discovery.skill}`);
+    }
+    const skillPath = path.resolve(projectRoot, mappedSkill);
+    const relative = path.relative(projectRoot, skillPath);
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error(`Discovery skill mapping escapes project root: ${projectId}/${loop.discovery.skill}`);
+    }
+    if (!(await pathExists(skillPath))) {
+      throw new Error(`Mapped discovery skill does not exist for project ${projectId}: ${skillPath}`);
+    }
     const content = await readText(skillPath);
     const decisionRules = content
       .split('\n')

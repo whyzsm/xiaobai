@@ -4,6 +4,8 @@ name: trunkFeeder
 root: ../../.local/trunkFeeder/mounts
 defaultBranch: master
 skill: SKILL.md
+discoverySkills:
+  frontend-delivery: SKILL.md
 localPaths: .loop/local.paths.yaml
 background:
   id: trunkFeeder

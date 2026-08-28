@@ -12,6 +12,7 @@ import {
 import { pathExists, readYamlFile, resolveWorkspacePath } from './fs';
 import { readFile } from 'node:fs/promises';
 import { resolveMemoryPath, resolveMemoryRoot } from './memoryRoot';
+import { resolveProjectRoute } from '../../project-registry/src/projectRegistry';
 
 type SchemaName = 'loop' | 'harness' | 'agent' | 'connector' | 'budget';
 
@@ -70,9 +71,42 @@ export async function validateWorkspace(
 
   errors.push(...(await validateObject(ajv, 'loop', path.relative(workspaceRoot, loopPath), loop)));
 
-  const projectRoot = path.join(workspaceRoot, 'projects', loop.handoff.project);
-  const projectSkill = path.join(projectRoot, 'SKILL.md');
-  const discoverySkill = path.join(projectRoot, '.loop', 'skills', `${loop.discovery.skill}.SKILL.md`);
+  if (loop.handoff.targetResolution?.required !== true) {
+    errors.push(`Loop ${loop.metadata.id} must require explicit target resolution`);
+  }
+
+  let resolvedProject: Awaited<ReturnType<typeof resolveProjectRoute>> | undefined;
+  try {
+    resolvedProject = await resolveProjectRoute(workspaceRoot, loop, {
+      targetProject: loop.handoff.project
+    });
+    if (resolvedProject.project.id !== loop.handoff.project) {
+      errors.push(
+        `Loop project id must match project.yaml id: loop=${loop.handoff.project}, project.yaml=${resolvedProject.project.id}`
+      );
+    }
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+
+  const projectRoot = resolvedProject?.projectRoot ?? path.join(workspaceRoot, 'projects', loop.handoff.project);
+  const projectSkill = path.join(projectRoot, resolvedProject?.project.skill ?? 'SKILL.md');
+  const mappedDiscoverySkill = resolvedProject?.project.discoverySkills?.[loop.discovery.skill];
+  if (!mappedDiscoverySkill) {
+    errors.push(`Missing discovery skill mapping: ${loop.discovery.skill} for project ${loop.handoff.project}`);
+  }
+  const discoverySkill = path.resolve(
+    projectRoot,
+    mappedDiscoverySkill ?? path.join('.loop', 'skills', `${loop.discovery.skill}.SKILL.md`)
+  );
+  const discoverySkillRelative = path.relative(projectRoot, discoverySkill);
+  if (
+    discoverySkillRelative === '..' ||
+    discoverySkillRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(discoverySkillRelative)
+  ) {
+    errors.push(`Discovery skill mapping escapes project root: ${discoverySkill}`);
+  }
   const orchestratorPath = loop.orchestrator?.agent ? path.join(workspaceRoot, 'agents', loop.orchestrator.agent) : undefined;
   const generatorPath = path.join(workspaceRoot, 'agents', loop.generator.agent);
   const evaluatorPath = path.join(workspaceRoot, 'agents', loop.verification.evaluator);

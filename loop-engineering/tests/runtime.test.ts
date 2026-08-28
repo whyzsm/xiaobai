@@ -71,6 +71,7 @@ async function createExecutionFixture(loopId: string) {
     workspaceRoot: tempWorkspace,
     loopPath,
     now: new Date('2026-08-10T00:00:00.000Z'),
+    targetProject: loopId === 'morning-triage' ? 'app-a' : undefined,
     targetRepository: loopId === 'frontend-delivery' || loopId === 'ane-standard-page' ? 'operateBusiness' : undefined
   });
   return {
@@ -519,6 +520,7 @@ test('dry run creates independent handoff and evaluation plans', async () => {
   const plan = await runtime.dryRun({
     workspaceRoot,
     loopPath,
+    targetProject: 'app-a',
     now: new Date('2026-06-27T00:00:00.000Z')
   });
 
@@ -949,11 +951,12 @@ test('stage timing preserves terminal status and retry attempts in the append-on
 
 test('execution events preserve reconstructable model and tool facts with private spill files', async () => {
   const memoryRoot = await mkdtemp(path.join(tmpdir(), 'loop-execution-events-'));
-  const store = new ExecutionEventStore(memoryRoot, 'loop-events', 'run-events', {
+  const store = new ExecutionEventStore(memoryRoot, 't-max', 'loop-events', 'run-events', {
     maxInlineBytes: 1024,
     now: () => new Date('2026-08-10T00:00:00.000Z')
   });
   const scope = {
+    projectId: 't-max',
     loopId: 'loop-events',
     runId: 'run-events',
     taskId: 'task-events',
@@ -984,6 +987,16 @@ test('execution events preserve reconstructable model and tool facts with privat
   const spillPath = path.join(memoryRoot, String(spilled.data.path));
   assert.equal(await pathExists(spillPath), true);
   assert.equal((await stat(spillPath)).mode & 0o777, 0o600);
+  await assert.rejects(
+    store.append({
+      ...scope,
+      projectId: 'other-project',
+      actor: 'executor',
+      eventType: 'tool/result',
+      data: { callId: 'unknown-call' }
+    }),
+    /scope does not match store/
+  );
   await assert.rejects(
     store.append({
       ...scope,
@@ -1902,6 +1915,8 @@ writeFileSync(option('--output-last-message'), JSON.stringify(${JSON.stringify(p
     tempWorkspace,
     '--loop',
     'morning-triage',
+    '--target-project',
+    'app-a',
     '--run-id',
     'run-execute-cli',
     '--task-id',
@@ -2107,9 +2122,10 @@ test('frontend delivery loop gates design approval before implementation', async
     'release',
     'external-api-contract-change',
     'major-dependency-upgrade',
-    'destructive-file-change'
+    'destructive-file-change',
+    'promotion'
   ]);
-  assert.equal(plan.humanGate.gates.length, 6);
+  assert.equal(plan.humanGate.gates.length, 8);
   assert.equal(
     plan.evaluations.every((evaluation) =>
       evaluation.requiredChecks.includes('human-design-approval') &&
@@ -2149,7 +2165,8 @@ test('frontend delivery exposes explicit workflow stages and yuque api shape', a
       'human-design-approval',
       'frontend-implementation',
       'implementation-verification',
-      'pr-readiness'
+      'pr-readiness',
+      'promotion-approval'
     ]
   );
   assert.equal(plan.workflow?.stages.every((stage) => stage.status === 'planned'), true);
@@ -2405,11 +2422,11 @@ test('dry-run text output prints workflow stages', async () => {
     'operateBusiness'
   ]);
 
-  assert.match(stdout, /Workflow stages: 9/);
+  assert.match(stdout, /Workflow stages: 10/);
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
   assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
+  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 8/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
 });
@@ -2430,7 +2447,9 @@ test('dry-run output shows loop work count from run log', async () => {
     '--workspace',
     tempWorkspace,
     '--loop',
-    'morning-triage'
+    'morning-triage',
+    '--target-project',
+    'app-a'
   ]);
   assert.match(text.stdout, /Loop work count: 2/);
 
@@ -2441,6 +2460,8 @@ test('dry-run output shows loop work count from run log', async () => {
     tempWorkspace,
     '--loop',
     'morning-triage',
+    '--target-project',
+    'app-a',
     '--json'
   ]);
   const plan = JSON.parse(json.stdout) as { loopWorkCount?: number };
@@ -2581,6 +2602,7 @@ test('simulation writes deterministic artifacts without real stage events', asyn
     workspaceRoot: tempWorkspace,
     repoRoot: tempRoot,
     loopPath,
+    targetProject: 'app-a',
     now: new Date('2026-06-28T01:02:03.000Z')
   });
 
@@ -2665,6 +2687,7 @@ test('memory root can be redirected outside the workspace', async () => {
   const plan = await new LoopRuntime().dryRun({
     workspaceRoot: tempWorkspace,
     loopPath,
+    targetProject: 'app-a',
     now: new Date('2026-06-28T01:02:03.000Z')
   });
 
@@ -2700,6 +2723,7 @@ test('dry-run memory context follows nested Obsidian learning root', async () =>
   const plan = await new LoopRuntime().dryRun({
     workspaceRoot: tempWorkspace,
     loopPath,
+    targetProject: 'app-a',
     now: new Date('2026-06-28T01:02:03.000Z')
   });
 

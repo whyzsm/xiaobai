@@ -150,6 +150,7 @@ export class ExecutionRuntime {
     const recorded: StageEvent[] = [];
     const executionStore = new ExecutionEventStore(
       this.options.memoryRoot,
+      this.options.plan.projectContext.projectId,
       this.options.loop.metadata.id,
       input.runId,
       { now: this.clock }
@@ -172,9 +173,10 @@ export class ExecutionRuntime {
       return event;
     };
     const appendExecution = async (
-      event: Omit<Parameters<ExecutionEventStore['append']>[0], keyof StageEventKey>
+      event: Omit<Parameters<ExecutionEventStore['append']>[0], keyof StageEventKey | 'projectId'>
     ): Promise<ExecutionEvent> => {
       const recordedEvent = await executionStore.append({
+        projectId: this.options.plan.projectContext.projectId,
         loopId: scope.loopId,
         runId: scope.runId,
         taskId: scope.taskId,
@@ -569,7 +571,7 @@ function validateStandardPageArtifacts(
       throw new Error(`XIAONENG_PAGE_CONTRACT_SCHEMA_FAILED: ${JSON.stringify(validate.errors ?? [])}`);
     }
     const contract = pageContract as JsonRecord;
-    const project = plan.orchestrator?.routesTo.project;
+    const project = plan.projectRoute;
     const repositoryId = project?.resolution.matchedRepositoryId;
     if (contract.taskId !== taskId) throw new Error('XIAONENG_PAGE_CONTRACT_TASK_MISMATCH');
     if (contract.projectId !== backgroundContext.projectId) throw new Error('XIAONENG_PAGE_CONTRACT_PROJECT_MISMATCH');

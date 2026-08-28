@@ -19,18 +19,19 @@ const nowValues = [
 async function createRuntime(loop = loopFixture()) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'task-runtime-'));
   let index = 0;
+  const plan = planFixture();
   const runtime = new TaskRuntime({
     workspaceRoot: tempRoot,
     memoryRoot: path.join(tempRoot, 'memory'),
     loop,
-    plan: planFixture(),
+    plan,
     now: () => new Date(nowValues[Math.min(index++, nowValues.length - 1)])
   });
-  return { tempRoot, runtime };
+  return { tempRoot, runtime, plan };
 }
 
 test('task runtime creates prepared task envelopes with route and background metadata', async () => {
-  const { runtime } = await createRuntime();
+  const { runtime, plan } = await createRuntime();
 
   const task = await runtime.create({
     taskId: 'task-1',
@@ -52,6 +53,7 @@ test('task runtime creates prepared task envelopes with route and background met
   assert.equal(task.state, 'prepared');
   assert.equal(task.projectRoute?.projectId, 't-max');
   assert.equal(task.projectRoute?.resolution.matchedRepositoryId, 'operateBusiness');
+  assert.deepEqual(task.projectContext, plan.projectContext);
   assert.deepEqual(task.gateRequirements, ['repo-write']);
   assert.equal(task.events.length, 2);
   assert.equal(task.events[1].data.backgroundContextDigest !== null, true);
@@ -274,8 +276,45 @@ function gatedLoopFixture(): LoopSpec {
 }
 
 function planFixture(): RuntimePlan {
+  const projectContext = {
+    projectId: 't-max',
+    repositoryRoot: '/workspace/repos/operateBusiness',
+    worktreeRoot: '/workspace/worktrees',
+    skillPackage: '/workspace/projects/t-max/SKILL.md',
+    memoryNamespace: 'project:t-max/loop:frontend-delivery',
+    artifactRoot: '/workspace/.loop/artifacts/frontend-delivery/t-max/operateBusiness',
+    policyDigest: 'a'.repeat(64)
+  };
+  const projectRoute = {
+    projectContext,
+    projectId: 't-max' as const,
+    projectKind: 'ProjectGroup' as const,
+    projectName: 'T-MAX',
+    resolution: {
+      source: 'explicit-repository' as const,
+      target: 'operateBusiness',
+      matchedRepositoryId: 'operateBusiness'
+    },
+    projectSkillPath: 'projects/t-max/SKILL.md',
+    root: '.',
+    defaultBranch: 'main',
+    background: {
+      id: 'xiaoneng',
+      name: 'Xiaoneng',
+      mount: 'workspace/.local/t-max/mounts/background/xiaoneng'
+    },
+    repositories: [
+      {
+        id: 'operateBusiness',
+        name: 'operateBusiness',
+        mount: 'workspace/.local/t-max/mounts/repositories/operateBusiness'
+      }
+    ]
+  };
   return {
     loopId: 'frontend-delivery',
+    projectContext,
+    projectRoute,
     loopWorkCount: 0,
     schedule: {
       type: 'manual',
@@ -293,31 +332,7 @@ function planFixture(): RuntimePlan {
       role: 'orchestrator',
       routesTo: {
         discoverySkill: 'frontend',
-        project: {
-          projectId: 't-max',
-          projectKind: 'ProjectGroup',
-          projectName: 'T-MAX',
-          resolution: {
-            source: 'explicit-repository',
-            target: 'operateBusiness',
-            matchedRepositoryId: 'operateBusiness'
-          },
-          projectSkillPath: 'projects/t-max/SKILL.md',
-          root: '.',
-          defaultBranch: 'main',
-          background: {
-            id: 'xiaoneng',
-            name: 'Xiaoneng',
-            mount: 'workspace/.local/t-max/mounts/background/xiaoneng'
-          },
-          repositories: [
-            {
-              id: 'operateBusiness',
-              name: 'operateBusiness',
-              mount: 'workspace/.local/t-max/mounts/repositories/operateBusiness'
-            }
-          ]
-        },
+        project: projectRoute,
         generatorAgent: 'generator.agent.yaml',
         evaluatorAgent: 'evaluator.agent.yaml',
         workflowStages: []

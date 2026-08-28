@@ -29,7 +29,7 @@ export function standardPageArtifactRoot(
   taskId: string
 ): string | undefined {
   if (plan.loopId !== 'ane-standard-page') return undefined;
-  const project = plan.orchestrator?.routesTo.project;
+  const project = plan.projectRoute;
   if (!project) return undefined;
   const repositoryId = project.resolution.matchedRepositoryId;
   const repository = repositoryId

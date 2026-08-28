@@ -4,6 +4,8 @@ name: Harmony Wardrobe
 root: ../../.local/harmony-wardrobe/mounts
 defaultBranch: master
 skill: SKILL.md
+discoverySkills:
+  frontend-delivery: SKILL.md
 localPaths: .loop/local.paths.yaml
 background:
   id: harmony-wardrobe-context

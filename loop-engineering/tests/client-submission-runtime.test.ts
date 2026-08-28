@@ -359,8 +359,40 @@ function loopFixture(): LoopSpec {
 }
 
 function planFixture(loop: LoopSpec): RuntimePlan {
+  const projectContext = {
+    projectId: 't-max',
+    repositoryRoot: '/workspace/repos/operateBusiness',
+    worktreeRoot: '/workspace/worktrees',
+    skillPackage: '/workspace/projects/t-max/SKILL.md',
+    memoryNamespace: `project:t-max/loop:${loop.metadata.id}`,
+    artifactRoot: `/workspace/.loop/artifacts/${loop.metadata.id}/t-max/operateBusiness`,
+    policyDigest: 'a'.repeat(64)
+  };
+  const projectRoute = {
+    projectContext,
+    projectId: 't-max' as const,
+    projectKind: 'ProjectGroup' as const,
+    projectName: 'T-MAX',
+    resolution: {
+      source: 'explicit-repository' as const,
+      target: 'operateBusiness',
+      matchedRepositoryId: 'operateBusiness'
+    },
+    projectSkillPath: 'projects/t-max/SKILL.md',
+    root: '.',
+    defaultBranch: 'main',
+    repositories: [
+      {
+        id: 'operateBusiness',
+        name: 'operateBusiness',
+        mount: 'mounts/operateBusiness'
+      }
+    ]
+  };
   return {
     loopId: loop.metadata.id,
+    projectContext,
+    projectRoute,
     loopWorkCount: 0,
     schedule: {
       type: 'manual',

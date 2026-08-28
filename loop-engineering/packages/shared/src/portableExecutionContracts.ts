@@ -132,6 +132,26 @@ export function validateTaskEnvelope(value: unknown): string[] {
   if (value.promptDigest !== undefined && !isSha256(value.promptDigest)) {
     errors.push('promptDigest must be a sha256 hex digest when provided');
   }
+  if (value.projectContext !== undefined) {
+    errors.push(...validateProjectContext(value.projectContext, 'projectContext'));
+  }
+  if (value.projectRoute !== undefined) {
+    if (!isRecord(value.projectRoute)) {
+      errors.push('projectRoute must be an object when provided');
+    } else {
+      if (value.projectRoute.projectId !== value.projectId) {
+        errors.push('projectRoute.projectId must match projectId');
+      }
+      if (value.projectContext === undefined) {
+        errors.push('projectContext is required when projectRoute is provided');
+      } else if (
+        isRecord(value.projectContext) &&
+        value.projectContext.projectId !== value.projectRoute.projectId
+      ) {
+        errors.push('projectContext.projectId must match projectRoute.projectId');
+      }
+    }
+  }
   errors.push(...validateIsoField(value, 'createdAt'));
   errors.push(...validateIsoField(value, 'updatedAt'));
 
@@ -316,6 +336,25 @@ export function validatePromotionPlan(value: unknown): string[] {
 
 export function assertValidTaskEnvelope(value: unknown): asserts value is TaskEnvelope {
   assertNoErrors('TaskEnvelope', validateTaskEnvelope(value));
+}
+
+export function validateProjectContext(value: unknown, field = 'projectContext'): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  for (const name of [
+    'projectId',
+    'repositoryRoot',
+    'worktreeRoot',
+    'skillPackage',
+    'memoryNamespace',
+    'artifactRoot'
+  ]) {
+    requireString(value, name, errors, `${field}.`);
+  }
+  if (!isSha256(value.policyDigest)) {
+    errors.push(`${field}.policyDigest must be a sha256 hex digest`);
+  }
+  return errors;
 }
 
 export function assertValidWorkspaceLease(value: unknown): asserts value is WorkspaceLease {

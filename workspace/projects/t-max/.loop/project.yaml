@@ -4,6 +4,9 @@ name: T-MAX
 root: ../../.local/t-max/mounts
 defaultBranch: master
 skill: SKILL.md
+discoverySkills:
+  frontend-delivery: .loop/skills/frontend-delivery.SKILL.md
+  ane-standard-page: .loop/skills/ane-standard-page.SKILL.md
 localPaths: .loop/local.paths.yaml
 background:
   id: xiaoneng

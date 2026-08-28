@@ -166,7 +166,15 @@ async function main(argv: string[]): Promise<void> {
     }
 
     const runtime = new SimulationRuntime();
-    const result = await runtime.simulate({ workspaceRoot, loopPath, repoRoot: process.cwd() });
+    const result = await runtime.simulate({
+      workspaceRoot,
+      loopPath,
+      repoRoot: process.cwd(),
+      targetProject: options.targetProject,
+      targetRepository: options.targetRepository,
+      targetCwd: options.targetCwd,
+      targetRemote: options.targetRemote
+    });
     if (options.json) {
       process.stdout.write(formatJson(result));
     } else {
@@ -366,8 +374,8 @@ async function runAcpCommand(options: CliOptions, workspaceRoot: string, loopPat
       loop
     }),
     providerRuntime: new ProviderRuntime(),
-    defaultProjectId: plan.orchestrator?.routesTo.project.projectId ?? loop.handoff.project,
-    defaultRepositoryId: plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId
+    defaultProjectId: plan.projectRoute.projectId,
+    defaultRepositoryId: plan.projectRoute.resolution.matchedRepositoryId
   });
 }
 
@@ -500,8 +508,8 @@ async function runTaskCommand(options: CliOptions, workspaceRoot: string, loopPa
       taskId: optionalGateFlag(flags, 'task-id'),
       request: {
         entryPoint: 'cli',
-        projectId: plan.orchestrator?.routesTo.project.projectId ?? loop.handoff.project,
-        repositoryId: plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId,
+        projectId: plan.projectRoute.projectId,
+        repositoryId: plan.projectRoute.resolution.matchedRepositoryId,
         loopId: loop.metadata.id,
         runId: optionalGateFlag(flags, 'run-id'),
         title: optionalGateFlag(flags, 'title'),
@@ -703,9 +711,11 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Schedule: ${plan.schedule.type} ${plan.schedule.expression} (${plan.schedule.timezone})\n`);
   process.stdout.write(`Budget: ${plan.budget.ok ? 'ok' : plan.budget.reasons.join(', ')}\n`);
   if (plan.orchestrator) {
-    const project = plan.orchestrator.routesTo.project;
-    const resolvedTarget = project.resolution.matchedRepositoryId ?? project.resolution.target ?? project.projectId;
     process.stdout.write(`Orchestrator: ${plan.orchestrator.agentId} (${plan.orchestrator.agentFile})\n`);
+  }
+  {
+    const project = plan.projectRoute;
+    const resolvedTarget = project.resolution.matchedRepositoryId ?? project.resolution.target ?? project.projectId;
     process.stdout.write(`Resolved target: ${resolvedTarget} -> ${project.projectId}`);
     if (project.background) {
       process.stdout.write(` -> ${project.background.id}`);
@@ -866,7 +876,7 @@ function printHelp(): void {
 	  loop task cancel --loop <loop-id> --task-id <id> --reason <text> [--workspace workspace] [--json]
 	  loop execute --loop <loop-id> --run-id <id> --task-id <id> --stage <stage-id> --subject-file <json-file> [--attempt <n>] [--action <action>]... [--provider-profile codex-cli-read-only|codex-cli-writable|claude-code-managed|gemini-cli-managed] [--allow-experimental-provider <true|false>] [--codex-executable <path>] [--codex-ignore-user-config <true|false>] [--codex-output-schema <true|false>] [--claude-executable <path>] [--gemini-executable <path>] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--workspace workspace] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
-  loop simulate [--workspace workspace] [--loop morning-triage] [--json]
+  loop simulate [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
 `);
 }

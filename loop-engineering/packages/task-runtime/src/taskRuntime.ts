@@ -125,7 +125,8 @@ export class TaskRuntime {
       actor: 'runtime',
       state: 'prepared',
       data: {
-        projectRoute: this.options.plan.orchestrator?.routesTo.project,
+        projectContext: this.options.plan.projectContext,
+        projectRoute: this.options.plan.projectRoute,
         backgroundContextDigest: this.options.plan.backgroundContext
           ? backgroundPlanDigestInput(this.options.plan.backgroundContext)
           : null,
@@ -325,6 +326,11 @@ function projectTaskEnvelope(loop: LoopSpec, events: TaskEvent[]): TaskEnvelope 
     repositoryId: request.repositoryId,
     loopId: loop.metadata.id,
     runId: request.runId,
+    projectContext: isRecord(preparedData.projectContext)
+      ? preparedData.projectContext as unknown as TaskEnvelope['projectContext']
+      : isRecord(preparedData.projectRoute) && isRecord(preparedData.projectRoute.projectContext)
+        ? preparedData.projectRoute.projectContext as unknown as TaskEnvelope['projectContext']
+        : undefined,
     projectRoute: isRecord(preparedData.projectRoute) ? preparedData.projectRoute as unknown as TaskEnvelope['projectRoute'] : undefined,
     subject: request.subject,
     requestedActions: request.requestedActions,

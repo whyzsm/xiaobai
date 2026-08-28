@@ -290,7 +290,7 @@ async function handleSearch(command: string, paths: MemoryPaths, args: ParsedMem
   const index = await readMemoryIndex(paths.indexPath, paths.vaultRoot);
   const matches = searchMemory(index, {
     query: args.query ?? '',
-    project: args.project,
+    projectId: args.project ?? path.basename(paths.projectRoot),
     type: args.type,
     tag: args.tag,
     confidence: args.confidence,

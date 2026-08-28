@@ -18,17 +18,11 @@ export async function loadMemoryContext(options: LoadMemoryContextOptions): Prom
   const coreNotes = selectCoreNotes(options.index.notes, options.projectId, options.loopId);
   const expansion = searchMemory(options.index, {
     query: options.query ?? '',
-    project: options.projectId,
+    projectId: options.projectId,
     limit: 6
   }).map((match) => match.note);
-  const crossProject = searchMemory(options.index, {
-    query: options.query ?? '',
-    limit: 6
-  })
-    .map((match) => match.note)
-    .filter((note) => note.projectId !== options.projectId && (note.kind === 'case' || note.kind === 'pattern'));
 
-  const notes = uniqueNotes([...coreNotes, ...expansion, ...crossProject]);
+  const notes = uniqueNotes([...coreNotes, ...expansion]);
   const items: MemoryContextItem[] = [];
   for (const note of notes) {
     if (!(await pathExists(note.path))) {

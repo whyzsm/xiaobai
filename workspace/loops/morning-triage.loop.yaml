@@ -24,6 +24,8 @@ orchestrator:
 handoff:
   strategy: one-worktree-per-finding
   project: app-a
+  targetResolution:
+    required: true
   worktreeRoot: worktrees/runs
   branchTemplate: "loop/morning-triage/{date}/{taskId}"
 generator:
