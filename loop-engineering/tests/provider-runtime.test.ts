@@ -885,6 +885,7 @@ function taskFixture(input: { subject: Record<string, unknown> }): TaskEnvelope 
         id: 'event-1',
         seq: 1,
         taskId: 'task-1',
+        projectId: 't-max',
         eventType: 'task/created',
         occurredAt: '2026-08-15T00:00:00.000Z',
         actor: 'runtime',

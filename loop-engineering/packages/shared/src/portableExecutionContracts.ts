@@ -158,7 +158,7 @@ export function validateTaskEnvelope(value: unknown): string[] {
   if (!Array.isArray(value.events)) {
     errors.push('events must be an array');
   } else {
-    errors.push(...validateTaskEventSequence(value.events, value.taskId));
+    errors.push(...validateTaskEventSequence(value.events, value.taskId, value.projectId));
   }
 
   if (requiresWorkspaceLease(value as Partial<TaskEnvelope>) && !isNonEmptyString(value.workspaceLeaseId)) {
@@ -177,6 +177,7 @@ export function validateTaskEvent(value: unknown): string[] {
     errors.push('seq must be a positive integer');
   }
   requireString(value, 'taskId', errors);
+  requireString(value, 'projectId', errors);
   if (!taskEventTypes.has(value.eventType as TaskEventType)) errors.push('eventType must be a supported task event type');
   if (!taskActors.has(String(value.actor))) errors.push('actor must be a supported task actor');
   if (value.state !== undefined && !taskStates.has(value.state as TaskState)) errors.push('state must be a supported task state');
@@ -369,7 +370,7 @@ export function assertValidPromotionPlan(value: unknown): asserts value is Promo
   assertNoErrors('PromotionPlan', validatePromotionPlan(value));
 }
 
-function validateTaskEventSequence(events: unknown[], expectedTaskId: unknown): string[] {
+function validateTaskEventSequence(events: unknown[], expectedTaskId: unknown, expectedProjectId: unknown): string[] {
   const errors: string[] = [];
   const ids = new Set<string>();
   let previousTime = Number.NEGATIVE_INFINITY;
@@ -378,6 +379,9 @@ function validateTaskEventSequence(events: unknown[], expectedTaskId: unknown): 
     errors.push(...validateTaskEvent(event).map((error) => `events[${index}]: ${error}`));
     if (!isRecord(event)) return;
     if (event.taskId !== expectedTaskId) errors.push(`events[${index}]: taskId must match envelope taskId`);
+    if (event.projectId !== expectedProjectId) {
+      errors.push(`events[${index}]: projectId must match envelope projectId`);
+    }
     if (event.seq !== index + 1) errors.push(`events[${index}]: seq must be ${index + 1}`);
     if (typeof event.id === 'string') {
       if (ids.has(event.id)) errors.push(`events[${index}]: duplicate id ${event.id}`);

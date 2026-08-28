@@ -44,6 +44,7 @@ function taskEvent(taskId: string, eventType: TaskEvent['eventType'], state: Tas
     id: `task-event-${seq}`,
     seq,
     taskId,
+    projectId: 't-max',
     eventType,
     occurredAt: `2026-08-18T00:00:0${seq}.000Z`,
     actor: 'runtime',

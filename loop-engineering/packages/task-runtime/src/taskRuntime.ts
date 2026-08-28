@@ -20,6 +20,7 @@ import {
 } from '../../shared/src/types';
 import {
   assertValidTaskEnvelope,
+  validateTaskEvent,
   validateTaskRequest
 } from '../../shared/src/portableExecutionContracts';
 import { SkillContextResolver } from '../../skill-context-runtime/src/skillContextResolver';
@@ -104,6 +105,7 @@ export class TaskRuntime {
       id: randomUUID(),
       seq: 1,
       taskId,
+      projectId: this.options.plan.projectContext.projectId,
       eventType: 'task/created',
       occurredAt: now,
       actor: 'entrypoint',
@@ -120,6 +122,7 @@ export class TaskRuntime {
       id: randomUUID(),
       seq: 2,
       taskId,
+      projectId: this.options.plan.projectContext.projectId,
       eventType: 'task/prepared',
       occurredAt: this.clock().toISOString(),
       actor: 'runtime',
@@ -170,6 +173,7 @@ export class TaskRuntime {
       id: randomUUID(),
       seq: current.events.length + 1,
       taskId: input.taskId,
+      projectId: this.options.plan?.projectContext.projectId ?? current.projectId,
       eventType: input.eventType,
       occurredAt: this.clock().toISOString(),
       actor: input.actor ?? 'runtime',
@@ -218,6 +222,10 @@ export class TaskRuntime {
         value = JSON.parse(line) as unknown;
       } catch {
         throw new Error(`Invalid TaskEvent JSONL at ${filePath}:${index + 1}`);
+      }
+      const errors = validateTaskEvent(value);
+      if (errors.length > 0) {
+        throw new Error(`Invalid TaskEvent JSONL at ${filePath}:${index + 1}: ${errors.join('; ')}`);
       }
       return value as TaskEvent;
     });
@@ -286,6 +294,10 @@ export class TaskRuntime {
   }
 
   private async appendEvent(event: TaskEvent): Promise<void> {
+    const expectedProjectId = this.options.plan?.projectContext.projectId;
+    if (expectedProjectId && event.projectId !== expectedProjectId) {
+      throw new Error(`TaskEvent projectId must match runtime projectId ${expectedProjectId}`);
+    }
     const existing = (await this.readEvents()).filter((item) => item.taskId === event.taskId);
     if (existing.some((item) => item.id === event.id)) {
       throw new Error(`Cannot append duplicate TaskEvent id: ${event.id}`);

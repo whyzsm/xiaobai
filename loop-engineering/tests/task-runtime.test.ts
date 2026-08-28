@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import { TaskRuntime } from '../packages/task-runtime/src/taskRuntime';
@@ -56,7 +56,28 @@ test('task runtime creates prepared task envelopes with route and background met
   assert.deepEqual(task.projectContext, plan.projectContext);
   assert.deepEqual(task.gateRequirements, ['repo-write']);
   assert.equal(task.events.length, 2);
+  assert.equal(task.events.every((event) => event.projectId === 't-max'), true);
   assert.equal(task.events[1].data.backgroundContextDigest !== null, true);
+});
+
+test('task runtime fails closed when stored task events lack project identity', async () => {
+  const { runtime } = await createRuntime();
+  await mkdir(path.dirname(runtime.filePath()), { recursive: true });
+  await writeFile(runtime.filePath(), `${JSON.stringify({
+    kind: 'TaskEvent',
+    version: 1,
+    id: 'legacy-event',
+    seq: 1,
+    taskId: 'task-legacy',
+    eventType: 'task/created',
+    occurredAt: '2026-08-15T00:00:00.000Z',
+    actor: 'runtime',
+    state: 'created',
+    data: {},
+    evidence: []
+  })}\n`, 'utf8');
+
+  await assert.rejects(() => runtime.readEvents(), /projectId must be a non-empty string/);
 });
 
 test('task runtime rejects invalid transitions and writable run without a lease', async () => {

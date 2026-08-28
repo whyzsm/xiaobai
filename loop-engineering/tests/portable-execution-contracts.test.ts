@@ -62,6 +62,7 @@ test('portable task contracts accept a valid request and envelope', () => {
         id: 'event-1',
         seq: 1,
         taskId: 'task-1',
+        projectId: 't-max',
         eventType: 'task/created',
         occurredAt: now,
         actor: 'runtime',
@@ -75,6 +76,7 @@ test('portable task contracts accept a valid request and envelope', () => {
         id: 'event-2',
         seq: 2,
         taskId: 'task-1',
+        projectId: 't-max',
         eventType: 'task/leased',
         occurredAt: later,
         actor: 'runtime',
@@ -89,6 +91,12 @@ test('portable task contracts accept a valid request and envelope', () => {
 
   assert.deepEqual(validateTaskEnvelope(envelope), []);
   assert.doesNotThrow(() => assertValidTaskEnvelope(envelope));
+
+  const crossProjectEvent = {
+    ...envelope,
+    events: envelope.events.map((event, index) => index === 1 ? { ...event, projectId: 'another-project' } : event)
+  };
+  assert.match(validateTaskEnvelope(crossProjectEvent).join('\n'), /projectId must match envelope projectId/);
 });
 
 test('portable task contracts reject invalid states and missing writable lease references', () => {

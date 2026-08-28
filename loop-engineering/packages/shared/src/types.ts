@@ -1033,6 +1033,7 @@ export interface TaskEvent {
   id: string;
   seq: number;
   taskId: string;
+  projectId: string;
   eventType: TaskEventType;
   occurredAt: string;
   actor: 'runtime' | 'entrypoint' | 'provider' | 'broker' | 'evaluator' | 'human';
