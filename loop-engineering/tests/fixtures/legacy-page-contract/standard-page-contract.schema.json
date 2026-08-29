@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xiaoneng:harness:runtime:standard-page-contract:1.0.0",
+  "x-contract-version": "1.0.0",
+  "x-owner": "xiaoneng-agent",
+  "x-kind": "runtime-artifact",
+  "title": "ANE Standard Page Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "taskId",
+    "projectId",
+    "repositoryId",
+    "pageType",
+    "standardPageProfile",
+    "routes",
+    "menus",
+    "fields",
+    "apis",
+    "import",
+    "references",
+    "rules",
+    "sourceEvidence",
+    "contextDigest",
+    "contractDigest"
+  ],
+  "properties": {
+    "contractVersion": { "const": "2.0.0" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "minLength": 1 },
+    "repositoryId": { "type": "string", "minLength": 1 },
+    "pageType": { "const": "StandardPage" },
+    "standardPageProfile": { "type": "string", "minLength": 1 },
+    "routes": { "type": "array", "items": { "type": "object" } },
+    "menus": { "type": "array", "items": { "type": "object" } },
+    "fields": { "type": "array", "items": { "type": "object" } },
+    "apis": { "type": "array", "items": { "type": "object" } },
+    "import": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "ruleRef", "templateRef", "adapterRef"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "ruleRef": { "type": "string", "minLength": 1 },
+        "ruleVersion": { "type": "string", "minLength": 1 },
+        "ruleSource": { "type": "string", "minLength": 1 },
+        "ruleDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "sourceDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "sourcePath": { "type": "string", "minLength": 1 },
+        "templateRef": { "type": "string", "minLength": 1 },
+        "adapterRef": { "type": "string", "minLength": 1 },
+        "forbiddenSources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "references": { "type": "array", "items": { "type": "object" } },
+    "rules": { "type": "array", "items": { "type": "object" } },
+    "sourceEvidence": { "type": "array", "items": { "type": "object" } },
+    "contextDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "contractDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "import": {
+            "properties": { "enabled": { "const": true } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "import": {
+            "required": [
+              "ruleVersion",
+              "ruleSource",
+              "ruleDigest",
+              "sourceCommit",
+              "sourceDigest",
+              "sourcePath"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

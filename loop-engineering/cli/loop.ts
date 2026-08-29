@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { startAcpJsonlServer } from '../packages/acp-server/src/acpStdioServer';
 import { ClientSubmissionRuntime } from '../packages/client-submission-runtime/src/clientSubmissionRuntime';
 import { ClaudeCodeAdapter } from '../packages/execution-runtime/src/claudeCodeAdapter';
@@ -12,7 +12,7 @@ import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
-import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
+import { findLoopSpec, formatJson, listLoopSpecs, readYamlFile } from '../packages/shared/src/fs';
 import { GatePassEvidence, HarnessEvidenceType, JsonRecord, LoopSpec, TaskEnvelope } from '../packages/shared/src/types';
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
@@ -185,15 +185,6 @@ async function main(argv: string[]): Promise<void> {
 
   printHelp();
   process.exitCode = 1;
-}
-
-async function listLoopSpecs(workspaceRoot: string): Promise<string[]> {
-  const loopsDir = path.join(workspaceRoot, 'loops');
-  const files = (await readdir(loopsDir)).filter((file) => file.endsWith('.loop.yaml')).sort();
-  if (files.length === 0) {
-    throw new Error(`No loop specs found in ${loopsDir}`);
-  }
-  return files.map((file) => path.join(loopsDir, file));
 }
 
 function parseArgs(argv: string[]): CliOptions {

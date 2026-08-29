@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/evaluator-result",
+  "title": "EvaluatorResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evaluatorId", "status", "contractVersion", "findings", "evidence"],
+  "properties": {
+    "evaluatorId": { "type": "string", "pattern": "^agent_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "status": { "enum": ["passed", "failed"] },
+    "contractVersion": { "type": "string", "minLength": 1 },
+    "findings": { "type": "array", "items": { "type": "object" } },
+    "evidence": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -78,8 +78,8 @@ export class LoopRuntime {
       skillRuntime.loadDiscoverySkill(loop, project.id),
       connectorRuntime.collect(loop.discovery.sources),
       harnessRuntime.load(loop),
-      agentRuntime.loadAgent(loop.verification.evaluator),
-      loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined)
+      agentRuntime.loadAgent(loop.verification.evaluator, loop),
+      loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent, loop) : Promise.resolve(undefined)
     ]);
 
     const context = contextEngine.buildDiscoveryContext({
@@ -158,13 +158,17 @@ function buildBackgroundContextPlan(
     typeof integration.manifest !== 'string' ||
     typeof integration.contract !== 'string' ||
     (integration.executionModes !== undefined &&
-      (typeof integration.executionModes !== 'object' || Array.isArray(integration.executionModes)))
+      (typeof integration.executionModes !== 'object' || Array.isArray(integration.executionModes))) ||
+    (integration.evidenceBundlesByLoop !== undefined &&
+      !isEvidenceBundlesByLoop(integration.evidenceBundlesByLoop))
   ) {
     throw new Error(`Project ${projectRoute.project.id} has an invalid skill-context integration declaration`);
   }
 
   const executionMode = integration.executionModes?.[loop.metadata.id] ?? loop.metadata.id;
-  const evidenceBundles = integration.evidenceBundles ?? [];
+  const evidenceBundles = integration.evidenceBundlesByLoop?.[loop.metadata.id]
+    ?? integration.evidenceBundles
+    ?? [];
   if ((typeof executionMode !== 'string' || executionMode.length === 0) && evidenceBundles.length === 0) {
     throw new Error(
       `Project ${projectRoute.project.id} does not declare a skill-context execution mode or evidence bundle for loop ${loop.metadata.id}`
@@ -329,6 +333,7 @@ function buildWorkflowPlan(loop: LoopSpec): WorkflowPlan | undefined {
       requiredChecks: stage.requiredChecks ?? [],
       requiredGates: stage.requiredGates ?? [],
       requiredBefore: stage.requiredBefore ?? [],
+      ...(stage.validators !== undefined ? { validators: [...stage.validators] } : {}),
       outputs: stage.outputs ?? []
     }))
   };
@@ -337,4 +342,15 @@ function buildWorkflowPlan(loop: LoopSpec): WorkflowPlan | undefined {
 function displayPath(workspaceRoot: string, filePath: string): string {
   const relativePath = path.relative(workspaceRoot, filePath);
   return relativePath === '..' || relativePath.startsWith(`..${path.sep}`) ? filePath : relativePath;
+}
+
+function isEvidenceBundlesByLoop(value: unknown): value is Record<string, string[]> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every(
+      (bundles) => Array.isArray(bundles) && bundles.every((bundle) => typeof bundle === 'string' && bundle.length > 0)
+    )
+  );
 }

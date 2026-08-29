@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/stage-evidence",
+  "title": "StageEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stageId", "status", "enteredAt", "firstActionAt", "exitedAt", "durationMs", "activeMs", "waitingMs", "waitingReason", "evidence"],
+  "properties": {
+    "stageId": { "type": "string", "pattern": "^stage_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "status": { "enum": ["active", "blocked", "completed", "failed", "unmeasured"] },
+    "enteredAt": { "type": "string", "minLength": 1 },
+    "firstActionAt": { "type": "string", "minLength": 1 },
+    "exitedAt": { "type": "string", "minLength": 1 },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "activeMs": { "type": "integer", "minimum": 0 },
+    "waitingMs": { "type": "integer", "minimum": 0 },
+    "waitingReason": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "array", "minItems": 1 },
+    "timingSource": { "enum": ["host-session", "plugin-clock", "unmeasured"] },
+    "waitingReasons": { "type": "array", "items": { "type": "string" } }
+  }
+}

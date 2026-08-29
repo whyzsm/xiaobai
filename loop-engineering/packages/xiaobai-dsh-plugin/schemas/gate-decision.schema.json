@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/gate-decision",
+  "title": "GateDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gateId", "outcome", "actor", "reason", "timestamp", "inputDigest", "evidence", "approval"],
+  "properties": {
+    "gateId": { "type": "string", "pattern": "^gate_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "outcome": { "enum": ["allowed", "rejected", "unavailable", "cancelled", "rework"] },
+    "actor": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "inputDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "evidence": { "type": "array", "minItems": 1 },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "auditRequired", "asked", "decided"],
+      "properties": {
+        "outcome": { "enum": ["allowed-once", "rejected", "cancelled", "unavailable"] },
+        "auditRequired": { "const": true },
+        "asked": { "const": true },
+        "decided": { "const": true },
+        "requestId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

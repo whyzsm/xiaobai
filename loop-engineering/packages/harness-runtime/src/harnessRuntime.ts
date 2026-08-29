@@ -8,10 +8,15 @@ import {
   HarnessSpec,
   JsonRecord,
   LoopSpec,
+  ValidatorResultAttestation,
   WorkflowStagePlan,
   WorktreePlan
 } from '../../shared/src/types';
 import { readYamlFile } from '../../shared/src/fs';
+import {
+  resolveSkillPackageAgentPath,
+  resolveSkillPackageAssetsForLoop
+} from '../../shared/src/skillPackageAssets';
 
 const evidenceTypes = new Set<HarnessEvidenceType>([
   'command',
@@ -28,7 +33,9 @@ export class HarnessRuntime {
   constructor(private readonly workspaceRoot: string) {}
 
   async load(loop: LoopSpec): Promise<HarnessSpec> {
-    return readYamlFile<HarnessSpec>(path.join(this.workspaceRoot, 'agents', loop.generator.harness));
+    const assets = await resolveSkillPackageAssetsForLoop(this.workspaceRoot, loop);
+    const packagePath = resolveSkillPackageAgentPath(assets, loop.generator.harness);
+    return readYamlFile<HarnessSpec>(packagePath ?? path.join(this.workspaceRoot, 'agents', loop.generator.harness));
   }
 
   planGeneratorRuns(loop: LoopSpec, harness: HarnessSpec, worktrees: WorktreePlan[]): AgentRunPlan[] {
@@ -71,6 +78,19 @@ export class HarnessRuntime {
     const missingEvidence = harness.completion.conditions.filter(
       (condition) => completedConditions.has(condition) && !evidencedChecks.has(condition)
     );
+    const requiredValidators = unique(harness.validators ?? []);
+    const { validatorResults, validatorErrors } = normalizeValidatorResults(submission.validatorResults);
+    const validatorById = new Map(validatorResults.map((result) => [result.validatorId, result]));
+    const missingValidators = requiredValidators.filter((validatorId) => !validatorById.has(validatorId));
+    const skippedValidators = requiredValidators.filter(
+      (validatorId) => validatorById.get(validatorId)?.status === 'skipped'
+    );
+    const failedValidators = requiredValidators.filter(
+      (validatorId) => validatorById.get(validatorId)?.status === 'failed'
+    );
+    const unknownValidatorResults = validatorResults
+      .map((result) => result.validatorId)
+      .filter((validatorId) => !requiredValidators.includes(validatorId));
 
     const checks = {
       identity: identityErrors.length === 0,
@@ -78,7 +98,12 @@ export class HarnessRuntime {
       tools: deniedTools.length === 0 && unallowedTools.length === 0,
       completion: missingConditions.length === 0 && unknownConditions.length === 0,
       output: missingOutputs.length === 0,
-      evidence: missingEvidence.length === 0
+      evidence: missingEvidence.length === 0,
+      validators: missingValidators.length === 0 &&
+        skippedValidators.length === 0 &&
+        failedValidators.length === 0 &&
+        validatorErrors.length === 0 &&
+        unknownValidatorResults.length === 0
     };
     const startedAt = parseTimestamp(submission.startedAt);
     const finishedAt = parseTimestamp(submission.finishedAt);
@@ -109,8 +134,14 @@ export class HarnessRuntime {
         missingConditions,
         unknownConditions,
         missingOutputs,
-        missingEvidence
-      }
+        missingEvidence,
+        missingValidators,
+        skippedValidators,
+        failedValidators,
+        invalidValidatorResults: validatorErrors,
+        unknownValidatorResults
+      },
+      validatorResults
     };
   }
 }
@@ -125,7 +156,12 @@ export function specializeHarnessForStage(harness: HarnessSpec, stage: WorkflowS
     },
     output: {
       required: [...stage.outputs]
-    }
+    },
+    ...(stage.validators !== undefined
+      ? { validators: [...stage.validators] }
+      : harness.validators !== undefined
+        ? { validators: [...harness.validators] }
+        : {})
   };
 }
 
@@ -162,10 +198,115 @@ function normalizeSubmission(value: unknown): { submission: HarnessRunSubmission
       contextCharactersUsed: Number.isInteger(contextCharactersUsed) ? Number(contextCharactersUsed) : 0,
       toolsUsed: stringArray(input, 'toolsUsed', errors),
       completedConditions: stringArray(input, 'completedConditions', errors),
+      validatorResults: optionalValidatorResults(input, errors),
       output: recordValue(input, 'output', errors),
       evidence: evidenceArray(input, errors)
     },
     errors
+  };
+}
+
+function optionalValidatorResults(input: JsonRecord, errors: string[]): ValidatorResultAttestation[] {
+  if (input.validatorResults === undefined) return [];
+  if (!Array.isArray(input.validatorResults)) {
+    errors.push('validatorResults must be an array');
+    return [];
+  }
+  return input.validatorResults.flatMap((value, index) => {
+    const result = normalizeValidatorResult(value, index, errors);
+    return result ? [result] : [];
+  });
+}
+
+function normalizeValidatorResults(results: ValidatorResultAttestation[] | undefined): {
+  validatorResults: ValidatorResultAttestation[];
+  validatorErrors: string[];
+} {
+  const validatorResults = results ?? [];
+  const validatorErrors: string[] = [];
+  const seen = new Set<string>();
+  validatorResults.forEach((result) => {
+    if (seen.has(result.validatorId)) validatorErrors.push('duplicate validator result: ' + result.validatorId);
+    seen.add(result.validatorId);
+  });
+  return { validatorResults, validatorErrors };
+}
+
+function normalizeValidatorResult(
+  value: unknown,
+  index: number,
+  errors: string[]
+): ValidatorResultAttestation | null {
+  if (!isRecord(value)) {
+    errors.push('validatorResults[' + index + '] must be an object');
+    return null;
+  }
+  const validatorId = value.validatorId;
+  const status = value.status;
+  const exitCode = value.exitCode;
+  const resultPath = value.resultPath;
+  const resultDigest = value.resultDigest;
+  if (typeof validatorId !== 'string' || validatorId.trim().length === 0) {
+    errors.push('validatorResults[' + index + '].validatorId must be a non-empty string');
+    return null;
+  }
+  if (status !== 'passed' && status !== 'failed' && status !== 'skipped') {
+    errors.push('validatorResults[' + index + '].status must be passed, failed, or skipped');
+    return null;
+  }
+  if (exitCode !== null && (!Number.isInteger(exitCode) || Number(exitCode) < 0 || Number(exitCode) > 255)) {
+    errors.push('validatorResults[' + index + '].exitCode must be null or an integer from 0 to 255');
+    return null;
+  }
+  if (typeof resultPath !== 'string' && resultPath !== null) {
+    errors.push('validatorResults[' + index + '].resultPath must be null or a relative path');
+    return null;
+  }
+  if (typeof resultDigest !== 'string' && resultDigest !== null) {
+    errors.push('validatorResults[' + index + '].resultDigest must be null or a sha256 digest');
+    return null;
+  }
+  const normalizedPath = typeof resultPath === 'string'
+    ? resultPath.replaceAll(String.fromCharCode(92), '/')
+    : null;
+  if (
+    normalizedPath !== null &&
+    (normalizedPath.length === 0 || normalizedPath.startsWith('/') || normalizedPath.split('/').includes('..'))
+  ) {
+    errors.push('validatorResults[' + index + '].resultPath must be a relative path without parent traversal');
+    return null;
+  }
+  if (resultDigest !== null && !/^[a-f0-9]{64}$/.test(resultDigest)) {
+    errors.push('validatorResults[' + index + '].resultDigest must be a sha256 digest');
+    return null;
+  }
+  if (status === 'passed' && (exitCode !== 0 || normalizedPath === null || resultDigest === null)) {
+    errors.push('validatorResults[' + index + '] passed result must include exitCode 0, resultPath, and resultDigest');
+    return null;
+  }
+  if (
+    status === 'failed' &&
+    (exitCode === null || exitCode === 0 || normalizedPath === null || resultDigest === null)
+  ) {
+    errors.push('validatorResults[' + index + '] failed result must include a non-zero exitCode, resultPath, and resultDigest');
+    return null;
+  }
+  if (status === 'skipped' && exitCode !== null) {
+    errors.push('validatorResults[' + index + '] skipped result must have a null exitCode');
+    return null;
+  }
+  const reasons = value.reasons;
+  if (reasons !== undefined && (!Array.isArray(reasons) || reasons.some((reason) => typeof reason !== 'string'))) {
+    errors.push('validatorResults[' + index + '].reasons must be an array of strings');
+    return null;
+  }
+  return {
+    validatorId,
+    status,
+    exitCode: exitCode as number | null,
+    resultPath: normalizedPath,
+    resultDigest,
+    ...(reasons !== undefined ? { reasons: reasons as string[] } : {})
   };
 }
 

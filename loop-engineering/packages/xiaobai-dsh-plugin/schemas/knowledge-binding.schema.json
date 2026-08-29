@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/knowledge-binding",
+  "title": "KnowledgeBinding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["knowledgeId", "source", "scope", "revision", "digest", "readOnly", "trust", "requiredCapabilities"],
+  "properties": {
+    "knowledgeId": { "type": "string", "pattern": "^know_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "source": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "readOnly": { "type": "boolean" },
+    "trust": { "enum": ["bundled", "project", "external", "derived"] },
+    "requiredCapabilities": { "type": "array", "items": { "type": "string" } }
+  }
+}

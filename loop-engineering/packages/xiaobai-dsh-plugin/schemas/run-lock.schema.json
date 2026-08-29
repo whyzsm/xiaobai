@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/run-lock",
+  "title": "RunLock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "host", "workspaceId", "projectId", "scopeKey", "knowledge", "repositoryBindingDigest", "agentPolicyDigest", "skillRevision", "workflowScriptDigest", "policyDigest", "memoryNamespaceId", "artifactRoot", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "xiaobai.contracts/v1" },
+    "runId": { "type": "string", "pattern": "^run_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "host": { "type": "object" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "scopeKey": { "type": "string", "minLength": 1 },
+    "knowledge": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "xiaobai.contracts/v1/knowledge-binding" }
+    },
+    "repositoryBindingDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "agentPolicyDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "skillRevision": { "type": "string", "minLength": 1 },
+    "workflowScriptDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "policyDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "memoryNamespaceId": { "type": "string", "pattern": "^mem_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "artifactRoot": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "minLength": 1 }
+  }
+}

@@ -273,6 +273,23 @@ function isToolItemType(value: string): boolean {
 }
 
 
+const validatorResultsSchema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['validatorId', 'status', 'exitCode', 'resultPath', 'resultDigest'],
+    properties: {
+      validatorId: { type: 'string', minLength: 1 },
+      status: { enum: ['passed', 'failed', 'skipped'] },
+      exitCode: { type: ['integer', 'null'], minimum: 0, maximum: 255 },
+      resultPath: { type: ['string', 'null'], minLength: 1 },
+      resultDigest: { type: ['string', 'null'], pattern: '^[a-f0-9]{64}$' },
+      reasons: { type: 'array', items: { type: 'string' } }
+    }
+  }
+} as const;
+
 const codexOutputSchema = {
   type: 'object',
   additionalProperties: false,
@@ -289,6 +306,7 @@ const codexOutputSchema = {
     contextCharactersUsed: { type: 'integer', minimum: 0 },
     toolsUsed: { type: 'array', items: { type: 'string', minLength: 1 } },
     completedConditions: { type: 'array', items: { type: 'string', minLength: 1 } },
+    validatorResults: validatorResultsSchema,
     output: { type: 'object', additionalProperties: true },
     evidence: {
       type: 'array',

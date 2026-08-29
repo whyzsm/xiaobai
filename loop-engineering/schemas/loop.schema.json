@@ -193,6 +193,11 @@
         "outputs": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
+        },
+        "validators": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
         }
       }
     },

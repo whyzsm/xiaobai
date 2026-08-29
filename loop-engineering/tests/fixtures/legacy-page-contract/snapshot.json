@@ -1,0 +1,36 @@
+{
+  "purpose": "T1.4 parity 夹具的旧路径基线快照：把小能 page-contract 裁决闭包钉化到工程仓，使 parity 测试在无挂载的 CI 环境可运行。verbatim 文件必须与 source.sha256 逐字节一致；小能源文件变更后需重新钉化并同步更新适配器。 / Legacy-path baseline snapshot for the T1.4 parity fixture: pins the xiaoneng page-contract decision closure inside this repository so parity tests run in CI without the local mount. Verbatim files must match source.sha256 byte-for-byte; re-pin and update the adapter when the xiaoneng source changes.",
+  "source": {
+    "repo": "xiaoneng (background mount: workspace/.local/t-max/mounts/background/xiaoneng)",
+    "commit": "21b556befa947d0c7df9f6d9d7664b1af7398b69",
+    "pinnedAt": "2026-08-29"
+  },
+  "files": {
+    "page-contract-core.mjs": {
+      "source": "harness/runtime/page-contract-core.mjs",
+      "mode": "verbatim",
+      "sha256": "18ed5d97d44ba49800af0fc96ca2a68cde0de06234dedab4d603a7b3ffa62f59"
+    },
+    "schema-validation.mjs": {
+      "source": "harness/scripts/control-plane/schema-validation.mjs",
+      "mode": "verbatim",
+      "sha256": "1ab65dc4e505c77b9d206164f1bb73db2a56431fe4a0a023bd90a9d34feaf9ec"
+    },
+    "standard-page-contract.schema.json": {
+      "source": "harness/contracts/runtime/standard-page-contract.schema.json",
+      "mode": "verbatim",
+      "sha256": "01230c3f9fb8575e735bba1d9a177819384464f30141132c89cfbd593c9ac9b4"
+    },
+    "legacy-page-contract.mjs": {
+      "source": "harness/runtime/page-contract-validator.mjs",
+      "mode": "adapted",
+      "sourceSha256": "21ffe82ad6762ba8321b9eaa37e02dedd657870d7b9a68d885a72ed570f3ab07",
+      "vendoredSha256": "915212eeecb6bc5ba3baaf09403098f7694efa3a6d34a95e43f346815cdf156e",
+      "changes": [
+        "validateSchema import redirected to vendored ./schema-validation.mjs",
+        "loadJson inlined (originally from ../scripts/validate-control-plane.mjs)",
+        "schema path resolved to local ./standard-page-contract.schema.json"
+      ]
+    }
+  }
+}

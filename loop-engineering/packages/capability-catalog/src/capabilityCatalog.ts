@@ -1,7 +1,10 @@
-import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { executionEventTypeCatalog } from '../../execution-runtime/src/executionEvents';
-import { readYamlFile } from '../../shared/src/fs';
+import { listLoopSpecs, readYamlFile } from '../../shared/src/fs';
+import {
+  resolveSkillPackageAgentPath,
+  resolveSkillPackageAssetsForLoop
+} from '../../shared/src/skillPackageAssets';
 import { AgentSpec, HarnessSpec, LoopSpec, LoopWorkflowStage } from '../../shared/src/types';
 
 export interface CapabilityCatalog {
@@ -50,10 +53,9 @@ export interface StageCapability {
 }
 
 export async function generateCapabilityCatalog(workspaceRoot: string): Promise<CapabilityCatalog> {
-  const loopDirectory = path.join(workspaceRoot, 'loops');
-  const loopFiles = (await readdir(loopDirectory)).filter((file) => file.endsWith('.loop.yaml')).sort();
+  const loopPaths = await listLoopSpecs(workspaceRoot);
   const loops = await Promise.all(
-    loopFiles.map((file) => readYamlFile<LoopSpec>(path.join(loopDirectory, file)))
+    loopPaths.map((file) => readYamlFile<LoopSpec>(file))
   );
   return {
     kind: 'CapabilityCatalog',
@@ -73,19 +75,26 @@ export async function generateCapabilityCatalog(workspaceRoot: string): Promise<
 }
 
 async function catalogLoop(workspaceRoot: string, loop: LoopSpec): Promise<LoopCapability> {
+  const assets = await resolveSkillPackageAssetsForLoop(workspaceRoot, loop);
   const agentCache = new Map<string, Promise<AgentSpec>>();
   const harnessCache = new Map<string, Promise<HarnessSpec>>();
   const loadAgent = (file: string): Promise<AgentSpec> => {
     const existing = agentCache.get(file);
     if (existing) return existing;
-    const pending = readYamlFile<AgentSpec>(path.join(workspaceRoot, 'agents', file));
+    const pending = (async () => {
+      const packagePath = resolveSkillPackageAgentPath(assets, file);
+      return readYamlFile<AgentSpec>(packagePath ?? path.join(workspaceRoot, 'agents', file));
+    })();
     agentCache.set(file, pending);
     return pending;
   };
   const loadHarness = (file: string): Promise<HarnessSpec> => {
     const existing = harnessCache.get(file);
     if (existing) return existing;
-    const pending = readYamlFile<HarnessSpec>(path.join(workspaceRoot, 'agents', file));
+    const pending = (async () => {
+      const packagePath = resolveSkillPackageAgentPath(assets, file);
+      return readYamlFile<HarnessSpec>(packagePath ?? path.join(workspaceRoot, 'agents', file));
+    })();
     harnessCache.set(file, pending);
     return pending;
   };

@@ -43,6 +43,7 @@
         "tool/call",
         "tool/result",
         "executor/completed",
+        "validator/verdict",
         "harness/verdict",
         "evaluation/verdict"
       ]

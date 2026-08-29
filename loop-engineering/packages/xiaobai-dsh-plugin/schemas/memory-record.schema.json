@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/memory-record",
+  "title": "MemoryRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["projectId", "namespaceId", "kind", "body", "sourceRef", "createdAt", "provenance", "retention"],
+  "properties": {
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "namespaceId": { "type": "string", "pattern": "^mem_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "kind": { "enum": ["state", "inbox", "decision", "run", "finding", "metric"] },
+    "body": { "type": "object" },
+    "sourceRef": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "provenance": { "$ref": "xiaobai.contracts/v1/memory-provenance" },
+    "retention": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": "string", "minLength": 1 }
+  }
+}

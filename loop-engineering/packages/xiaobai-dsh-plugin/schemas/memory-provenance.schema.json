@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/memory-provenance",
+  "title": "MemoryProvenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "revision", "digest", "scope", "trust"],
+  "properties": {
+    "source": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "scope": { "type": "string", "minLength": 1 },
+    "trust": { "enum": ["bundled", "project", "external", "derived"] }
+  }
+}

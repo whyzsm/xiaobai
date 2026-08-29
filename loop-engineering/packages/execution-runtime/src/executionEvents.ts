@@ -24,6 +24,7 @@ export const executionEventTypeCatalog: ExecutionEventType[] = [
   'tool/call',
   'tool/result',
   'executor/completed',
+  'validator/verdict',
   'harness/verdict',
   'evaluation/verdict'
 ];
@@ -194,6 +195,7 @@ export function projectExecutionTrace(events: ExecutionEvent[]): ExecutionTraceP
     toolCalls: count(events, 'tool/call'),
     toolResults: count(events, 'tool/result'),
     harnessVerdicts: count(events, 'harness/verdict'),
+    validatorVerdicts: count(events, 'validator/verdict'),
     evaluationVerdicts: count(events, 'evaluation/verdict'),
     errors
   };

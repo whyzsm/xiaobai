@@ -148,7 +148,22 @@ stageOrder:
 stages:
   understand_requirement:
     ownerAgent: xiaoneng-agent
+evidenceBundles:
+  reference-pages:
+    templates:
+      - templates/reference
 `,
+    'utf8'
+  );
+  await mkdir(path.join(sourceRoot, 'templates', 'reference', 'nested'), { recursive: true });
+  await writeFile(
+    path.join(sourceRoot, 'templates', 'reference', 'z-index.js'),
+    'Z_TEMPLATE_CONTENT\n',
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'templates', 'reference', 'nested', 'a-index.js'),
+    'A_TEMPLATE_CONTENT\n',
     'utf8'
   );
   await writeFile(
@@ -226,7 +241,22 @@ function skillContextTestSchema() {
           }
         }
       },
-      contextDigest: digest
+      contextDigest: digest,
+      contractDigest: digest,
+      evidenceBundles: { type: 'array', items: { type: 'string', minLength: 1 } },
+      sourceFiles: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'path', 'digest'],
+          properties: {
+            id: { type: 'string' },
+            path: { type: 'string' },
+            digest
+          }
+        }
+      }
     }
   };
 }
@@ -496,6 +526,23 @@ test('skill context resolver assembles a contract from registered sources only',
   assert(context.characters <= fixture.plan.maxCharacters);
 });
 
+test('skill context resolver expands directory evidence sources in deterministic order', async () => {
+  const fixture = await createSkillContextFixture();
+  const context = await new SkillContextResolver(fixture.workspaceRoot).resolve({
+    ...fixture.plan,
+    evidenceBundles: ['reference-pages']
+  });
+
+  assert.deepEqual(
+    context.documents
+      .filter((document) => document.roles.includes('evidence'))
+      .map((document) => document.path),
+    ['templates/reference/nested/a-index.js', 'templates/reference/z-index.js']
+  );
+  assert.match(JSON.stringify(context), /A_TEMPLATE_CONTENT/);
+  assert.match(JSON.stringify(context), /Z_TEMPLATE_CONTENT/);
+});
+
 test('skill context resolver fails closed when the declared contract is missing', async () => {
   const fixture = await createSkillContextFixture();
   await assert.rejects(
@@ -629,6 +676,47 @@ test('harness fails closed on identity, context, tool, completion, output, and e
   assert.deepEqual(result.violations.unknownConditions, ['unknown-condition']);
   assert.deepEqual(result.violations.missingOutputs, ['changedFiles', 'testResult', 'nextRecommendation']);
   assert.deepEqual(result.violations.missingEvidence, ['code_changed']);
+});
+
+test('harness rejects a claimed completed condition without a validator attestation', async () => {
+  const runtime = new HarnessRuntime(workspaceRoot);
+  const loop = await readYamlFile<LoopSpec>(await findLoopSpec(workspaceRoot, 'morning-triage'));
+  const harness = {
+    ...(await runtime.load(loop)),
+    validators: ['page-contract']
+  };
+  const result = runtime.evaluateRun(loop, harness, {
+    ...validCodingSubmission('run-validator-missing', 'task-validator-missing'),
+    completedConditions: ['code_changed', 'tests_attempted', 'summary_written']
+  });
+
+  assert.equal(result.status, 'failed');
+  assert.equal(result.checks.validators, false);
+  assert.deepEqual(result.violations.missingValidators, ['page-contract']);
+  assert.deepEqual(result.validatorResults, []);
+});
+
+test('harness accepts a passed validator only with process and result evidence', async () => {
+  const runtime = new HarnessRuntime(workspaceRoot);
+  const loop = await readYamlFile<LoopSpec>(await findLoopSpec(workspaceRoot, 'morning-triage'));
+  const harness = {
+    ...(await runtime.load(loop)),
+    validators: ['page-contract']
+  };
+  const result = runtime.evaluateRun(loop, harness, {
+    ...validCodingSubmission('run-validator-pass', 'task-validator-pass'),
+    validatorResults: [{
+      validatorId: 'page-contract',
+      status: 'passed',
+      exitCode: 0,
+      resultPath: 'artifacts/validators/page-contract.json',
+      resultDigest: 'a'.repeat(64)
+    }]
+  });
+
+  assert.equal(result.status, 'passed');
+  assert.equal(result.checks.validators, true);
+  assert.deepEqual(result.violations.missingValidators, []);
 });
 
 test('gate pass authorizes the bound workflow stage with required evidence', async () => {
@@ -1688,6 +1776,65 @@ test('execution runtime produces an independent evaluator verdict that can block
   ]);
 });
 
+test('execution runtime records validator verdicts before the harness verdict and blocks missing attestations', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  const validatorStage = { ...stage, validators: ['page-contract'] };
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: {
+      ...fixture.plan,
+      workflow: {
+        stages: fixture.plan.workflow!.stages.map((item) => item.id === stage.id ? validatorStage : item)
+      }
+    },
+    executorInstance: 'executor-validator-missing'
+  }).execute(
+    {
+      runId: 'run-validator-missing',
+      taskId: 'task-validator-missing',
+      stageId: stage.id,
+      subject: {}
+    },
+    {
+      id: 'fake-validator-submitter',
+      async execute() {
+        return {
+          status: 'completed' as const,
+          submission: validStageSubmission(
+            stage,
+            'run-validator-missing',
+            'task-validator-missing',
+            'generator',
+            'coding-harness'
+          ),
+          evidence: []
+        };
+      }
+    }
+  );
+
+  assert.equal(result.status, 'failed');
+  assert.equal(result.harnessResult?.checks.validators, false);
+  assert.deepEqual(result.executionEvents.map((event) => event.eventType), [
+    'gate/decision',
+    'executor/completed',
+    'validator/verdict',
+    'harness/verdict'
+  ]);
+  assert.deepEqual(result.executionEvents.find((event) => event.eventType === 'validator/verdict')?.data, {
+    validatorId: 'page-contract',
+    status: 'missing',
+    exitCode: null,
+    resultPath: null,
+    resultDigest: null,
+    reasons: ['required validator result is missing']
+  });
+});
+
 test('execution runtime rejects concurrent writers for one run', async () => {
   const fixture = await createExecutionFixture('morning-triage');
   let startedResolve!: () => void;
@@ -2275,6 +2422,61 @@ test('frontend delivery routes target remote to harmony background', async () =>
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'harmony-wardrobe-context');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'remote');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
+});
+
+test('t-max selects loop-scoped Xiaoneng evidence without changing the group fallback', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-scoped-evidence-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
+  await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+  for (const loopId of ['ane-standard-page', 'tmax-coding']) {
+    await mkdir(path.join(tempWorkspace, 'memory', 'loops', loopId), { recursive: true });
+    await writeFile(path.join(tempWorkspace, 'memory', 'loops', loopId, 'state.md'), `# ${loopId} test state\n`, 'utf8');
+  }
+
+  const aneLoopPath = await findLoopSpec(tempWorkspace, 'ane-standard-page');
+  const anePlan = await new LoopRuntime().dryRun({
+    workspaceRoot: tempWorkspace,
+    loopPath: aneLoopPath,
+    targetRepository: 'operateBusiness',
+    now: new Date('2026-08-29T00:00:00.000Z')
+  });
+
+  assert.deepEqual(anePlan.backgroundContext?.evidenceBundles, [
+    'standard-page-contract',
+    'import-rules'
+  ]);
+  const aneContext = await new SkillContextResolver(tempWorkspace).resolve(anePlan.backgroundContext!);
+  assert.ok(aneContext.characters <= anePlan.backgroundContext!.maxCharacters);
+
+  const codingLoopPath = await findLoopSpec(tempWorkspace, 'tmax-coding');
+  const codingPlan = await new LoopRuntime().dryRun({
+    workspaceRoot: tempWorkspace,
+    loopPath: codingLoopPath,
+    targetRepository: 'operateBusiness',
+    now: new Date('2026-08-29T00:00:00.000Z')
+  });
+
+  assert.deepEqual(codingPlan.backgroundContext?.evidenceBundles, ['tmax-coding-rules']);
+  assert.equal(codingPlan.backgroundContext?.executionMode, 'tmax-coding');
+  const codingContext = await new SkillContextResolver(tempWorkspace).resolve(codingPlan.backgroundContext!);
+  assert.ok(codingContext.characters <= codingPlan.backgroundContext!.maxCharacters);
+
+  const frontendLoopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const frontendPlan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath: frontendLoopPath,
+    targetRepository: 'operateBusiness',
+    now: new Date('2026-08-29T00:00:00.000Z')
+  });
+
+  assert.deepEqual(frontendPlan.backgroundContext?.evidenceBundles, [
+    'ane-page-rules',
+    'standard-page-contract',
+    'import-rules',
+    'api-binding-rules',
+    'reference-pages'
+  ]);
 });
 
 test('unknown frontend target does not fall back to t-max', async () => {

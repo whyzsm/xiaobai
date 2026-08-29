@@ -1,0 +1,60 @@
+{
+  "name": "@xiaobai/dsh-plugin",
+  "version": "0.1.0",
+  "description": "Xiaobai Loop Engineering domain providers for DeepSeek Harness",
+  "manifestVersion": 1,
+  "hostSupport": {
+    "dsh": "0.1.0-rc.6",
+    "cordis": "4.0.1"
+  },
+  "capabilities": [
+    "project-baseline",
+    "project-scope",
+    "knowledge-lock",
+    "memory-domain",
+    "memory-provenance",
+    "memory-retention",
+    "memory-conflict",
+    "memory-projection",
+    "fixed-workflow",
+    "independent-evaluator",
+    "approval-gate"
+  ],
+  "commands": [
+    "project-bootstrap",
+    "project-assess",
+    "project-run"
+  ],
+  "schemas": [
+    "ProjectId",
+    "KnowledgeBinding",
+    "ProjectBaseline",
+    "RunLock",
+    "AgentProfile",
+    "SkillPackage",
+    "StageEvidence",
+    "MemoryProvenance",
+    "MemoryRecord",
+    "MemoryCheckpoint",
+    "MemoryAudit",
+    "MemoryProjection",
+    "MemoryConflict",
+    "PolicyContext",
+    "EvaluatorResult",
+    "GateDecision"
+  ],
+  "diagnostics": [
+    "host-capability-probe",
+    "lock-drift",
+    "memory-audit",
+    "memory-conflict",
+    "memory-projection",
+    "stage-timing",
+    "host-version-probe",
+    "scope-isolation"
+  ],
+  "entry": {
+    "name": "@xiaobai/dsh-plugin",
+    "inject": []
+  }
+}

@@ -13,6 +13,11 @@ import { pathExists, readYamlFile, resolveWorkspacePath } from './fs';
 import { readFile } from 'node:fs/promises';
 import { resolveMemoryPath, resolveMemoryRoot } from './memoryRoot';
 import { resolveProjectRoute } from '../../project-registry/src/projectRegistry';
+import {
+  SkillPackageAssetPlan,
+  resolveSkillPackageAgentPath,
+  resolveSkillPackageAssets
+} from './skillPackageAssets';
 
 type SchemaName = 'loop' | 'harness' | 'agent' | 'connector' | 'budget';
 
@@ -91,6 +96,22 @@ export async function validateWorkspace(
 
   const projectRoot = resolvedProject?.projectRoot ?? path.join(workspaceRoot, 'projects', loop.handoff.project);
   const projectSkill = path.join(projectRoot, resolvedProject?.project.skill ?? 'SKILL.md');
+  let skillPackageAssets: SkillPackageAssetPlan | undefined;
+  if (resolvedProject) {
+    try {
+      skillPackageAssets = await resolveSkillPackageAssets(projectRoot, resolvedProject.project);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const resolveAgentPath = (fileName: string): string => {
+    try {
+      return resolveSkillPackageAgentPath(skillPackageAssets, fileName) ?? path.join(workspaceRoot, 'agents', fileName);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+      return path.join(workspaceRoot, 'agents', fileName);
+    }
+  };
   const mappedDiscoverySkill = resolvedProject?.project.discoverySkills?.[loop.discovery.skill];
   if (!mappedDiscoverySkill) {
     errors.push(`Missing discovery skill mapping: ${loop.discovery.skill} for project ${loop.handoff.project}`);
@@ -107,10 +128,10 @@ export async function validateWorkspace(
   ) {
     errors.push(`Discovery skill mapping escapes project root: ${discoverySkill}`);
   }
-  const orchestratorPath = loop.orchestrator?.agent ? path.join(workspaceRoot, 'agents', loop.orchestrator.agent) : undefined;
-  const generatorPath = path.join(workspaceRoot, 'agents', loop.generator.agent);
-  const evaluatorPath = path.join(workspaceRoot, 'agents', loop.verification.evaluator);
-  const harnessPath = path.join(workspaceRoot, 'agents', loop.generator.harness);
+  const orchestratorPath = loop.orchestrator?.agent ? resolveAgentPath(loop.orchestrator.agent) : undefined;
+  const generatorPath = resolveAgentPath(loop.generator.agent);
+  const evaluatorPath = resolveAgentPath(loop.verification.evaluator);
+  const harnessPath = resolveAgentPath(loop.generator.harness);
   const budgetPath = path.join(workspaceRoot, 'budgets', 'default.budget.yaml');
 
   for (const requiredPath of [
@@ -243,7 +264,7 @@ export async function validateWorkspace(
     }
 
     if (stage.agent) {
-      const stageAgentPath = path.join(workspaceRoot, 'agents', stage.agent);
+      const stageAgentPath = resolveAgentPath(stage.agent);
       if (!(await pathExists(stageAgentPath))) {
         errors.push(`Missing workflow stage agent: ${stageAgentPath}`);
       } else {
@@ -253,7 +274,7 @@ export async function validateWorkspace(
     }
 
     if (stage.evaluator) {
-      const stageEvaluatorPath = path.join(workspaceRoot, 'agents', stage.evaluator);
+      const stageEvaluatorPath = resolveAgentPath(stage.evaluator);
       if (!(await pathExists(stageEvaluatorPath))) {
         errors.push(`Missing workflow stage evaluator: ${stageEvaluatorPath}`);
       } else {
@@ -265,7 +286,7 @@ export async function validateWorkspace(
     }
 
     if (stage.harness) {
-      const stageHarnessPath = path.join(workspaceRoot, 'agents', stage.harness);
+      const stageHarnessPath = resolveAgentPath(stage.harness);
       if (!(await pathExists(stageHarnessPath))) {
         errors.push(`Missing workflow stage harness: ${stageHarnessPath}`);
       } else {

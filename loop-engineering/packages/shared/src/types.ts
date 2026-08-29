@@ -64,6 +64,7 @@ export interface LoopWorkflowStage {
   agent?: string;
   harness?: string;
   evaluator?: string;
+  validators?: string[];
   dependsOn?: string[];
   requiredChecks?: string[];
   requiredGates?: string[];
@@ -101,6 +102,7 @@ export interface HarnessSpec {
     type: string;
     conditions: string[];
   };
+  validators?: string[];
   failure: Record<string, string>;
   output: {
     required: string[];
@@ -142,6 +144,13 @@ export interface ProjectBackground {
   integration?: SkillContextIntegration;
 }
 
+export interface SkillPackageAssetDeclarations {
+  /** loopId -> package-relative loop spec path */
+  loops?: Record<string, string>;
+  /** package-relative agent/harness yaml paths, resolved by basename */
+  agents?: string[];
+}
+
 export interface SkillContextIntegration {
   kind: 'skill-context';
   version: '1.0.0' | '2.0.0';
@@ -150,7 +159,9 @@ export interface SkillContextIntegration {
   contract: string;
   executionModes?: Record<string, string>;
   evidenceBundles?: string[];
+  evidenceBundlesByLoop?: Record<string, string[]>;
   validators?: string[];
+  assets?: SkillPackageAssetDeclarations;
 }
 
 export interface ProjectRepository {
@@ -299,8 +310,20 @@ export interface HarnessRunSubmission {
   contextCharactersUsed: number;
   toolsUsed: string[];
   completedConditions: string[];
+  validatorResults?: ValidatorResultAttestation[];
   output: JsonRecord;
   evidence: HarnessRunEvidence[];
+}
+
+export type ValidatorResultStatus = 'passed' | 'failed' | 'skipped';
+
+export interface ValidatorResultAttestation {
+  validatorId: string;
+  status: ValidatorResultStatus;
+  exitCode: number | null;
+  resultPath: string | null;
+  resultDigest: string | null;
+  reasons?: string[];
 }
 
 export interface HarnessRunResult {
@@ -319,6 +342,7 @@ export interface HarnessRunResult {
     completion: boolean;
     output: boolean;
     evidence: boolean;
+    validators: boolean;
   };
   violations: {
     submissionErrors: string[];
@@ -331,7 +355,13 @@ export interface HarnessRunResult {
     unknownConditions: string[];
     missingOutputs: string[];
     missingEvidence: string[];
+    missingValidators: string[];
+    skippedValidators: string[];
+    failedValidators: string[];
+    invalidValidatorResults: string[];
+    unknownValidatorResults: string[];
   };
+  validatorResults: ValidatorResultAttestation[];
 }
 
 export interface EvaluationVerdict {
@@ -589,6 +619,7 @@ export type ExecutionEventType =
   | 'tool/call'
   | 'tool/result'
   | 'executor/completed'
+  | 'validator/verdict'
   | 'harness/verdict'
   | 'evaluation/verdict';
 
@@ -648,6 +679,7 @@ export interface ExecutionTraceProjection {
   toolCalls: number;
   toolResults: number;
   harnessVerdicts: number;
+  validatorVerdicts: number;
   evaluationVerdicts: number;
   errors: string[];
 }
@@ -765,6 +797,7 @@ export interface WorkflowStagePlan {
   requiredChecks: string[];
   requiredGates: string[];
   requiredBefore: string[];
+  validators?: string[];
   outputs: string[];
 }
 

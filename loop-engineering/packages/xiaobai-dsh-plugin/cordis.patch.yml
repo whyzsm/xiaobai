@@ -1,0 +1,9 @@
+# Xiaobai's dsh bundle layer. The profile owns ordering and can override this row.
+- insert:
+    - id: xiaobai-invariants
+      name: '@deepseek-ai/dsh-invariants'
+    - id: xiaobai-dsh
+      name: '@xiaobai/dsh-plugin'
+      config:
+        m0Probe: !!js process.env.XIAOBAI_DSH_M0 === '1'
+        probeWebServices: !!js process.env.XIAOBAI_DSH_M0_WEB === '1'

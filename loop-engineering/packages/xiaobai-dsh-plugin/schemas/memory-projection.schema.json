@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/memory-projection",
+  "title": "MemoryProjection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["projectionId", "projectId", "namespaceId", "target", "path", "contentDigest", "sourceRecordIds", "content", "createdAt", "provenance"],
+  "properties": {
+    "projectionId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "namespaceId": { "type": "string", "pattern": "^mem_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "target": { "const": "obsidian" },
+    "path": { "type": "string", "minLength": 1 },
+    "contentDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceRecordIds": { "type": "array", "items": { "type": "string" } },
+    "content": { "type": "string" },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "provenance": { "$ref": "xiaobai.contracts/v1/memory-provenance" }
+  }
+}

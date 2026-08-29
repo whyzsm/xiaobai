@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/agent-profile",
+  "title": "AgentProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["agentId", "role", "purpose", "modelPolicyRef", "allowedSkills", "requiredContext", "capabilities", "riskLevel", "humanGatePolicy", "outputContract"],
+  "properties": {
+    "agentId": { "type": "string", "pattern": "^agent_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "role": { "type": "string", "minLength": 1 },
+    "purpose": { "type": "string", "minLength": 1 },
+    "modelPolicyRef": { "type": "string", "minLength": 1 },
+    "allowedSkills": { "type": "array", "items": { "type": "string" } },
+    "requiredContext": { "type": "array", "items": { "type": "string" } },
+    "capabilities": { "type": "array", "items": { "type": "string" } },
+    "riskLevel": { "enum": ["low", "medium", "high", "critical"] },
+    "humanGatePolicy": { "type": "string", "minLength": 1 },
+    "outputContract": { "type": "string", "minLength": 1 }
+  }
+}

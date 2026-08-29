@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.contracts/v1/memory-audit",
+  "title": "MemoryAudit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["auditId", "projectId", "namespaceId", "eventType", "sourceEventRef", "evidence", "createdAt", "provenance"],
+  "properties": {
+    "auditId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "namespaceId": { "type": "string", "pattern": "^mem_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "eventType": { "type": "string", "minLength": 1 },
+    "sourceEventRef": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "provenance": { "$ref": "xiaobai.contracts/v1/memory-provenance" }
+  }
+}

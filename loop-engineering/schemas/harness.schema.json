@@ -43,6 +43,11 @@
         "conditions": { "type": "array", "items": { "type": "string", "minLength": 1 } }
       }
     },
+    "validators": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
     "failure": {
       "type": "object",
       "additionalProperties": { "type": "string", "minLength": 1 },

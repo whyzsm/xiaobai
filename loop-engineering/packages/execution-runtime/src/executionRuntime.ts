@@ -404,6 +404,13 @@ export class ExecutionRuntime {
       await append('failed', [otherEvidence(reasons[0])]);
       return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
     }
+    for (const verdict of validatorVerdictEventData(harnessResult)) {
+      await appendExecution({
+        actor: 'harness',
+        eventType: 'validator/verdict',
+        data: verdict
+      });
+    }
     await appendExecution({
       actor: 'harness',
       eventType: 'harness/verdict',
@@ -836,8 +843,27 @@ function harnessVerdictEventData(result: NonNullable<ExecutionStageResult['harne
     harnessId: result.harnessId,
     durationMs: result.durationMs,
     checks: result.checks,
-    violations: result.violations
+    violations: result.violations,
+    validators: result.validatorResults
   };
+}
+
+function validatorVerdictEventData(result: NonNullable<ExecutionStageResult['harnessResult']>): JsonRecord[] {
+  const validatorIds = new Set([
+    ...result.validatorResults.map((item) => item.validatorId),
+    ...result.violations.missingValidators
+  ]);
+  return [...validatorIds].map((validatorId) => {
+    const attestation = result.validatorResults.find((item) => item.validatorId === validatorId);
+    return {
+      validatorId,
+      status: attestation?.status ?? 'missing',
+      exitCode: attestation?.exitCode ?? null,
+      resultPath: attestation?.resultPath ?? null,
+      resultDigest: attestation?.resultDigest ?? null,
+      reasons: attestation?.reasons ?? (attestation ? [] : ['required validator result is missing'])
+    };
+  });
 }
 
 function otherEvidence(value: string): GatePassEvidence {

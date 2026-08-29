@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { AnySchema, ErrorObject } from 'ajv';
@@ -199,6 +199,42 @@ async function readSourceFile(sourceRoot: string, relativePath: string): Promise
   return { path: relativePath, content: await readFile(resolvedPath, 'utf8') };
 }
 
+async function readSourceEntries(sourceRoot: string, relativePath: string): Promise<SourceFile[]> {
+  assertSafeRelativePath(relativePath);
+  const declaredPath = path.resolve(sourceRoot, relativePath);
+  const resolvedPath = await realpath(declaredPath).catch(() => {
+    throw new Error(`SKILL_CONTEXT_SOURCE_MISSING: ${relativePath}`);
+  });
+  if (!containsPath(sourceRoot, resolvedPath)) {
+    throw new Error(`SKILL_CONTEXT_SOURCE_OUTSIDE_BACKGROUND: ${relativePath}`);
+  }
+  const sourceStat = await stat(resolvedPath);
+  if (sourceStat.isFile()) return [await readSourceFile(sourceRoot, relativePath)];
+  if (!sourceStat.isDirectory()) throw new Error(`SKILL_CONTEXT_SOURCE_NOT_FILE: ${relativePath}`);
+
+  const entries = (await readdir(resolvedPath, { withFileTypes: true }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  const sources: SourceFile[] = [];
+  for (const entry of entries) {
+    const childPath = path.posix.join(relativePath, entry.name);
+    const childResolvedPath = await realpath(path.resolve(sourceRoot, childPath)).catch(() => {
+      throw new Error(`SKILL_CONTEXT_SOURCE_MISSING: ${childPath}`);
+    });
+    if (!containsPath(sourceRoot, childResolvedPath)) {
+      throw new Error(`SKILL_CONTEXT_SOURCE_OUTSIDE_BACKGROUND: ${childPath}`);
+    }
+    const childStat = await stat(childResolvedPath);
+    if (childStat.isDirectory()) {
+      sources.push(...await readSourceEntries(sourceRoot, childPath));
+    } else if (childStat.isFile()) {
+      sources.push(await readSourceFile(sourceRoot, childPath));
+    } else {
+      throw new Error(`SKILL_CONTEXT_SOURCE_NOT_FILE: ${childPath}`);
+    }
+  }
+  return sources;
+}
+
 async function requireDirectoryRealPath(directory: string, code: string): Promise<string> {
   const resolved = await realpath(directory).catch(() => {
     throw new Error(`${code}: ${directory}`);
@@ -359,7 +395,10 @@ async function readEvidenceBundleSources(
       ...(bundle.validators ?? [])
     ]) paths.push(sourcePath);
   }
-  return Promise.all(unique(paths).map((sourcePath) => readSourceFile(sourceRoot, sourcePath)));
+  const expanded = (await Promise.all(
+    unique(paths).map((sourcePath) => readSourceEntries(sourceRoot, sourcePath))
+  )).flat();
+  return [...new Map(expanded.map((source) => [source.path, source])).values()];
 }
 
 function selectRelevantMarkdown(content: string, needles: string[], maxCharacters: number): string {
