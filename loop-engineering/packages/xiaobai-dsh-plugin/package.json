@@ -10,6 +10,7 @@
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
+    "./core-facade": "./lib/core-facade.js",
     "./invariant": "./lib/invariant.js",
     "./package.json": "./package.json"
   },
@@ -24,6 +25,7 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
+    "yaml": "^2.8.0",
     "zod": "4.4.3"
   },
   "dsh": {

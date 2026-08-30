@@ -1,0 +1,79 @@
+{
+  "$id": "xiaobai.monitor/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Xiaobai Monitor Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "workspace", "projects", "loops", "runs", "lineage", "warnings"],
+  "properties": {
+    "schemaVersion": { "const": "xiaobai.monitor/v1" },
+    "generatedAt": { "type": "string", "minLength": 1 },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "status", "projectCount"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "projectCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "projects": { "type": "array", "items": { "type": "object" } },
+    "loops": { "type": "array", "items": { "type": "object" } },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["runId", "loopId", "projectId", "status", "startedAt", "endedAt", "stages", "evidence"],
+        "properties": {
+          "runId": { "type": "string", "minLength": 1 },
+          "loopId": { "type": ["string", "null"] },
+          "projectId": { "type": ["string", "null"] },
+          "status": { "type": "string", "minLength": 1 },
+          "startedAt": { "type": ["string", "null"] },
+          "endedAt": { "type": ["string", "null"] },
+          "stages": { "type": "array", "items": { "$ref": "#/$defs/stage" } },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "lineage": { "type": "array", "items": { "type": "object" } },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "message"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "minLength": 1 },
+          "source": { "type": "string" },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stageId", "status", "enteredAt", "firstActionAt", "exitedAt", "durationMs", "activeMs", "waitingMs", "waitingReason", "evidence", "timingSource", "waitingReasons"],
+      "properties": {
+        "stageId": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["active", "blocked", "completed", "failed", "unmeasured"] },
+        "enteredAt": { "type": ["string", "null"] },
+        "firstActionAt": { "type": ["string", "null"] },
+        "exitedAt": { "type": ["string", "null"] },
+        "durationMs": { "type": ["integer", "null"], "minimum": 0 },
+        "activeMs": { "type": ["integer", "null"], "minimum": 0 },
+        "waitingMs": { "type": ["integer", "null"], "minimum": 0 },
+        "waitingReason": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "timingSource": { "enum": ["host-session", "plugin-clock", "unmeasured"] },
+        "waitingReasons": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

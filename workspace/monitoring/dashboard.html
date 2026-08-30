@@ -392,6 +392,78 @@
         padding: 14px;
       }
 
+      .projection-chain {
+        display: grid;
+        gap: 10px;
+      }
+
+      .projection-node {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+        padding: 11px 13px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface-subtle);
+      }
+
+      .projection-node + .projection-node::before {
+        content: "↓";
+        position: absolute;
+        margin-top: -31px;
+        margin-left: 5px;
+        color: var(--muted);
+      }
+
+      .projection-node-label {
+        min-width: 0;
+      }
+
+      .projection-node-label code {
+        display: block;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .projection-empty {
+        padding: 22px 14px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .projection-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .projection-filter {
+        display: grid;
+        min-width: min(280px, 100%);
+        gap: 4px;
+      }
+
+      .projection-filter span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .projection-filter select {
+        min-height: 36px;
+        padding: 6px 30px 6px 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        color: var(--text);
+        background: var(--surface);
+      }
+
       .status {
         display: inline-flex;
         min-height: 22px;
@@ -915,13 +987,17 @@
         <nav class="nav" aria-label="页面导航">
           <a class="is-active" href="#timing"><span>日志看板</span><span class="nav-index">01</span></a>
           <a href="#overview"><span>系统总览</span><span class="nav-index">02</span></a>
-          <a href="#workflow"><span>工作流</span><span class="nav-index">03</span></a>
-          <a href="#agents"><span>智能体与执行框架</span><span class="nav-index">04</span></a>
-          <a href="#projects"><span>路由与项目</span><span class="nav-index">05</span></a>
-          <a href="#evaluation"><span>评价与门禁</span><span class="nav-index">06</span></a>
-          <a href="#memory"><span>记忆</span><span class="nav-index">07</span></a>
-          <a href="#graph"><span>知识图谱</span><span class="nav-index">08</span></a>
-          <a href="#operations"><span>运维命令</span><span class="nav-index">09</span></a>
+          <a href="#workspace-context"><span>工作区 / 项目</span><span class="nav-index">03</span></a>
+          <a href="#loop-catalog"><span>Loop catalog</span><span class="nav-index">04</span></a>
+          <a href="#run-timeline"><span>Run timeline</span><span class="nav-index">05</span></a>
+          <a href="#context-lineage"><span>Context lineage</span><span class="nav-index">06</span></a>
+          <a href="#workflow"><span>工作流</span><span class="nav-index">07</span></a>
+          <a href="#agents"><span>智能体与执行框架</span><span class="nav-index">08</span></a>
+          <a href="#projects"><span>路由与项目</span><span class="nav-index">09</span></a>
+          <a href="#evaluation"><span>评价与门禁</span><span class="nav-index">10</span></a>
+          <a href="#memory"><span>记忆</span><span class="nav-index">11</span></a>
+          <a href="#graph"><span>知识图谱</span><span class="nav-index">12</span></a>
+          <a href="#operations"><span>运维命令</span><span class="nav-index">13</span></a>
         </nav>
         <div class="rail-status">
           <div class="rail-health">
@@ -941,7 +1017,7 @@
           </div>
           <div class="toolbar-actions">
             <time class="generated-at" id="generated-at">--</time>
-            <button class="button button-primary" id="refresh-button" type="button">刷新快照</button>
+            <button class="button button-primary" id="refresh-button" type="button">重新读取</button>
           </div>
         </header>
 
@@ -979,6 +1055,62 @@
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section class="section" id="workspace-context">
+              <div class="section-heading">
+                <div>
+                  <h2>工作区 / Workspace</h2>
+                  <p class="section-fact" id="projection-workspace-fact">--</p>
+                </div>
+                <span class="status" id="projection-workspace-status">--</span>
+              </div>
+              <div class="projection-filter-row" id="projection-filters" aria-label="Projection filters">
+                <label class="projection-filter"><span>Project</span><select id="projection-project-filter"></select></label>
+                <label class="projection-filter"><span>Run</span><select id="projection-run-filter"></select></label>
+              </div>
+              <div class="metric-grid" id="projection-workspace-metrics"></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>项目</th><th>状态</th><th>仓库挂载</th><th>Knowledge</th><th>Memory</th><th>配置摘要</th></tr></thead>
+                  <tbody id="projection-project-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="section" id="loop-catalog">
+              <div class="section-heading">
+                <div>
+                  <h2>Loop catalog</h2>
+                  <p class="section-fact" id="projection-loop-fact">--</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Loop</th><th>目标项目</th><th>阶段</th><th>Evaluator</th><th>门禁</th><th>执行状态</th></tr></thead>
+                  <tbody id="projection-loop-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="section" id="run-timeline">
+              <div class="section-heading">
+                <div>
+                  <h2>Run timeline</h2>
+                  <p class="section-fact" id="projection-run-fact">--</p>
+                </div>
+              </div>
+              <div id="projection-run-content"></div>
+            </section>
+
+            <section class="section" id="context-lineage">
+              <div class="section-heading">
+                <div>
+                  <h2>Context lineage</h2>
+                  <p class="section-fact" id="projection-lineage-fact">--</p>
+                </div>
+              </div>
+              <div id="projection-lineage-content"></div>
             </section>
 
             <section class="section" id="workflow">
@@ -1150,6 +1282,8 @@
           snapshot: null,
           activeLoopId: null,
           timingLoopId: null,
+          projectionProjectId: '',
+          projectionRunId: null,
           toastTimer: null,
         };
 
@@ -1204,6 +1338,7 @@
             partial: '部分采集',
             running: '执行中',
             waiting: '等待中',
+            'plan-only': '仅计划',
             skipped: '已跳过',
             attention: '需关注',
             unmeasured: '未采集',
@@ -1346,7 +1481,7 @@
         function setBusy(isBusy) {
           const button = $('#refresh-button');
           button.disabled = isBusy;
-          button.textContent = isBusy ? '正在刷新' : '刷新快照';
+          button.textContent = isBusy ? '正在读取' : '重新读取';
         }
 
         function showToast(message) {
@@ -1418,6 +1553,163 @@
                 </li>
               `).join('')
             : '<li class="empty-state"><strong>没有待处理项</strong>当前快照未发现配置或可观测性风险。</li>';
+        }
+
+        function monitorProjection(data) {
+          return data.monitorProjection || {
+            schemaVersion: 'xiaobai.monitor/v1',
+            workspace: { id: '--', title: 'Xiaobai Workspace', status: 'unmeasured', projectCount: 0 },
+            projects: [],
+            loops: [],
+            runs: [],
+            lineage: [],
+            warnings: [],
+          };
+        }
+
+        function projectMatchesRef(project, reference) {
+          if (!reference) return true;
+          return project?.projectId === reference || project?.sourceProjectId === reference;
+        }
+
+        function filteredMonitorProjection(data) {
+          const projection = monitorProjection(data);
+          const selectedRun = projection.runs.find((run) => run.runId === state.projectionRunId);
+          const selectedProjectId = selectedRun?.projectId || state.projectionProjectId || '';
+          const selectedProject = projection.projects.find((project) => projectMatchesRef(project, selectedProjectId));
+          const projectMatches = (reference) => !selectedProjectId
+            || reference === selectedProjectId
+            || selectedProject?.projectId === reference
+            || selectedProject?.sourceProjectId === reference;
+          return {
+            ...projection,
+            projects: projection.projects.filter((project) => !selectedProjectId || projectMatchesRef(project, selectedProjectId)),
+            loops: projection.loops.filter((loop) => projectMatches(loop.targetProjectId) && (!state.projectionRunId || loop.loopId === selectedRun?.loopId)),
+            runs: projection.runs.filter((run) => (!selectedProjectId || projectMatches(run.projectId)) && (!state.projectionRunId || run.runId === state.projectionRunId)),
+            lineage: projection.lineage.filter((item) => !selectedProjectId || projectMatches(item.projectId)),
+          };
+        }
+
+        function runBelongsToProject(projection, run, projectId) {
+          if (!projectId) return true;
+          const project = projection.projects.find((candidate) => projectMatchesRef(candidate, run.projectId));
+          return projectMatchesRef(project, projectId);
+        }
+
+        function renderProjectionFilters(data) {
+          const projection = monitorProjection(data);
+          const projectFilter = $('#projection-project-filter');
+          const runFilter = $('#projection-run-filter');
+          if (state.projectionProjectId && !projection.projects.some((project) => projectMatchesRef(project, state.projectionProjectId))) state.projectionProjectId = '';
+          const availableRuns = projection.runs.filter((run) => runBelongsToProject(projection, run, state.projectionProjectId));
+          if (state.projectionRunId && !availableRuns.some((run) => run.runId === state.projectionRunId)) state.projectionRunId = null;
+          projectFilter.innerHTML = `<option value="">全部项目</option>${projection.projects.map((project) => `<option value="${escapeHtml(project.projectId)}">${escapeHtml(project.displayName)} · ${escapeHtml(project.projectId)}</option>`).join('')}`;
+          runFilter.innerHTML = `<option value="">全部运行</option>${availableRuns.map((run) => `<option value="${escapeHtml(run.runId)}">${escapeHtml(run.runId)} · ${escapeHtml(run.loopId || '--')}</option>`).join('')}`;
+          projectFilter.value = state.projectionProjectId;
+          runFilter.value = state.projectionRunId || '';
+          projectFilter.onchange = () => {
+            state.projectionProjectId = projectFilter.value;
+            if (state.projectionRunId && !projection.runs.some((run) => run.runId === state.projectionRunId && runBelongsToProject(projection, run, state.projectionProjectId))) state.projectionRunId = null;
+            renderProjectionViews();
+          };
+          runFilter.onchange = () => {
+            state.projectionRunId = runFilter.value || null;
+            renderProjectionViews();
+          };
+        }
+
+        function renderProjectionViews() {
+          const data = state.snapshot;
+          renderProjectionFilters(data);
+          renderProjectionWorkspace(data);
+          renderProjectionLoops(data);
+          renderProjectionRuns(data);
+          renderProjectionLineage(data);
+        }
+
+        function renderProjectionWorkspace(data) {
+          const projection = filteredMonitorProjection(data);
+          const workspace = projection.workspace;
+          $('#projection-workspace-fact').textContent = `${workspace.id} · ${formatDate(projection.generatedAt)}`;
+          const workspaceStatus = $('#projection-workspace-status');
+          workspaceStatus.className = `status ${statusClass(workspace.status)}`;
+          workspaceStatus.textContent = displayLabel(workspace.status);
+          $('#projection-workspace-metrics').innerHTML = [
+            metric('项目', formatNumber(projection.projects.length), workspace.projectCount === projection.projects.length ? '同一 Host Workspace' : `筛选自 ${formatNumber(workspace.projectCount)} 个项目`),
+            metric('Loop', formatNumber(projection.loops.length), '只读 catalog'),
+            metric('Run', formatNumber(projection.runs.length), '可追踪运行'),
+            metric('告警', formatNumber(projection.warnings.length), '脱敏诊断'),
+            metric('已挂载仓库', formatNumber(projection.projects.reduce((sum, project) => sum + project.mountedRepositoryCount, 0)), '项目级绑定'),
+            metric('上下文链路', formatNumber(projection.lineage.length), 'Project lineage'),
+          ].join('');
+          $('#projection-project-rows').innerHTML = projection.projects.length
+            ? projection.projects.map((project) => `
+                <tr>
+                  <td><div class="cell-title">${escapeHtml(project.displayName)}</div><div class="cell-meta">${escapeHtml(project.projectId)} · ${escapeHtml(project.sourceProjectId)}</div></td>
+                  <td>${status(project.status, displayLabel(project.status))}</td>
+                  <td>${formatNumber(project.mountedRepositoryCount)} / ${formatNumber(project.repositoryCount)}</td>
+                  <td>${status(project.knowledgeStatus, displayLabel(project.knowledgeStatus))}</td>
+                  <td>${status(project.memoryStatus, displayLabel(project.memoryStatus))}</td>
+                  <td><code>${escapeHtml(project.configDigest || '--')}</code></td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="6"><div class="projection-empty">没有可展示的 Project projection</div></td></tr>';
+        }
+
+        function renderProjectionLoops(data) {
+          const projection = filteredMonitorProjection(data);
+          $('#projection-loop-fact').textContent = `${projection.loops.length} 条 · source digest 与配置绑定`;
+          $('#projection-loop-rows').innerHTML = projection.loops.length
+            ? projection.loops.map((loop) => `
+                <tr>
+                  <td><div class="cell-title">${escapeHtml(loop.name)}</div><div class="cell-meta">${escapeHtml(loop.loopId)} · ${escapeHtml(loop.source || '--')}</div></td>
+                  <td>${escapeHtml(loop.targetProjectId || '未绑定')}</td>
+                  <td class="numeric">${formatNumber(loop.stageCount)}</td>
+                  <td>${escapeHtml(loop.evaluator || '未配置')}</td>
+                  <td>${formatNumber(loop.humanGates.length)}</td>
+                  <td>${status(loop.executionStatus, displayLabel(loop.executionStatus))}</td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="6"><div class="projection-empty">没有可展示的 Loop catalog</div></td></tr>';
+        }
+
+        function renderProjectionRuns(data) {
+          const projection = filteredMonitorProjection(data);
+          const runs = projection.runs;
+          $('#projection-run-fact').textContent = `${runs.length} 条运行 · 节点计时缺失时明确显示未采集`;
+          const run = runs.find((candidate) => candidate.runId === state.projectionRunId) || runs[0];
+          if (!run) {
+            $('#projection-run-content').innerHTML = '<div class="projection-empty">没有运行记录</div>';
+            return;
+          }
+          $('#projection-run-content').innerHTML = `
+            <div class="metric-grid">
+              ${metric('状态', displayLabel(run.status), `${escapeHtml(run.projectId || '--')} · ${escapeHtml(run.loopId || '--')}`)}
+              ${metric('阶段', formatNumber(run.stages.length), '来自统一 projection')}
+              ${metric('开始', formatDate(run.startedAt), 'Host evidence')}
+              ${metric('结束', formatDate(run.endedAt), 'Host evidence')}
+            </div>
+            <div class="projection-chain">
+              ${run.stages.length ? run.stages.map((stage) => `
+                <div class="projection-node">
+                  <div class="projection-node-label"><strong>${escapeHtml(stageLabel(stage.stageId))}</strong><code>${escapeHtml(stage.stageId)} · ${escapeHtml(stage.waitingReason)}</code></div>
+                  <div>${status(stage.status, displayLabel(stage.status))}<div class="cell-meta">${formatDuration(stage.durationMs)} · 活动 ${formatDuration(stage.activeMs)} · 等待 ${formatDuration(stage.waitingMs)}</div></div>
+                </div>
+              `).join('') : '<div class="projection-empty">没有阶段 evidence</div>'}
+            </div>
+          `;
+        }
+
+        function renderProjectionLineage(data) {
+          const projection = filteredMonitorProjection(data);
+          $('#projection-lineage-fact').textContent = `${projection.lineage.length} 条 Project context lineage · 只显示节点摘要`;
+          $('#projection-lineage-content').innerHTML = projection.lineage.length
+            ? projection.lineage.map((lineage) => `
+                <div class="projection-chain">
+                  ${lineage.nodes.map((node) => `<div class="projection-node"><div class="projection-node-label"><strong>${escapeHtml(displayLabel(node.kind))}</strong><code>${escapeHtml(node.id)}</code></div>${status(node.status, displayLabel(node.status))}</div>`).join('')}
+                </div>
+              `).join('')
+            : '<div class="projection-empty">没有 Context lineage</div>';
         }
 
         function renderLoopSelector(selector, activeId, onSelect) {
@@ -1975,6 +2267,7 @@
           state.timingLoopId ||= data.loops[0]?.id || null;
           renderHeader(data);
           renderOverview(data);
+          renderProjectionViews();
           renderWorkflow();
           renderAgents(data);
           renderProjects(data);
@@ -2007,11 +2300,9 @@
         async function refresh() {
           setBusy(true);
           try {
-            const response = await fetch(apiUrl('/api/refresh'), { method: 'POST' });
-            if (!response.ok) throw new Error(`刷新接口返回 HTTP ${response.status}`);
             const snapshot = await fetchSnapshot();
             render(snapshot);
-            showToast('快照已刷新');
+            showToast('已重新读取投影');
           } catch (error) {
             showToast(error.message || '刷新失败');
           } finally {

@@ -5,7 +5,7 @@ import test from 'node:test'
 
 const packageRoot = new URL('../../', import.meta.url)
 const packageMapUrl = new URL('../../../package-map.json', import.meta.url)
-const designUrl = new URL('../../../../.trellis/tasks/08-29-dsh-plugin-workspace-integration/design.md', import.meta.url)
+const designUrl = new URL('../../../../.trellis/tasks/archive/2026-08/08-29-dsh-plugin-workspace-integration/design.md', import.meta.url)
 
 test('package map contains exactly the 33 legacy packages from the approved design table', async () => {
   const map = JSON.parse(await readFile(packageMapUrl, 'utf8'))

@@ -14,6 +14,8 @@ import { runMinimumVerticalPath } from './vertical-path.js'
 import { ProjectRegistry } from './project.js'
 import { registerProjectCommands } from './commands.js'
 import { registerPolicyService } from './policy.js'
+import { WorkspaceService } from './workspace.js'
+import { LoopCatalogService } from './loop-catalog.js'
 
 const REPORT_ENV = 'XIAOBAI_DSH_M0_REPORT'
 
@@ -220,8 +222,12 @@ export function apply(ctx, config = {}) {
   registerApprovalAnswerer(ctx, async (_request, next) => next())
   registerPolicyService(ctx)
   const projectService = new ProjectRegistry(ctx, { runPath: runMinimumVerticalPath })
+  const workspaceService = new WorkspaceService(ctx, projectService)
+  const loopService = new LoopCatalogService()
   ctx.provide('xiaobaiProject', projectService)
-  ctx.inject(['commands'], (commandCtx) => registerProjectCommands(commandCtx, projectService))
+  ctx.provide('xiaobaiWorkspace', workspaceService)
+  ctx.provide('xiaobaiLoops', loopService)
+  ctx.inject(['commands'], (commandCtx) => registerProjectCommands(commandCtx, projectService, workspaceService, loopService))
 }
 
 export { runM0Probe, runMinimumVerticalPath }
@@ -244,3 +250,8 @@ export * from './evaluator.js'
 export * from './gate.js'
 export * from './timing.js'
 export * from './policy.js'
+export * from './workspace.js'
+export * from './storage.js'
+export * from './loop-catalog.js'
+export * from './core-facade.js'
+export * from './projection.js'

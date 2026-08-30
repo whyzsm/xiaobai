@@ -84,7 +84,11 @@ function createRequestHandler() {
       return;
     }
     if (request.method === 'GET' && url.pathname === '/monitor-data.json') {
-      sendFile(response, MONITOR_DATA_PATH, 'application/json; charset=utf-8');
+      try {
+        sendJson(response, 200, buildSnapshot());
+      } catch {
+        sendJson(response, 500, { error: 'Snapshot read failed' });
+      }
       return;
     }
     if (request.method === 'GET' && url.pathname === '/knowledge-graph.json') {
@@ -93,20 +97,6 @@ function createRequestHandler() {
     }
     if (request.method === 'GET' && url.pathname === '/health') {
       sendJson(response, 200, { ok: true, service: 'xiaobai-agent-ops' });
-      return;
-    }
-    if (request.method === 'POST' && url.pathname === '/api/refresh') {
-      try {
-        const snapshot = refreshSnapshot();
-        sendJson(response, 200, {
-          ok: true,
-          generatedAt: snapshot.generatedAt,
-          health: snapshot.health,
-          warnings: snapshot.warnings.length,
-        });
-      } catch {
-        sendJson(response, 500, { error: 'Snapshot refresh failed' });
-      }
       return;
     }
     sendJson(response, 404, { error: 'Not found' });

@@ -12,7 +12,15 @@ import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
-import { findLoopSpec, formatJson, listLoopSpecs, readYamlFile } from '../packages/shared/src/fs';
+import { formatJson, readYamlFile } from '../packages/shared/src/fs';
+import {
+  assessCoreLoop,
+  findCoreLoopSpec,
+  listCoreLoopSpecs,
+  loadCoreLoopCatalog,
+  planCoreLoop,
+  redactCoreText
+} from '../packages/xiaobai-dsh-plugin/lib/core-facade.js';
 import { GatePassEvidence, HarnessEvidenceType, JsonRecord, LoopSpec, TaskEnvelope } from '../packages/shared/src/types';
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
@@ -55,7 +63,7 @@ async function main(argv: string[]): Promise<void> {
   }
 
   if (options.command === 'validate') {
-    const loopPaths = options.loop ? [await findLoopSpec(workspaceRoot, options.loop)] : await listLoopSpecs(workspaceRoot);
+    const loopPaths = options.loop ? [await findCoreLoopSpec(workspaceRoot, options.loop)] : await listCoreLoopSpecs(workspaceRoot);
     const results = await Promise.all(
       loopPaths.map(async (loopPath) => ({
         loopPath,
@@ -85,7 +93,47 @@ async function main(argv: string[]): Promise<void> {
     return;
   }
 
-  const loopPath = await findLoopSpec(workspaceRoot, options.loop);
+  if (options.command === 'loop-list') {
+    const catalog = await loadCoreLoopCatalog(workspaceRoot);
+    const loops = options.targetProject
+      ? catalog.loops.filter((loop: any) => loop.targetProjectId === options.targetProject)
+      : catalog.loops;
+    const result = { ...catalog, loops };
+    if (options.json) process.stdout.write(formatJson(result));
+    else {
+      process.stdout.write(`Loop catalog: ${loops.length} loop(s)\n`);
+      for (const loop of loops) process.stdout.write(`- ${loop.loopId}: ${loop.name} [${loop.executionStatus}]\n`);
+    }
+    process.exitCode = catalog.status === 'invalid' ? 1 : 0;
+    return;
+  }
+
+  if (options.command === 'loop-assess' || options.command === 'loop-plan') {
+    if (!options.loop) throw new Error(`${options.command} requires --loop <loop-id>`);
+    const loopPath = await findCoreLoopSpec(workspaceRoot, options.loop);
+    const catalog = await loadCoreLoopCatalog(workspaceRoot);
+    const loop = catalog.loops.find((candidate: any) => candidate.loopId === options.loop);
+    if (!loop) throw new Error(`Loop is not present in the catalog: ${options.loop}`);
+    const validation = await validateWorkspace(workspaceRoot, loopPath);
+    if (options.command === 'loop-assess') {
+      const result = { ...assessCoreLoop(loop), validation: { valid: validation.ok, errors: validation.errors.map(redactCoreText) } };
+      if (options.json) process.stdout.write(formatJson(result));
+      else process.stdout.write(`loop-assess: ${result.valid && validation.ok ? 'ok' : 'blocked'}\n`);
+      process.exitCode = result.valid && validation.ok ? 0 : 1;
+      return;
+    }
+    const result = { ...planCoreLoop(loop, { projectId: options.targetProject, targetProject: options.targetProject, targetRepository: options.targetRepository, targetCwd: options.targetCwd, targetRemote: options.targetRemote }), validation: { valid: validation.ok, errors: validation.errors.map(redactCoreText) } };
+    if (!validation.ok && result.status === 'plan-only') {
+      result.status = 'blocked';
+      result.blockers = [...result.blockers, ...validation.errors];
+    }
+    if (options.json) process.stdout.write(formatJson(result));
+    else process.stdout.write(`loop-plan: ${result.status === 'blocked' ? 'blocked' : 'ok'}\n`);
+    process.exitCode = result.status === 'blocked' ? 1 : 0;
+    return;
+  }
+
+  const loopPath = await findCoreLoopSpec(workspaceRoot, options.loop);
 
   if (options.command === 'acp') {
     await runAcpCommand(options, workspaceRoot, loopPath);

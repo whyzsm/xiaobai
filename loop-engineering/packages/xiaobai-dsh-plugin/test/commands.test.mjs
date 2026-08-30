@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ERROR_CODES, PROJECT_COMMAND_NAMES, registerProjectCommands } from '../lib/index.js'
+import { ERROR_CODES, PROJECT_COMMAND_NAMES, XiaobaiError, registerProjectCommands } from '../lib/index.js'
 
 test('registers the three typed dsh command facades and delegates to the domain service', async () => {
   const definitions = []
@@ -25,6 +25,37 @@ test('registers the three typed dsh command facades and delegates to the domain 
   await dispose()
 })
 
+test('project-assess uses the loaded Workspace service when an explicit workspace is supplied', async () => {
+  const definitions = []
+  const assessments = []
+  const workspaceService = {
+    current: undefined,
+    load: async ({ workspaceRoot }) => {
+      workspaceService.current = { workspaceRoot, workspaceId: 'ws_assess_test', status: 'loaded', projects: [] }
+      return workspaceService.current
+    },
+    assessProject: (input) => {
+      assessments.push(input)
+      return { projectId: input.projectId, valid: true, knowledgeStatus: 'locked', diagnostics: [] }
+    },
+  }
+  const loopService = {
+    current: undefined,
+    load: async (workspaceRoot) => { loopService.current = { workspaceRoot }; return loopService.current },
+  }
+  registerProjectCommands(
+    { commands: { register: (definition) => { definitions.push(definition); return () => {} } } },
+    { assessBaseline: () => ({ valid: false }) },
+    workspaceService,
+    loopService,
+  )
+  const result = await definitions[1].handler({ rawInput: '{"workspaceRoot":"/private/workspace","projectId":"prj_assess_test"}' })
+  const envelope = JSON.parse(result.text)
+  assert.equal(envelope.ok, true)
+  assert.deepEqual(assessments, [{ projectId: 'prj_assess_test' }])
+  assert.equal(JSON.stringify(envelope).includes('/private/workspace'), false)
+})
+
 test('command input parsing fails with the registered contract error', async () => {
   const definitions = []
   registerProjectCommands({ commands: { register: (definition) => { definitions.push(definition); return () => {} } } }, { assessBaseline: () => ({}) })
@@ -44,4 +75,69 @@ test('command registration cleans earlier facades when a later registration fail
   )
   assert.equal(registrations, 2)
   assert.equal(disposed, 1)
+})
+
+test('workspace and Loop facades return versioned envelopes and keep paths out of the command result', async () => {
+  const definitions = []
+  const baseline = {
+    schemaVersion: 'xiaobai.contracts/v1',
+    projectId: 'prj_command_test',
+    key: 'command-test',
+    displayName: 'Command Test',
+    owner: 'team',
+    classification: 'internal',
+    repositories: [],
+    knowledgeBindings: [],
+    agentProfiles: [],
+    skills: [],
+    memory: { namespaceId: 'mem_command_test', retention: 'project', projection: 'host-storage-domain' },
+    artifactRoot: 'artifacts/command-test',
+    qualityCommands: { validate: 'npm run validate', test: 'npm test' },
+  }
+  const loaded = {
+    schemaVersion: 'xiaobai.workspace/v1',
+    workspaceId: 'ws_command_test',
+    title: 'Command Test',
+    sourceRevision: 'filesystem',
+    configDigest: 'sha256:workspace',
+    status: 'loaded',
+    diagnostics: [],
+    projects: [{ baseline, sourceProjectId: 'command-test', source: { kind: 'project-group', id: 'command-test', revision: 'filesystem', digest: 'sha256:source' }, repositoryStatuses: [], knowledgeStatus: 'locked', configDigest: 'sha256:project', pathBindingDigest: 'sha256:binding' }],
+  }
+  const workspaceService = { current: undefined, load: async () => { workspaceService.current = loaded; return loaded } }
+  const loopService = { current: undefined, load: async (workspaceRoot) => { loopService.current = { workspaceRoot, loops: [] }; return loopService.current }, list: () => ({ schemaVersion: 'xiaobai.loop-catalog/v1', loops: [] }), assess: () => ({ valid: true }), plan: () => ({ status: 'plan-only' }), run: async () => ({}) }
+  registerProjectCommands({ commands: { register: (definition) => { definitions.push(definition); return () => {} } } }, { assessBaseline: () => ({}) }, workspaceService, loopService)
+  const result = await definitions[3].handler({ rawInput: '{"workspaceRoot":"/private/workspace"}' })
+  const envelope = JSON.parse(result.text)
+  assert.equal(envelope.schemaVersion, 'xiaobai.command/v1')
+  assert.equal(envelope.ok, true)
+  assert.equal(envelope.value.workspaceId, 'ws_command_test')
+  assert.equal(JSON.stringify(envelope).includes('/private/workspace'), false)
+  await definitions[8].handler({ rawInput: '{"workspaceRoot":"/private/workspace","loopId":"missing"}' })
+})
+
+test('domain command failures use a redacted error envelope with stable phase and code', async () => {
+  const definitions = []
+  const workspaceService = {
+    current: { workspaceRoot: '/private/workspace', workspaceId: 'ws_command_test' },
+    load: async () => workspaceService.current,
+  }
+  const loopService = {
+    current: { workspaceRoot: '/private/workspace' },
+    list: () => ({ schemaVersion: 'xiaobai.loop-catalog/v1', loops: [] }),
+    run: async () => { throw new XiaobaiError(ERROR_CODES.LOOP_NOT_FOUND, 'Loop is not registered', { phase: 'loop-run', resourceId: 'missing' }) },
+  }
+  registerProjectCommands(
+    { commands: { register: (definition) => { definitions.push(definition); return () => {} } } },
+    { assessBaseline: () => ({}) },
+    workspaceService,
+    loopService,
+  )
+  const result = await definitions[8].handler({ rawInput: '{"workspaceRoot":"/private/workspace","loopId":"missing"}' })
+  const envelope = JSON.parse(result.text)
+  assert.equal(result.kind, 'error')
+  assert.equal(envelope.ok, false)
+  assert.equal(envelope.error.code, ERROR_CODES.LOOP_NOT_FOUND)
+  assert.equal(envelope.error.phase, 'loop-run')
+  assert.equal(JSON.stringify(envelope).includes('/private/workspace'), false)
 })

@@ -24,6 +24,8 @@ export class ProjectRegistry {
   }
 
   async attachWorkspace(path, title) {
+    if (this.workspace && this.workspace.path !== path) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'A ProjectRegistry can attach only one Host Workspace', { phase: 'workspace-resolution', expected: this.workspace.path, actual: path })
+    if (this.workspace) return this.workspace
     const registry = requireHostService(this.hostContext, 'workspaceRegistry', 'create')
     const workspace = await registry.create(path, title)
     this.workspace = { id: canonicalWorkspaceId(workspace), hostId: workspace.id, path: workspace.path, title: workspace.title }
@@ -35,6 +37,16 @@ export class ProjectRegistry {
     if (this.projects.has(normalized.projectId)) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${normalized.projectId}' is already registered`, { resourceId: normalized.projectId, phase: 'project-registration' })
     const scopeKey = Object.freeze({ projectId: normalized.projectId })
     const entry = { baseline: normalized, scopeKey, scope: undefined, scopes: new Map() }
+    this.projects.set(normalized.projectId, entry)
+    return normalized
+  }
+
+  replaceBaseline(baseline) {
+    const normalized = validateProjectBaseline(baseline)
+    const existing = this.projects.get(normalized.projectId)
+    if (existing?.scopes.size > 0) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${normalized.projectId}' must be closed before replacing its baseline`, { resourceId: normalized.projectId, phase: 'project-registration' })
+    if (!existing) return this.registerBaseline(normalized)
+    const entry = { baseline: normalized, scopeKey: Object.freeze({ projectId: normalized.projectId }), scope: undefined, scopes: new Map() }
     this.projects.set(normalized.projectId, entry)
     return normalized
   }

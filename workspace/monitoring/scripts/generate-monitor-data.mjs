@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse as parseYaml } from 'yaml';
+import { buildMonitorProjection } from '../../../loop-engineering/packages/xiaobai-dsh-plugin/lib/projection.js';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '../../..');
@@ -942,6 +943,27 @@ function buildEvaluation(loops, agents, timing) {
   };
 }
 
+function projectionRuns(timing, loops) {
+  const byRun = new Map();
+  for (const stage of timing.stages || []) {
+    if (!stage.runId) continue;
+    const loop = loops.find((candidate) => candidate.id === stage.loopId);
+    const run = byRun.get(stage.runId) || {
+      runId: stage.runId,
+      loopId: stage.loopId,
+      projectId: loop?.project || null,
+      status: 'completed',
+      stages: [],
+      evidence: [],
+    };
+    run.stages.push(stage);
+    run.evidence.push(stage.evidence);
+    if (stage.status === 'failed' || stage.valid === false && stage.status === 'invalid') run.status = 'failed';
+    byRun.set(stage.runId, run);
+  }
+  return [...byRun.values()];
+}
+
 function collectInventory({ loops, agents, harnesses, connectors, projects, memory, graph }) {
   const repositories = projects.reduce((total, project) => total + project.repositoryCount, 0);
   const mountedRepositories = projects.reduce(
@@ -973,7 +995,6 @@ export function buildSnapshot(options = {}) {
   const graph = collectGraph(git, warnings);
   const timing = buildTiming(loops, memoryLocation.memoryRoot);
   const evaluation = buildEvaluation(loops, agents, timing);
-
   if (!memory.rootAvailable) {
     warnings.push({
       code: 'memory_root_unavailable',
@@ -995,6 +1016,14 @@ export function buildSnapshot(options = {}) {
       message: gap.nextAction,
     });
   }
+
+  const monitorProjection = buildMonitorProjection({
+    workspace: { id: 'ws_xiaobai_monitoring', title: 'Xiaobai Workspace', status: warnings.length > 0 ? 'attention' : 'loaded' },
+    projects,
+    loops,
+    runs: projectionRuns(timing, loops),
+    warnings,
+  });
 
   const inventory = collectInventory({
     loops,
@@ -1026,6 +1055,7 @@ export function buildSnapshot(options = {}) {
     graph,
     timing,
     evaluation,
+    monitorProjection,
     operations: [
       { id: 'dashboard', label: '启动仪表盘', command: 'npm run dashboard:xiaobai', approvalRequired: false },
       { id: 'dry-run', label: '执行 Dry Run', command: 'npm run dry-run', approvalRequired: false },

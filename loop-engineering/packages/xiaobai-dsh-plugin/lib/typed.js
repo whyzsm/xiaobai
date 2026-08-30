@@ -190,6 +190,32 @@ export const StageEvidenceSchema = z.object({
 export const EvaluatorResultSchema = z.object({ evaluatorId: z.string().regex(/^agent_[a-z0-9][a-z0-9_-]{2,63}$/), status: z.enum(['passed', 'failed']), contractVersion: z.string().min(1), findings: z.array(z.record(z.string(), z.unknown())), evidence: z.array(z.string()) }).strict()
 export const GateDecisionSchema = z.object({ gateId: z.string().regex(/^gate_[a-z0-9][a-z0-9_-]{2,63}$/), outcome: z.enum(['allowed', 'rejected', 'unavailable', 'cancelled', 'rework']), actor: z.string().min(1), reason: z.string().min(1), timestamp: z.string().min(1), inputDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/), evidence: z.array(z.string()).min(1), approval: z.object({ outcome: z.enum(['allowed-once', 'rejected', 'cancelled', 'unavailable']), auditRequired: z.literal(true), asked: z.literal(true), decided: z.literal(true), requestId: z.string().min(1).optional() }).strict() }).strict()
 
+const MonitorStageSchema = z.object({
+  stageId: z.string().min(1),
+  status: z.enum(['active', 'blocked', 'completed', 'failed', 'unmeasured']),
+  enteredAt: z.string().nullable(),
+  firstActionAt: z.string().nullable(),
+  exitedAt: z.string().nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+  activeMs: z.number().int().nonnegative().nullable(),
+  waitingMs: z.number().int().nonnegative().nullable(),
+  waitingReason: z.string().min(1),
+  evidence: z.array(z.string()),
+  timingSource: z.enum(['host-session', 'plugin-clock', 'unmeasured']),
+  waitingReasons: z.array(z.string()),
+}).strict()
+
+export const MonitorProjectionSchema = z.object({
+  schemaVersion: z.literal('xiaobai.monitor/v1'),
+  generatedAt: z.string().min(1),
+  workspace: z.object({ id: z.string().min(1), title: z.string().min(1), status: z.string().min(1), projectCount: z.number().int().nonnegative() }).strict(),
+  projects: z.array(z.record(z.string(), z.unknown())),
+  loops: z.array(z.record(z.string(), z.unknown())),
+  runs: z.array(z.object({ runId: z.string().min(1), loopId: z.string().nullable(), projectId: z.string().nullable(), status: z.string().min(1), startedAt: z.string().nullable(), endedAt: z.string().nullable(), stages: z.array(MonitorStageSchema), evidence: z.array(z.string()) }).strict()),
+  lineage: z.array(z.record(z.string(), z.unknown())),
+  warnings: z.array(z.object({ code: z.string().min(1), severity: z.string().min(1), source: z.string().optional(), message: z.string().min(1) }).strict()),
+}).strict()
+
 export const RunLockSchema = z.object({
   schemaVersion: z.literal('xiaobai.contracts/v1'),
   runId: z.string().regex(/^run_[a-z0-9][a-z0-9_-]{2,63}$/),
@@ -234,10 +260,13 @@ export function registerTypedContracts(ctx) {
       { name: 'PolicyContext', schema: PolicyContextSchema },
       { name: 'EvaluatorResult', schema: EvaluatorResultSchema },
       { name: 'GateDecision', schema: GateDecisionSchema },
+      { name: 'MonitorProjection', schema: MonitorProjectionSchema },
     ],
     model: {
       services: [
         serviceModel('xiaobaiProject', 'ProjectRegistry', [member('attachWorkspace', '(path: string, title?: string) => Promise<Workspace>'), member('bootstrapBaseline', '(input: object, options?: object) => Promise<ProjectBaseline> | ProjectBaseline'), member('assessBaseline', '(baseline: object) => Assessment'), member('registerBaseline', '(baseline: ProjectBaseline) => ProjectBaseline'), member('openProject', '(projectId: ProjectId, options?: object) => ProjectScope'), member('openProjectForAgent', '(projectId: ProjectId, agent: HostAgent) => ProjectScope'), member('resolveRepository', '(projectId: ProjectId, repositoryId: string, options?: object) => Promise<RepositoryBinding>'), member('run', '(input: ProjectRunInput) => Promise<RunResult>')]),
+        serviceModel('xiaobaiWorkspace', 'WorkspaceService', [member('load', '(input: object) => Promise<WorkspaceProjection>'), member('recover', '(input: object) => Promise<WorkspaceProjection>'), member('listProjects', '(input?: object) => WorkspaceProjection'), member('assessProject', '(input: object) => Assessment')]),
+        serviceModel('xiaobaiLoops', 'LoopCatalogService', [member('load', '(workspaceRoot: string) => Promise<LoopCatalog>'), member('list', '(input?: object) => LoopCatalog'), member('assess', '(input: object) => LoopAssessment'), member('plan', '(input: object) => LoopPlan'), member('run', '(input: object) => Promise<RunResult>')]),
         serviceModel('xiaobaiMemory', 'MemoryDomain', [member('put', '(recordId: string, value: MemoryRecord) => Promise<MemoryRecord>'), member('get', '(recordId: string) => MemoryRecord | undefined'), member('checkpoint', '(value: MemoryCheckpoint) => Promise<MemoryCheckpoint>'), member('audit', '(value: MemoryAudit) => Promise<MemoryAudit>'), member('pruneExpired', '(now?: string | number | Date) => Promise<RetentionResult>'), member('projectObsidian', '(options: object) => Promise<MemoryProjection>')]),
         serviceModel('xiaobaiPolicy', 'PolicyService', [member('resolve', '(kind: string, project: ProjectBaseline, options?: object) => PolicyContext'), member('resolveAll', '(project: ProjectBaseline, options?: object) => Record<string, PolicyContext>')]),
       ],

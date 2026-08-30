@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { apply } from '../lib/index.js'
 
-test('apply(ctx) provides the Project domain service and registers command facades without Host runtime construction', () => {
+test('apply(ctx) provides Project, Workspace, and Loop facades without Host runtime construction', () => {
   const services = new Map()
   const commands = []
   const ctx = {
@@ -19,5 +19,7 @@ test('apply(ctx) provides the Project domain service and registers command facad
   }
   apply(ctx)
   assert.equal(services.has('xiaobaiProject'), true)
-  assert.deepEqual(commands, ['project-bootstrap', 'project-assess', 'project-run'])
+  assert.equal(services.has('xiaobaiWorkspace'), true)
+  assert.equal(services.has('xiaobaiLoops'), true)
+  assert.deepEqual(commands, ['project-bootstrap', 'project-assess', 'project-run', 'project-load', 'project-list', 'loop-list', 'loop-assess', 'loop-plan', 'loop-run'])
 })

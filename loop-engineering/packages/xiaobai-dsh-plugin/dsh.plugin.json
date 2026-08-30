@@ -16,6 +16,9 @@
     "memory-retention",
     "memory-conflict",
     "memory-projection",
+    "workspace-registry",
+    "loop-catalog",
+    "monitor-projection",
     "fixed-workflow",
     "independent-evaluator",
     "approval-gate"
@@ -23,7 +26,13 @@
   "commands": [
     "project-bootstrap",
     "project-assess",
-    "project-run"
+    "project-run",
+    "project-load",
+    "project-list",
+    "loop-list",
+    "loop-assess",
+    "loop-plan",
+    "loop-run"
   ],
   "schemas": [
     "ProjectId",
@@ -41,7 +50,8 @@
     "MemoryConflict",
     "PolicyContext",
     "EvaluatorResult",
-    "GateDecision"
+    "GateDecision",
+    "MonitorProjection"
   ],
   "diagnostics": [
     "host-capability-probe",
