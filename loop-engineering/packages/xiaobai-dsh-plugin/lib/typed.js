@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ERROR_CODES, LIFECYCLE_STATES, PACKAGE_NAME } from './constants.js'
+import { CONFIG_CONTRACT_VERSION, ERROR_CODES, LIFECYCLE_STATES, PACKAGE_NAME } from './constants.js'
 import { getHostService } from './host.js'
 import { XiaobaiError } from './errors.js'
 
@@ -182,6 +182,187 @@ export const SkillPackageSchema = z.object({
   invocation: z.object({ modelInvocable: z.boolean(), userInvocable: z.boolean() }).strict(), requiredContext: z.array(z.string()), capabilities: z.array(z.string()), sideEffects: z.array(z.string()), evidenceRequirements: z.array(z.string()), trust: z.enum(['bundled', 'project', 'external']),
 }).strict()
 
+const SafeLocatorSchema = z.string().min(1).refine((value) => !/^(?:[a-z][a-z0-9+.-]*:|\\\\|\/\/|\/)/iu.test(value) && !value.includes('\0') && !value.split(/[\\/]+/u).includes('..'), 'locator must be workspace-relative or opaque')
+const BindingRefSchema = z.string().regex(/^[a-z][a-z0-9_-]{2,63}$/u)
+const ConfigRepositorySchema = z.object({
+  repoId: z.string().regex(/^repo_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  name: z.string().min(1),
+  source: z.enum(['local', 'remote', 'mount']),
+  bindingRef: BindingRefSchema.optional(),
+  locator: SafeLocatorSchema.optional(),
+  readOnly: z.boolean(),
+  classification: ClassificationSchema,
+}).strict()
+const ConfigKnowledgeSchema = z.object({
+  knowledgeId: z.string().regex(/^know_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  source: z.string().min(1),
+  bindingRef: BindingRefSchema.optional(),
+  locator: SafeLocatorSchema.optional(),
+  revision: z.string().min(1),
+  digest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+  readOnly: z.boolean(),
+  trust: z.enum(['bundled', 'project', 'external', 'derived']),
+}).strict()
+const ConfigAgentSchema = z.object({
+  agentId: z.string().regex(/^agent_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  role: z.string().min(1),
+  purpose: z.string().min(1),
+  modelPolicyRef: z.string().min(1),
+  allowedSkills: z.array(z.string()),
+  requiredContext: z.array(z.string()),
+  capabilities: z.array(z.string()),
+  riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
+  humanGatePolicy: z.string().min(1),
+  outputContract: z.string().min(1),
+}).strict()
+const ConfigSkillSchema = z.object({
+  skillId: z.string().regex(/^skill_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  name: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/u),
+  version: z.string().min(1),
+  purpose: z.string().min(1),
+  owner: z.string().min(1),
+  capabilities: z.array(z.string()),
+  trust: z.enum(['bundled', 'project', 'external']),
+}).strict()
+const ConfigMemorySchema = z.object({
+  namespaceId: z.string().regex(/^mem_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  retention: z.string().min(1),
+  projection: z.string().min(1),
+}).strict()
+const ConfigArtifactSchema = z.object({
+  bindingRef: BindingRefSchema.optional(),
+  locator: SafeLocatorSchema,
+  readOnly: z.boolean(),
+}).strict()
+const ConfigPayloadSchema = z.object({
+  key: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/u),
+  displayName: z.string().min(1),
+  owner: z.string().min(1),
+  classification: ClassificationSchema,
+  repositories: z.array(ConfigRepositorySchema).min(1),
+  knowledgeBindings: z.array(ConfigKnowledgeSchema).min(1),
+  agentProfiles: z.array(ConfigAgentSchema).min(1),
+  skills: z.array(ConfigSkillSchema),
+  memory: ConfigMemorySchema,
+  artifact: ConfigArtifactSchema,
+  qualityCommands: z.object({ validate: z.string().min(1), test: z.string().min(1) }).strict(),
+}).strict()
+const ConfigDiagnosticSchema = z.object({
+  code: z.string().min(1),
+  severity: z.enum(['info', 'warning', 'error']),
+  field: z.string().optional(),
+  message: z.string().min(1),
+  phase: z.string().optional(),
+  resourceId: z.string().optional(),
+  evidenceRef: z.string().optional(),
+}).strict()
+
+export const ProjectConfigDraftSchema = z.object({
+  schemaVersion: z.literal(CONFIG_CONTRACT_VERSION),
+  draftId: z.string().regex(/^drf_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  workspaceId: z.string().regex(/^ws_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  projectId: ProjectIdSchema.optional(),
+  operation: z.enum(['create', 'update']),
+  baseRevision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  baseDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+  actor: z.object({ identity: z.string().min(1) }).strict(),
+  config: ConfigPayloadSchema,
+  createdAt: z.string().min(1),
+}).strict()
+
+export const ProjectConfigPreviewSchema = z.object({
+  schemaVersion: z.literal(CONFIG_CONTRACT_VERSION),
+  previewId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  draftId: z.string().regex(/^drf_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  workspaceId: z.string().regex(/^ws_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  projectId: ProjectIdSchema,
+  baseRevision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  baseDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+  currentRevision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  currentDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+  status: z.enum(['ready', 'invalid', 'drift', 'conflict']),
+  files: z.array(z.object({ locator: SafeLocatorSchema, operation: z.enum(['create', 'update', 'delete']), beforeDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u).nullable(), afterDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u), changes: z.array(z.string()) }).strict()),
+  risks: z.array(z.object({ code: z.string().min(1), severity: z.enum(['info', 'warning', 'error']), message: z.string().min(1) }).strict()),
+  approvalRequired: z.boolean(),
+  nextAction: z.string().min(1),
+  diagnostics: z.array(ConfigDiagnosticSchema),
+}).strict()
+
+export const ProjectConfigApplyResultSchema = z.object({
+  schemaVersion: z.literal(CONFIG_CONTRACT_VERSION),
+  applyId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  workspaceId: z.string().regex(/^ws_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  projectId: ProjectIdSchema,
+  revision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  digest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+  status: z.enum(['applied', 'conflict', 'approval_required', 'failed']),
+  historyId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  evidenceRef: z.string().min(1),
+  diagnostics: z.array(ConfigDiagnosticSchema),
+}).strict()
+
+export const ConfigHistoryEntrySchema = z.object({
+  schemaVersion: z.literal(CONFIG_CONTRACT_VERSION),
+  historyId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  revision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  workspaceId: z.string().regex(/^ws_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  projectId: ProjectIdSchema,
+  parentRevision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u).nullable(),
+  digest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+  operation: z.enum(['create', 'update', 'rollback']),
+  actor: z.string().min(1),
+  status: z.enum(['applied', 'failed', 'rolled_back']),
+  createdAt: z.string().min(1),
+  evidenceRef: z.string().min(1),
+  changedFiles: z.array(SafeLocatorSchema),
+  canRollback: z.boolean(),
+}).strict()
+
+export const ResponseEnvelopeSchema = z.object({
+  schemaVersion: z.literal(CONFIG_CONTRACT_VERSION),
+  requestId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  status: z.enum(['ok', 'invalid', 'drift', 'conflict', 'approval_required', 'failed', 'unsupported']),
+  data: z.unknown().optional(),
+  diagnostics: z.array(ConfigDiagnosticSchema),
+  errorCode: z.string().optional(),
+  phase: z.string().optional(),
+  resourceId: z.string().optional(),
+  evidenceRef: z.string().optional(),
+}).strict()
+
+const WorkspaceIdSchema = z.string().regex(/^ws_[a-z0-9][a-z0-9_-]{2,63}$/u)
+export const WorkspaceConfigRequestSchema = z.object({
+  workspaceId: WorkspaceIdSchema.optional(),
+  workspaceRoot: z.string().min(1).optional(),
+  workspacePath: z.string().min(1).optional(),
+  workspaceBindingRef: z.string().regex(/^[a-z][a-z0-9_-]{2,63}$/u).optional(),
+  workspaceTitle: z.string().min(1).optional(),
+  projectId: ProjectIdSchema.optional(),
+  actor: z.union([z.string().min(1), z.object({ identity: z.string().min(1) }).strict()]).optional(),
+}).strict()
+
+export const CreateProjectDraftRequestSchema = WorkspaceConfigRequestSchema.extend({
+  operation: z.enum(['create', 'update']).optional(),
+  config: ConfigPayloadSchema.optional(),
+  baseRevision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  baseDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u).optional(),
+}).strict()
+export const ApplyProjectConfigRequestSchema = WorkspaceConfigRequestSchema.extend({
+  draftId: z.string().regex(/^drf_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  draft: ProjectConfigDraftSchema.optional(),
+  approvalId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  historyOperation: z.enum(['update', 'rollback']).optional(),
+}).strict()
+export const DirectoryPickRequestSchema = WorkspaceConfigRequestSchema.extend({
+  kind: z.enum(['workspace', 'repository', 'knowledge', 'artifact']),
+  bindingRef: BindingRefSchema.optional(),
+}).strict()
+export const RollbackProjectConfigRequestSchema = WorkspaceConfigRequestSchema.extend({
+  revision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
+  draftId: z.string().regex(/^drf_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+  approvalId: z.string().regex(/^ev_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),
+}).strict()
+
 export const StageEvidenceSchema = z.object({
   stageId: z.string().regex(/^stage_[a-z0-9][a-z0-9_-]{2,63}$/), status: z.enum(['active', 'blocked', 'completed', 'failed', 'unmeasured']),
   enteredAt: z.string().min(1), firstActionAt: z.string().min(1), exitedAt: z.string().min(1), durationMs: z.number().int().nonnegative(), activeMs: z.number().int().nonnegative(), waitingMs: z.number().int().nonnegative(), waitingReason: z.string().min(1), evidence: z.array(z.string()).min(1), timingSource: z.enum(['host-session', 'plugin-clock', 'unmeasured']).optional(), waitingReasons: z.array(z.string()).optional(),
@@ -215,6 +396,30 @@ export const MonitorProjectionSchema = z.object({
   lineage: z.array(z.record(z.string(), z.unknown())),
   warnings: z.array(z.object({ code: z.string().min(1), severity: z.string().min(1), source: z.string().optional(), message: z.string().min(1) }).strict()),
 }).strict()
+
+const jsonCodec = (typeSymbol) => ({ mode: 'strict', typeSymbol, schema: z.unknown() })
+const configInvocation = (method, inputSymbol = 'ProjectConfigRequest', resultSymbol = 'ResponseEnvelope') => ({
+  id: `${PACKAGE_NAME}#xiaobaiConfig/${method}`,
+  service: 'xiaobaiConfig',
+  namespace: 'xiaobaiConfig',
+  method,
+  invocation: { kind: 'direct' },
+  parameters: [{ name: 'request', wire: 'request', source: 'json', codec: jsonCodec(`${PACKAGE_NAME}/types#${inputSymbol}`) }],
+  result: jsonCodec(`${PACKAGE_NAME}/types#${resultSymbol}`),
+})
+
+export const CONFIG_REMOTE_INVOCATIONS = Object.freeze([
+  configInvocation('list', 'WorkspaceConfigRequest'),
+  configInvocation('get', 'WorkspaceConfigRequest'),
+  configInvocation('createDraft', 'CreateProjectDraftRequest'),
+  configInvocation('validate', 'ProjectConfigDraft'),
+  configInvocation('preview', 'ProjectConfigDraft'),
+  configInvocation('pickDirectory', 'DirectoryPickRequest'),
+  configInvocation('requestApproval', 'ProjectConfigDraft', 'ResponseEnvelope'),
+  configInvocation('apply', 'ApplyProjectConfigRequest'),
+  configInvocation('history', 'WorkspaceConfigRequest'),
+  configInvocation('rollback', 'RollbackProjectConfigRequest'),
+])
 
 export const RunLockSchema = z.object({
   schemaVersion: z.literal('xiaobai.contracts/v1'),
@@ -261,6 +466,16 @@ export function registerTypedContracts(ctx) {
       { name: 'EvaluatorResult', schema: EvaluatorResultSchema },
       { name: 'GateDecision', schema: GateDecisionSchema },
       { name: 'MonitorProjection', schema: MonitorProjectionSchema },
+      { name: 'ProjectConfigDraft', schema: ProjectConfigDraftSchema },
+      { name: 'ProjectConfigPreview', schema: ProjectConfigPreviewSchema },
+      { name: 'ProjectConfigApplyResult', schema: ProjectConfigApplyResultSchema },
+      { name: 'ConfigHistoryEntry', schema: ConfigHistoryEntrySchema },
+      { name: 'ResponseEnvelope', schema: ResponseEnvelopeSchema },
+      { name: 'WorkspaceConfigRequest', schema: WorkspaceConfigRequestSchema },
+      { name: 'CreateProjectDraftRequest', schema: CreateProjectDraftRequestSchema },
+      { name: 'ApplyProjectConfigRequest', schema: ApplyProjectConfigRequestSchema },
+      { name: 'DirectoryPickRequest', schema: DirectoryPickRequestSchema },
+      { name: 'RollbackProjectConfigRequest', schema: RollbackProjectConfigRequestSchema },
     ],
     model: {
       services: [
@@ -269,6 +484,7 @@ export function registerTypedContracts(ctx) {
         serviceModel('xiaobaiLoops', 'LoopCatalogService', [member('load', '(workspaceRoot: string) => Promise<LoopCatalog>'), member('list', '(input?: object) => LoopCatalog'), member('assess', '(input: object) => LoopAssessment'), member('plan', '(input: object) => LoopPlan'), member('run', '(input: object) => Promise<RunResult>')]),
         serviceModel('xiaobaiMemory', 'MemoryDomain', [member('put', '(recordId: string, value: MemoryRecord) => Promise<MemoryRecord>'), member('get', '(recordId: string) => MemoryRecord | undefined'), member('checkpoint', '(value: MemoryCheckpoint) => Promise<MemoryCheckpoint>'), member('audit', '(value: MemoryAudit) => Promise<MemoryAudit>'), member('pruneExpired', '(now?: string | number | Date) => Promise<RetentionResult>'), member('projectObsidian', '(options: object) => Promise<MemoryProjection>')]),
         serviceModel('xiaobaiPolicy', 'PolicyService', [member('resolve', '(kind: string, project: ProjectBaseline, options?: object) => PolicyContext'), member('resolveAll', '(project: ProjectBaseline, options?: object) => Record<string, PolicyContext>')]),
+        serviceModel('xiaobaiConfig', 'WorkspaceConfigService', [member('list', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('get', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('createDraft', '(request: CreateProjectDraftRequest) => Promise<ResponseEnvelope>'), member('validate', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('preview', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('pickDirectory', '(request: DirectoryPickRequest) => Promise<ResponseEnvelope>'), member('requestApproval', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('apply', '(request: ApplyProjectConfigRequest) => Promise<ResponseEnvelope>'), member('history', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('rollback', '(request: RollbackProjectConfigRequest) => Promise<ResponseEnvelope>')]),
       ],
       events: [
         { name: 'xiaobai/gate-decision', mode: 'emit', signature: '(decision: GateDecision) => void', tags: [] },
@@ -276,6 +492,6 @@ export function registerTypedContracts(ctx) {
       ],
       objects: [],
     },
-    invocations: [],
+    invocations: CONFIG_REMOTE_INVOCATIONS,
   })
 }

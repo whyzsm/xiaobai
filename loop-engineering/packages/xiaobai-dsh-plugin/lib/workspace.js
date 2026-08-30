@@ -195,6 +195,9 @@ function baselineForProject(project, projectRoot, workspaceRoot, localPaths) {
     localBindings,
     background: background ? {
       id: background.id ?? sourceProjectId,
+      // Keep the persisted localPaths key private while exposing a stable,
+      // lowercase binding identity to the config contract.
+      bindingRef: `binding_${resourceDigest({ sourceProjectId, binding: 'background' })}`,
       declaredMount: backgroundMount,
       localPath: backgroundLocal?.path,
       approvedRoots: backgroundLocal?.approvedRoots,

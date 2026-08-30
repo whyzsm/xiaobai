@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.config/v1/project-config-draft",
+  "type": "object",
+  "required": ["schemaVersion", "draftId", "workspaceId", "operation", "baseRevision", "baseDigest", "actor", "config", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "xiaobai.config/v1" },
+    "draftId": { "type": "string", "pattern": "^drf_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "operation": { "enum": ["create", "update"] },
+    "baseRevision": { "type": "string", "pattern": "^rev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "baseDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "actor": { "type": "object", "required": ["identity"], "properties": { "identity": { "type": "string", "minLength": 1 } }, "additionalProperties": false },
+    "config": { "$ref": "#/$defs/config" },
+    "createdAt": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "locator": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!\\\\)(?!//)(?![A-Za-z]:[\\\\/])(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))(?!.*\\u0000).+$" },
+    "bindingRef": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,63}$" },
+    "repositoryId": { "type": "string", "pattern": "^repo_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "knowledgeId": { "type": "string", "pattern": "^know_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "skillId": { "type": "string", "pattern": "^skill_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "agentId": { "type": "string", "pattern": "^agent_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "config": {
+      "type": "object",
+      "required": ["key", "displayName", "owner", "classification", "repositories", "knowledgeBindings", "agentProfiles", "skills", "memory", "artifact", "qualityCommands"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
+        "repositories": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/repository" } },
+        "knowledgeBindings": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/knowledge" } },
+        "agentProfiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/agent" } },
+        "skills": { "type": "array", "items": { "$ref": "#/$defs/skill" } },
+        "memory": { "type": "object", "required": ["namespaceId", "retention", "projection"], "properties": { "namespaceId": { "type": "string", "pattern": "^mem_[a-z0-9][a-z0-9_-]{2,63}$" }, "retention": { "type": "string", "minLength": 1 }, "projection": { "type": "string", "minLength": 1 } }, "additionalProperties": false },
+        "artifact": { "type": "object", "required": ["locator", "readOnly"], "properties": { "locator": { "$ref": "#/$defs/locator" }, "readOnly": { "type": "boolean" } }, "additionalProperties": false },
+        "qualityCommands": { "type": "object", "required": ["validate", "test"], "properties": { "validate": { "type": "string", "minLength": 1 }, "test": { "type": "string", "minLength": 1 } }, "additionalProperties": false }
+      },
+      "additionalProperties": false
+    },
+    "repository": { "type": "object", "required": ["name", "source", "readOnly", "classification"], "properties": { "repoId": { "$ref": "#/$defs/repositoryId" }, "name": { "type": "string", "minLength": 1 }, "source": { "enum": ["local", "remote", "mount"] }, "bindingRef": { "$ref": "#/$defs/bindingRef" }, "locator": { "$ref": "#/$defs/locator" }, "readOnly": { "type": "boolean" }, "classification": { "enum": ["public", "internal", "confidential", "restricted"] } }, "additionalProperties": false },
+    "knowledge": { "type": "object", "required": ["source", "revision", "digest", "readOnly", "trust"], "properties": { "knowledgeId": { "$ref": "#/$defs/knowledgeId" }, "source": { "type": "string", "minLength": 1 }, "bindingRef": { "$ref": "#/$defs/bindingRef" }, "locator": { "$ref": "#/$defs/locator" }, "revision": { "type": "string", "minLength": 1 }, "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }, "readOnly": { "type": "boolean" }, "trust": { "enum": ["bundled", "project", "external", "derived"] } }, "additionalProperties": false },
+    "agent": { "type": "object", "required": ["role", "purpose", "modelPolicyRef", "allowedSkills", "requiredContext", "capabilities", "riskLevel", "humanGatePolicy", "outputContract"], "properties": { "agentId": { "$ref": "#/$defs/agentId" }, "role": { "type": "string", "minLength": 1 }, "purpose": { "type": "string", "minLength": 1 }, "modelPolicyRef": { "type": "string", "minLength": 1 }, "allowedSkills": { "type": "array", "items": { "type": "string" } }, "requiredContext": { "type": "array", "items": { "type": "string" } }, "capabilities": { "type": "array", "items": { "type": "string" } }, "riskLevel": { "enum": ["low", "medium", "high", "critical"] }, "humanGatePolicy": { "type": "string", "minLength": 1 }, "outputContract": { "type": "string", "minLength": 1 } }, "additionalProperties": false },
+    "skill": { "type": "object", "required": ["name", "version", "purpose", "owner", "capabilities", "trust"], "properties": { "skillId": { "$ref": "#/$defs/skillId" }, "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }, "version": { "type": "string", "minLength": 1 }, "purpose": { "type": "string", "minLength": 1 }, "owner": { "type": "string", "minLength": 1 }, "capabilities": { "type": "array", "items": { "type": "string" } }, "trust": { "enum": ["bundled", "project", "external"] } }, "additionalProperties": false }
+  }
+}

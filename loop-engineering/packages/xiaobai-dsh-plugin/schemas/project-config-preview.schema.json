@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.config/v1/project-config-preview",
+  "type": "object",
+  "required": ["schemaVersion", "previewId", "draftId", "workspaceId", "projectId", "baseRevision", "baseDigest", "currentRevision", "currentDigest", "status", "files", "risks", "approvalRequired", "nextAction", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": "xiaobai.config/v1" },
+    "previewId": { "type": "string", "pattern": "^ev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "draftId": { "type": "string", "pattern": "^drf_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "baseRevision": { "type": "string", "pattern": "^rev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "baseDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "currentRevision": { "type": "string", "pattern": "^rev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "currentDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "status": { "enum": ["ready", "invalid", "drift", "conflict"] },
+    "files": { "type": "array", "items": { "type": "object", "required": ["locator", "operation", "beforeDigest", "afterDigest", "changes"], "properties": { "locator": { "$ref": "#/$defs/locator" }, "operation": { "enum": ["create", "update", "delete"] }, "beforeDigest": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" }, "afterDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }, "changes": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": false } },
+    "risks": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+    "approvalRequired": { "type": "boolean" },
+    "nextAction": { "type": "string", "minLength": 1 },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "locator": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!\\\\)(?!//)(?![A-Za-z]:[\\\\/])(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))(?!.*\\u0000).+$" },
+    "diagnostic": { "type": "object", "required": ["code", "severity", "message"], "properties": { "code": { "type": "string", "minLength": 1 }, "severity": { "enum": ["info", "warning", "error"] }, "field": { "type": "string", "minLength": 1 }, "message": { "type": "string", "minLength": 1 }, "phase": { "type": "string", "minLength": 1 }, "resourceId": { "type": "string", "minLength": 1 }, "evidenceRef": { "type": "string", "minLength": 1 } }, "additionalProperties": false }
+  }
+}

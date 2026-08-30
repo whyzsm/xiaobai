@@ -1,8 +1,8 @@
-import { CONTRACT_VERSION, ERROR_CODES, ID_PATTERNS, LIFECYCLE_STATES } from './constants.js'
+import { CONFIG_CONTRACT_VERSION, CONTRACT_VERSION, ERROR_CODES, ID_PATTERNS, LIFECYCLE_STATES } from './constants.js'
 import { cloneCanonical, sha256Digest } from './canonical.js'
 import { contractError } from './errors.js'
 import { validateRepositoryBinding } from './path-binding.js'
-import { ProjectBaselineSchema, AgentProfileSchema, SkillPackageSchema, StageEvidenceSchema, EvaluatorResultSchema, GateDecisionSchema, RunLockSchema, KnowledgeBindingSchema, MemoryRecordSchema, MemoryCheckpointSchema, MemoryAuditSchema, MemoryProjectionSchema, MemoryConflictSchema, PolicyContextSchema } from './typed.js'
+import { ProjectBaselineSchema, AgentProfileSchema, SkillPackageSchema, StageEvidenceSchema, EvaluatorResultSchema, GateDecisionSchema, RunLockSchema, KnowledgeBindingSchema, MemoryRecordSchema, MemoryCheckpointSchema, MemoryAuditSchema, MemoryProjectionSchema, MemoryConflictSchema, PolicyContextSchema, ProjectConfigDraftSchema, ProjectConfigPreviewSchema, ProjectConfigApplyResultSchema, ConfigHistoryEntrySchema, ResponseEnvelopeSchema } from './typed.js'
 import { isAbsolute } from 'node:path'
 
 const resourceId = (prefix) => ({ type: 'string', pattern: `^${prefix}_[a-z0-9][a-z0-9_-]{2,63}$` })
@@ -43,6 +43,34 @@ const repository = {
 const memory = { type: 'object', required: ['namespaceId', 'retention', 'projection'], properties: { namespaceId: resourceId('mem'), retention: nonBlank, projection: nonBlank }, additionalProperties: false }
 const policyRefs = { type: 'object', required: ['agent', 'memory', 'workflow'], properties: { agent: nonBlank, memory: nonBlank, workflow: nonBlank, project: nonBlank }, additionalProperties: false }
 const provenance = { type: 'object', required: ['source', 'revision', 'digest', 'scope', 'trust'], properties: { source: nonBlank, revision: nonBlank, digest, scope: nonBlank, trust: { enum: ['bundled', 'project', 'external', 'derived'] } }, additionalProperties: false }
+const configLocator = { type: 'string', minLength: 1, pattern: '^(?!/)(?![A-Za-z]:[\\\\/])(?!\\\\)(?!//)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))(?!.*\\u0000).+$' }
+const bindingRef = { type: 'string', pattern: '^[a-z][a-z0-9_-]{2,63}$' }
+const configAgentProfile = {
+  type: 'object',
+  required: ['role', 'purpose', 'modelPolicyRef', 'allowedSkills', 'requiredContext', 'capabilities', 'riskLevel', 'humanGatePolicy', 'outputContract'],
+  properties: { agentId: resourceId('agent'), role: nonBlank, purpose: nonBlank, modelPolicyRef: nonBlank, allowedSkills: stringArray, requiredContext: stringArray, capabilities: stringArray, riskLevel: { enum: ['low', 'medium', 'high', 'critical'] }, humanGatePolicy: nonBlank, outputContract: nonBlank },
+  additionalProperties: false,
+}
+const configSkillPackage = {
+  type: 'object',
+  required: ['name', 'version', 'purpose', 'owner', 'capabilities', 'trust'],
+  properties: { skillId: resourceId('skill'), name: { type: 'string', pattern: ID_PATTERNS.key.source }, version: nonBlank, purpose: nonBlank, owner: nonBlank, capabilities: stringArray, trust: { enum: ['bundled', 'project', 'external'] } },
+  additionalProperties: false,
+}
+const configPayload = {
+  type: 'object',
+  required: ['key', 'displayName', 'owner', 'classification', 'repositories', 'knowledgeBindings', 'agentProfiles', 'skills', 'memory', 'artifact', 'qualityCommands'],
+  properties: {
+    key: { type: 'string', pattern: ID_PATTERNS.key.source }, displayName: nonBlank, owner: nonBlank, classification,
+    repositories: { type: 'array', minItems: 1, items: { type: 'object', required: ['name', 'source', 'readOnly', 'classification'], properties: { repoId: resourceId('repo'), name: nonBlank, source: { enum: ['local', 'remote', 'mount'] }, bindingRef, locator: configLocator, readOnly: { type: 'boolean' }, classification }, additionalProperties: false } },
+    knowledgeBindings: { type: 'array', minItems: 1, items: { type: 'object', required: ['source', 'revision', 'digest', 'readOnly', 'trust'], properties: { knowledgeId: resourceId('know'), source: nonBlank, bindingRef, locator: configLocator, revision: nonBlank, digest, readOnly: { type: 'boolean' }, trust: { enum: ['bundled', 'project', 'external', 'derived'] } }, additionalProperties: false } },
+    agentProfiles: { type: 'array', minItems: 1, items: configAgentProfile }, skills: { type: 'array', items: configSkillPackage },
+    memory: { type: 'object', required: ['namespaceId', 'retention', 'projection'], properties: { namespaceId: resourceId('mem'), retention: nonBlank, projection: nonBlank }, additionalProperties: false },
+    artifact: { type: 'object', required: ['locator', 'readOnly'], properties: { bindingRef, locator: configLocator, readOnly: { type: 'boolean' } }, additionalProperties: false },
+    qualityCommands: { type: 'object', required: ['validate', 'test'], properties: { validate: nonBlank, test: nonBlank }, additionalProperties: false },
+  },
+  additionalProperties: false,
+}
 
 export const JSON_SCHEMAS = Object.freeze({
   projectBaseline: {
@@ -70,10 +98,15 @@ export const JSON_SCHEMAS = Object.freeze({
     memoryProjection: { type: 'object', required: ['projectionId', 'projectId', 'namespaceId', 'target', 'path', 'contentDigest', 'sourceRecordIds', 'content', 'createdAt', 'provenance'], properties: { projectionId: nonBlank, projectId: resourceId('prj'), namespaceId: resourceId('mem'), target: { const: 'obsidian' }, path: nonBlank, contentDigest: digest, sourceRecordIds: { type: 'array', items: { type: 'string' } }, content: { type: 'string' }, createdAt: nonBlank, provenance }, additionalProperties: false },
     memoryConflict: { type: 'object', required: ['conflictId', 'projectId', 'namespaceId', 'recordKey', 'existingDigest', 'incomingDigest', 'createdAt', 'provenance'], properties: { conflictId: nonBlank, projectId: resourceId('prj'), namespaceId: resourceId('mem'), recordKey: nonBlank, existingDigest: digest, incomingDigest: digest, createdAt: nonBlank, provenance }, additionalProperties: false },
     policyContext: { type: 'object', required: ['kind', 'policyId', 'values', 'source', 'revision', 'digest', 'scope', 'trust', 'requiredCapabilities'], properties: { kind: { enum: ['agent', 'memory', 'workflow', 'project', 'agent-profile'] }, policyId: nonBlank, values: { type: 'object' }, source: nonBlank, revision: nonBlank, digest, scope: nonBlank, trust: { enum: ['bundled', 'project', 'external', 'derived'] }, requiredCapabilities: stringArray }, additionalProperties: false },
-})
+    projectConfigDraft: { type: 'object', required: ['schemaVersion', 'draftId', 'workspaceId', 'operation', 'baseRevision', 'baseDigest', 'actor', 'config', 'createdAt'], properties: { schemaVersion: { const: CONFIG_CONTRACT_VERSION }, draftId: resourceId('drf'), workspaceId: resourceId('ws'), projectId: resourceId('prj'), operation: { enum: ['create', 'update'] }, baseRevision: resourceId('rev'), baseDigest: digest, actor: { type: 'object', required: ['identity'], properties: { identity: nonBlank }, additionalProperties: false }, config: configPayload, createdAt: nonBlank }, additionalProperties: false },
+    projectConfigPreview: { type: 'object', required: ['schemaVersion', 'previewId', 'draftId', 'workspaceId', 'projectId', 'baseRevision', 'baseDigest', 'currentRevision', 'currentDigest', 'status', 'files', 'risks', 'approvalRequired', 'nextAction', 'diagnostics'], properties: { schemaVersion: { const: CONFIG_CONTRACT_VERSION }, previewId: resourceId('ev'), draftId: resourceId('drf'), workspaceId: resourceId('ws'), projectId: resourceId('prj'), baseRevision: resourceId('rev'), baseDigest: digest, currentRevision: resourceId('rev'), currentDigest: digest, status: { enum: ['ready', 'invalid', 'drift', 'conflict'] }, files: { type: 'array' }, risks: { type: 'array' }, approvalRequired: { type: 'boolean' }, nextAction: nonBlank, diagnostics: { type: 'array' } }, additionalProperties: false },
+    projectConfigApplyResult: { type: 'object', required: ['schemaVersion', 'applyId', 'workspaceId', 'projectId', 'revision', 'digest', 'status', 'evidenceRef', 'diagnostics'], properties: { schemaVersion: { const: CONFIG_CONTRACT_VERSION }, applyId: resourceId('ev'), workspaceId: resourceId('ws'), projectId: resourceId('prj'), revision: resourceId('rev'), digest, status: { enum: ['applied', 'conflict', 'approval_required', 'failed'] }, historyId: resourceId('ev'), evidenceRef: nonBlank, diagnostics: { type: 'array' } }, additionalProperties: false },
+    configHistoryEntry: { type: 'object', required: ['schemaVersion', 'historyId', 'revision', 'workspaceId', 'projectId', 'parentRevision', 'digest', 'operation', 'actor', 'status', 'createdAt', 'evidenceRef', 'changedFiles', 'canRollback'], properties: { schemaVersion: { const: CONFIG_CONTRACT_VERSION }, historyId: resourceId('ev'), revision: resourceId('rev'), workspaceId: resourceId('ws'), projectId: resourceId('prj'), parentRevision: { anyOf: [resourceId('rev'), { type: 'null' }] }, digest, operation: { enum: ['create', 'update', 'rollback'] }, actor: nonBlank, status: { enum: ['applied', 'failed', 'rolled_back'] }, createdAt: nonBlank, evidenceRef: nonBlank, changedFiles: { type: 'array', items: configLocator }, canRollback: { type: 'boolean' } }, additionalProperties: false },
+    responseEnvelope: { type: 'object', required: ['schemaVersion', 'requestId', 'status', 'diagnostics'], properties: { schemaVersion: { const: CONFIG_CONTRACT_VERSION }, requestId: resourceId('ev'), status: { enum: ['ok', 'invalid', 'drift', 'conflict', 'approval_required', 'failed', 'unsupported'] }, data: {}, diagnostics: { type: 'array' }, errorCode: nonBlank, phase: nonBlank, resourceId: nonBlank, evidenceRef: nonBlank }, additionalProperties: false },
+  })
 
 const requiredFields = Object.fromEntries(Object.entries(JSON_SCHEMAS).map(([name, schema]) => [name, schema.required]))
-const TYPED_SCHEMAS = Object.freeze({ projectBaseline: ProjectBaselineSchema, knowledgeBinding: KnowledgeBindingSchema, agentProfile: AgentProfileSchema, skillPackage: SkillPackageSchema, runLock: RunLockSchema, stageEvidence: StageEvidenceSchema, evaluatorResult: EvaluatorResultSchema, gateDecision: GateDecisionSchema, memoryRecord: MemoryRecordSchema, memoryCheckpoint: MemoryCheckpointSchema, memoryAudit: MemoryAuditSchema, memoryProjection: MemoryProjectionSchema, memoryConflict: MemoryConflictSchema, policyContext: PolicyContextSchema })
+const TYPED_SCHEMAS = Object.freeze({ projectBaseline: ProjectBaselineSchema, knowledgeBinding: KnowledgeBindingSchema, agentProfile: AgentProfileSchema, skillPackage: SkillPackageSchema, runLock: RunLockSchema, stageEvidence: StageEvidenceSchema, evaluatorResult: EvaluatorResultSchema, gateDecision: GateDecisionSchema, memoryRecord: MemoryRecordSchema, memoryCheckpoint: MemoryCheckpointSchema, memoryAudit: MemoryAuditSchema, memoryProjection: MemoryProjectionSchema, memoryConflict: MemoryConflictSchema, policyContext: PolicyContextSchema, projectConfigDraft: ProjectConfigDraftSchema, projectConfigPreview: ProjectConfigPreviewSchema, projectConfigApplyResult: ProjectConfigApplyResultSchema, configHistoryEntry: ConfigHistoryEntrySchema, responseEnvelope: ResponseEnvelopeSchema })
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -126,6 +159,19 @@ export function validateContract(name, value) {
   if (name === 'memoryRecord') { checkId(value.projectId, 'projectId', 'prj'); checkId(value.namespaceId, 'namespaceId', 'mem'); checkDigest(value.provenance.digest, 'provenance.digest'); return cloneCanonical(value) }
   if (name === 'memoryCheckpoint' || name === 'memoryAudit' || name === 'memoryProjection' || name === 'memoryConflict') { checkId(value.projectId, 'projectId', 'prj'); checkId(value.namespaceId, 'namespaceId', 'mem'); checkDigest(value.provenance.digest, 'provenance.digest'); if (name === 'memoryProjection') checkDigest(value.contentDigest, 'contentDigest'); return cloneCanonical(value) }
   if (name === 'policyContext') { checkDigest(value.digest, 'digest'); return cloneCanonical(value) }
+  if (name === 'projectConfigDraft') {
+    if (!ID_PATTERNS.resource.test(value.draftId) || !value.draftId.startsWith('drf_')) throw contractError('projectConfigDraft.draftId must use the drf_ resource namespace')
+    if (value.projectId !== undefined) checkId(value.projectId, 'projectId', 'prj')
+    checkId(value.workspaceId, 'workspaceId', 'ws')
+    if (value.baseRevision === undefined || !ID_PATTERNS.resource.test(value.baseRevision) || !value.baseRevision.startsWith('rev_')) throw contractError('projectConfigDraft.baseRevision must use the rev_ resource namespace')
+    checkDigest(value.baseDigest, 'baseDigest')
+    if (!value.actor?.identity) throw contractError('projectConfigDraft.actor.identity is required')
+    return cloneCanonical(value)
+  }
+  if (name === 'projectConfigPreview') { checkId(value.previewId, 'previewId', 'ev'); checkId(value.draftId, 'draftId', 'drf'); checkId(value.workspaceId, 'workspaceId', 'ws'); checkId(value.projectId, 'projectId', 'prj'); checkDigest(value.baseDigest, 'baseDigest'); checkDigest(value.currentDigest, 'currentDigest'); return cloneCanonical(value) }
+  if (name === 'projectConfigApplyResult') { checkId(value.applyId, 'applyId', 'ev'); checkId(value.workspaceId, 'workspaceId', 'ws'); checkId(value.projectId, 'projectId', 'prj'); checkId(value.revision, 'revision', 'rev'); checkDigest(value.digest, 'digest'); return cloneCanonical(value) }
+  if (name === 'configHistoryEntry') { checkId(value.historyId, 'historyId', 'ev'); checkId(value.revision, 'revision', 'rev'); checkId(value.workspaceId, 'workspaceId', 'ws'); checkId(value.projectId, 'projectId', 'prj'); checkDigest(value.digest, 'digest'); return cloneCanonical(value) }
+  if (name === 'responseEnvelope') { checkId(value.requestId, 'requestId', 'ev'); return cloneCanonical(value) }
   return cloneCanonical(value)
 }
 

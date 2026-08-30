@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.config/v1/response-envelope",
+  "type": "object",
+  "required": ["schemaVersion", "requestId", "status", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": "xiaobai.config/v1" },
+    "requestId": { "type": "string", "pattern": "^ev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "status": { "enum": ["ok", "invalid", "drift", "conflict", "approval_required", "failed", "unsupported"] },
+    "data": {},
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+    "errorCode": { "type": "string", "minLength": 1 },
+    "phase": { "type": "string", "minLength": 1 },
+    "resourceId": { "type": "string", "minLength": 1 },
+    "evidenceRef": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "diagnostic": { "type": "object", "required": ["code", "severity", "message"], "properties": { "code": { "type": "string", "minLength": 1 }, "severity": { "enum": ["info", "warning", "error"] }, "field": { "type": "string", "minLength": 1 }, "message": { "type": "string", "minLength": 1 }, "phase": { "type": "string", "minLength": 1 }, "resourceId": { "type": "string", "minLength": 1 }, "evidenceRef": { "type": "string", "minLength": 1 } }, "additionalProperties": false }
+  }
+}

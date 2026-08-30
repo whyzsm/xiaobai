@@ -21,5 +21,5 @@ test('apply(ctx) provides Project, Workspace, and Loop facades without Host runt
   assert.equal(services.has('xiaobaiProject'), true)
   assert.equal(services.has('xiaobaiWorkspace'), true)
   assert.equal(services.has('xiaobaiLoops'), true)
-  assert.deepEqual(commands, ['project-bootstrap', 'project-assess', 'project-run', 'project-load', 'project-list', 'loop-list', 'loop-assess', 'loop-plan', 'loop-run'])
+  assert.deepEqual(commands, ['project-bootstrap', 'project-assess', 'project-run', 'project-load', 'project-list', 'loop-list', 'loop-assess', 'loop-plan', 'loop-run', 'workspace-config-list', 'workspace-config-get', 'workspace-config-create-draft', 'workspace-config-validate', 'workspace-config-preview', 'workspace-config-pick-directory', 'workspace-config-request-approval', 'workspace-config-apply', 'workspace-config-history', 'workspace-config-rollback'])
 })

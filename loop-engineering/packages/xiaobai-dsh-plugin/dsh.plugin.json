@@ -21,7 +21,8 @@
     "monitor-projection",
     "fixed-workflow",
     "independent-evaluator",
-    "approval-gate"
+    "approval-gate",
+    "workspace-config-console"
   ],
   "commands": [
     "project-bootstrap",
@@ -32,7 +33,17 @@
     "loop-list",
     "loop-assess",
     "loop-plan",
-    "loop-run"
+    "loop-run",
+    "workspace-config-list",
+    "workspace-config-get",
+    "workspace-config-create-draft",
+    "workspace-config-validate",
+    "workspace-config-preview",
+    "workspace-config-pick-directory",
+    "workspace-config-request-approval",
+    "workspace-config-apply",
+    "workspace-config-history",
+    "workspace-config-rollback"
   ],
   "schemas": [
     "ProjectId",
@@ -51,7 +62,17 @@
     "PolicyContext",
     "EvaluatorResult",
     "GateDecision",
-    "MonitorProjection"
+    "MonitorProjection",
+    "ProjectConfigDraft",
+    "ProjectConfigPreview",
+    "ProjectConfigApplyResult",
+    "ConfigHistoryEntry",
+    "ResponseEnvelope",
+    "WorkspaceConfigRequest",
+    "CreateProjectDraftRequest",
+    "ApplyProjectConfigRequest",
+    "DirectoryPickRequest",
+    "RollbackProjectConfigRequest"
   ],
   "diagnostics": [
     "host-capability-probe",
@@ -63,6 +84,9 @@
     "host-version-probe",
     "scope-isolation"
   ],
+  "client": {
+    "platform": "web"
+  },
   "entry": {
     "name": "@xiaobai/dsh-plugin",
     "inject": []

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "xiaobai.config/v1/project-config-apply-result",
+  "type": "object",
+  "required": ["schemaVersion", "applyId", "workspaceId", "projectId", "revision", "digest", "status", "evidenceRef", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": "xiaobai.config/v1" },
+    "applyId": { "type": "string", "pattern": "^ev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "projectId": { "type": "string", "pattern": "^prj_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "revision": { "type": "string", "pattern": "^rev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "status": { "enum": ["applied", "conflict", "approval_required", "failed"] },
+    "historyId": { "type": "string", "pattern": "^ev_[a-z0-9][a-z0-9_-]{2,63}$" },
+    "evidenceRef": { "type": "string", "minLength": 1 },
+    "diagnostics": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": false
+}

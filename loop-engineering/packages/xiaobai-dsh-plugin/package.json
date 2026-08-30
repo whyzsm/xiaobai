@@ -2,7 +2,8 @@
   "name": "@xiaobai/dsh-plugin",
   "version": "0.1.0",
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "evaluate:config": "node ../../../scripts/evaluate-config-console.mjs"
   },
   "description": "Xiaobai Loop Engineering domain providers for DeepSeek Harness",
   "license": "UNLICENSED",
@@ -12,7 +13,9 @@
     ".": "./lib/index.js",
     "./core-facade": "./lib/core-facade.js",
     "./invariant": "./lib/invariant.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./client": "./lib/client.js",
+    "./typert": "./lib/typert.js"
   },
   "files": [
     "lib",
@@ -31,6 +34,14 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
     }
   },
   "peerDependencies": {
@@ -42,7 +53,8 @@
     "@deepseek-ai/dsh-typert-registry": "0.1.0-rc.6",
     "@deepseek-ai/dsh-user-approval": "0.1.0-rc.6",
     "@deepseek-ai/dsh-workflow": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-workspace": "0.1.0-rc.6"
+    "@deepseek-ai/dsh-workspace": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-typert-protocol": "0.1.0-rc.6"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-storage-domain": {

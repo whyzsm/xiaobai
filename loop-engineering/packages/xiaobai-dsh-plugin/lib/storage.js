@@ -18,6 +18,10 @@ export const workspaceRegistryDomainSpec = defineDomain({
     project_baselines: { valueSchema: { parse: objectSchema } },
     load_attempts: { valueSchema: { parse: objectSchema } },
     config_conflicts: { valueSchema: { parse: objectSchema } },
+    config_drafts: { valueSchema: { parse: objectSchema } },
+    config_revisions: { valueSchema: { parse: objectSchema } },
+    config_approvals: { valueSchema: { parse: objectSchema } },
+    config_audit: { valueSchema: { parse: objectSchema } },
     monitor_projections: { valueSchema: { parse: objectSchema } },
   },
 })
@@ -30,6 +34,7 @@ function persistentBackground(background) {
   if (!background) return undefined
   return {
     id: background.id,
+    ...(background.bindingRef ? { bindingRef: background.bindingRef } : {}),
     integration: background.integration,
   }
 }
@@ -151,6 +156,65 @@ export class WorkspaceRegistryStore {
     if (!value?.conflictId) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'Configuration conflict requires conflictId', { phase: 'workspace-persistence' })
     await this.domain.table('config_conflicts').put(value.conflictId, cloneCanonical(value))
     return value
+  }
+
+  async saveDraft(value) {
+    this.assertOpen()
+    if (!value?.draftId) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'Configuration draft requires draftId', { phase: 'config-draft-persistence' })
+    await this.domain.table('config_drafts').put(value.draftId, cloneCanonical(value))
+    return value
+  }
+
+  getDraft(draftId) {
+    this.assertOpen()
+    return this.domain.table('config_drafts').get(draftId)
+  }
+
+  async saveRevision(value) {
+    this.assertOpen()
+    if (!value?.revision) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'Configuration revision requires revision', { phase: 'config-revision-persistence' })
+    await this.domain.table('config_revisions').put(`${value.workspaceId}:${value.projectId}:${value.revision}`, cloneCanonical(value))
+    return value
+  }
+
+  getRevision(workspaceId, projectId, revision) {
+    this.assertOpen()
+    return this.domain.table('config_revisions').get(`${workspaceId}:${projectId}:${revision}`)
+  }
+
+  listRevisions(workspaceId, projectId) {
+    this.assertOpen()
+    return entries(this.domain.table('config_revisions'))
+      .map(([, value]) => value)
+      .filter((value) => (!workspaceId || value.workspaceId === workspaceId) && (!projectId || value.projectId === projectId))
+      .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))
+  }
+
+  async saveApproval(value) {
+    this.assertOpen()
+    if (!value?.approvalId) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'Configuration approval requires approvalId', { phase: 'config-approval-persistence' })
+    await this.domain.table('config_approvals').put(value.approvalId, cloneCanonical(value))
+    return value
+  }
+
+  getApproval(approvalId) {
+    this.assertOpen()
+    return this.domain.table('config_approvals').get(approvalId)
+  }
+
+  async recordConfigAudit(value) {
+    this.assertOpen()
+    if (!value?.auditId) throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'Configuration audit requires auditId', { phase: 'config-audit-persistence' })
+    await this.domain.table('config_audit').put(value.auditId, cloneCanonical(value))
+    return value
+  }
+
+  listConfigAudit(workspaceId, projectId) {
+    this.assertOpen()
+    return entries(this.domain.table('config_audit'))
+      .map(([, value]) => value)
+      .filter((value) => (!workspaceId || value.workspaceId === workspaceId) && (!projectId || value.projectId === projectId))
+      .sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)))
   }
 
   async saveProjection(projection) {

@@ -16,6 +16,7 @@ import { registerProjectCommands } from './commands.js'
 import { registerPolicyService } from './policy.js'
 import { WorkspaceService } from './workspace.js'
 import { LoopCatalogService } from './loop-catalog.js'
+import { WorkspaceConfigService } from './config-console.js'
 
 const REPORT_ENV = 'XIAOBAI_DSH_M0_REPORT'
 
@@ -178,7 +179,7 @@ async function runM0Probe(ctx, config = {}) {
     if (config.probeWebServices === true) await ctx.inject(['workspaceRegistry', 'storageDomain'], (scopeCtx) => probeWebServices(scopeCtx, report))
     else await probeWebServices(ctx, report)
     const failedOperation = report.operations.find((operation) => operation.status === 'failed')
-    if (failedOperation) throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, `M0 probe failed at '${failedOperation.name}'`, { phase: 'm0-probe', actual: failedOperation, remediation: 'Use the verified dsh rc.6 profile and rerun the capability probe.' })
+    if (failedOperation) throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, `M0 probe failed at '${failedOperation.name}'`, { phase: 'm0-probe', actual: failedOperation, remediation: 'Use the verified dsh 0.1.0-rc.6 profile and rerun the capability probe.' })
     report.completed = true
   } catch (error) {
     primaryFailure = error
@@ -224,10 +225,12 @@ export function apply(ctx, config = {}) {
   const projectService = new ProjectRegistry(ctx, { runPath: runMinimumVerticalPath })
   const workspaceService = new WorkspaceService(ctx, projectService)
   const loopService = new LoopCatalogService()
+  const configService = new WorkspaceConfigService(ctx, workspaceService)
   ctx.provide('xiaobaiProject', projectService)
   ctx.provide('xiaobaiWorkspace', workspaceService)
   ctx.provide('xiaobaiLoops', loopService)
-  ctx.inject(['commands'], (commandCtx) => registerProjectCommands(commandCtx, projectService, workspaceService, loopService))
+  ctx.provide('xiaobaiConfig', configService)
+  ctx.inject(['commands'], (commandCtx) => registerProjectCommands(commandCtx, projectService, workspaceService, loopService, configService))
 }
 
 export { runM0Probe, runMinimumVerticalPath }
@@ -253,5 +256,7 @@ export * from './policy.js'
 export * from './workspace.js'
 export * from './storage.js'
 export * from './loop-catalog.js'
+export * from './config-console.js'
+export * from './config-evaluator.js'
 export * from './core-facade.js'
 export * from './projection.js'
