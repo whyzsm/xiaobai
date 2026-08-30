@@ -4,7 +4,7 @@
   "description": "Xiaobai Loop Engineering domain providers for DeepSeek Harness",
   "manifestVersion": 1,
   "hostSupport": {
-    "dsh": "0.1.0-rc.6",
+    "dsh": "0.1.1-rc.2",
     "cordis": "4.0.1"
   },
   "capabilities": [
@@ -22,7 +22,8 @@
     "fixed-workflow",
     "independent-evaluator",
     "approval-gate",
-    "workspace-config-console"
+    "workspace-config-console",
+    "project-reference"
   ],
   "commands": [
     "project-bootstrap",
@@ -69,6 +70,7 @@
     "ConfigHistoryEntry",
     "ResponseEnvelope",
     "WorkspaceConfigRequest",
+    "ProjectCandidatesRequest",
     "CreateProjectDraftRequest",
     "ApplyProjectConfigRequest",
     "DirectoryPickRequest",

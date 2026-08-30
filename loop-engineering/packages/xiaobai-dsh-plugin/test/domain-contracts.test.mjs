@@ -196,19 +196,19 @@ test('Host version probe distinguishes verified, conditional, and mismatched pac
   const root = await mkdtemp(join(tmpdir(), 'xiaobai-host-probe-'))
   try {
     const packages = [
-      ['@deepseek-ai/dsh', '0.1.0-rc.6'],
+      ['@deepseek-ai/dsh', '0.1.1-rc.2'],
       ['@deepseek-ai/cordis', '4.0.1'],
-      ['@deepseek-ai/dsh-scope', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-storage-domain', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-skill', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-workflow', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-user-approval', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-invariants', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-typert-registry', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-workspace', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-agent', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-agent-loop', '0.1.0-rc.6'],
-      ['@deepseek-ai/dsh-headless', '0.1.0-rc.6'],
+      ['@deepseek-ai/dsh-scope', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-storage-domain', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-skill', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-workflow', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-user-approval', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-invariants', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-typert-registry', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-workspace', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-agent', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-agent-loop', '0.1.1-rc.2'],
+      ['@deepseek-ai/dsh-headless', '0.1.1-rc.2'],
     ]
     for (const [name, version] of packages) {
       const packageRoot = join(root, 'node_modules', ...name.split('/'))
@@ -216,7 +216,7 @@ test('Host version probe distinguishes verified, conditional, and mismatched pac
       await writeFile(join(packageRoot, 'package.json'), JSON.stringify({ name, version }))
     }
     assert.equal(probeHostVersions({ searchPaths: [root] }).status, 'verified')
-    const mismatch = probeHostVersions({ searchPaths: [root], expected: { dsh: '0.1.0-rc.6', cordis: '4.0.1', seams: { scope: '9.9.9', storageDomain: '0.1.0-rc.6', skill: '0.1.0-rc.6', workflow: '0.1.0-rc.6', approval: '0.1.0-rc.6', invariants: '0.1.0-rc.6', typert: '0.1.0-rc.6', workspace: '0.1.0-rc.6' }, runtimes: { agent: '0.1.0-rc.6', agentLoop: '0.1.0-rc.6', headless: '0.1.0-rc.6' } } })
+    const mismatch = probeHostVersions({ searchPaths: [root], expected: { dsh: '0.1.1-rc.2', cordis: '4.0.1', seams: { scope: '9.9.9', storageDomain: '0.1.1-rc.2', skill: '0.1.1-rc.2', workflow: '0.1.1-rc.2', approval: '0.1.1-rc.2', invariants: '0.1.1-rc.2', typert: '0.1.1-rc.2', workspace: '0.1.1-rc.2' }, runtimes: { agent: '0.1.1-rc.2', agentLoop: '0.1.1-rc.2', headless: '0.1.1-rc.2' } } })
     assert.equal(mismatch.status, 'unsupported')
     assert.ok(mismatch.mismatches.includes('seams.scope'))
     assert.equal(probeHostVersions({ searchPaths: [join(root, 'missing')] }).status, 'conditional')

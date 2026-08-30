@@ -4,22 +4,22 @@ export const CONFIG_CONTRACT_VERSION = 'xiaobai.config/v1'
 export const PLUGIN_VERSION = '0.1.0'
 
 export const HOST_SUPPORT = Object.freeze({
-  dsh: '0.1.0-rc.6',
+  dsh: '0.1.1-rc.2',
   cordis: '4.0.1',
   seams: Object.freeze({
-    scope: '0.1.0-rc.6',
-    storageDomain: '0.1.0-rc.6',
-    skill: '0.1.0-rc.6',
-    workflow: '0.1.0-rc.6',
-    approval: '0.1.0-rc.6',
-    invariants: '0.1.0-rc.6',
-    typert: '0.1.0-rc.6',
-    workspace: '0.1.0-rc.6',
+    scope: '0.1.1-rc.2',
+    storageDomain: '0.1.1-rc.2',
+    skill: '0.1.1-rc.2',
+    workflow: '0.1.1-rc.2',
+    approval: '0.1.1-rc.2',
+    invariants: '0.1.1-rc.2',
+    typert: '0.1.1-rc.2',
+    workspace: '0.1.1-rc.2',
   }),
   runtimes: Object.freeze({
-    agent: '0.1.0-rc.6',
-    agentLoop: '0.1.0-rc.6',
-    headless: '0.1.0-rc.6',
+    agent: '0.1.1-rc.2',
+    agentLoop: '0.1.1-rc.2',
+    headless: '0.1.1-rc.2',
   }),
 })
 
@@ -27,6 +27,8 @@ export const ERROR_CODES = Object.freeze({
   HOST_UNSUPPORTED: 'XIAOBAI_HOST_UNSUPPORTED',
   SCOPE_REQUIRED: 'XIAOBAI_SCOPE_REQUIRED',
   PROJECT_NOT_FOUND: 'XIAOBAI_PROJECT_NOT_FOUND',
+  PROJECT_REFERENCE_INVALID: 'XIAOBAI_PROJECT_REFERENCE_INVALID',
+  REPOSITORY_UNAVAILABLE: 'XIAOBAI_REPOSITORY_UNAVAILABLE',
   KNOWLEDGE_LOCK_REQUIRED: 'XIAOBAI_KNOWLEDGE_LOCK_REQUIRED',
   LOCK_DRIFT: 'XIAOBAI_LOCK_DRIFT',
   PATH_ESCAPE: 'XIAOBAI_PATH_ESCAPE',

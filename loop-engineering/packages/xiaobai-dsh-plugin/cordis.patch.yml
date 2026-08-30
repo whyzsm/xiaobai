@@ -7,3 +7,15 @@
       config:
         m0Probe: !!js process.env.XIAOBAI_DSH_M0 === '1'
         probeWebServices: !!js process.env.XIAOBAI_DSH_M0_WEB === '1'
+
+# This profile runs the dsh Host and browser on the same macOS workstation, so
+# use the system directory chooser. Keep the adaptive row disabled because the
+# profile pins both halves of the native interaction explicitly.
+- id: directory-picker
+  name: '@deepseek-ai/dsh-host-directory-picker-auto'
+  disabled: true
+- insert:
+    - id: xiaobai-directory-picker-native
+      name: '@deepseek-ai/dsh-host-directory-picker-native'
+    - id: xiaobai-directory-picker-native-client
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-native'

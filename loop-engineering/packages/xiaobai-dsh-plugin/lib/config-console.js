@@ -8,6 +8,7 @@ import { getHostService } from './host.js'
 import { XiaobaiError } from './errors.js'
 import { validateContract, validateProjectBaseline } from './contracts.js'
 import { bindTypertRemote } from './typert.js'
+import { redactLoadedWorkspace } from './workspace.js'
 
 const CONFIG_ROOT = 'projects'
 
@@ -34,6 +35,12 @@ function safeLocator(value, fallback) {
   return value.replaceAll('\\', '/')
 }
 
+function safeCandidateText(value, fallback) {
+  const text = String(value ?? '').trim()
+  if (text.length === 0 || text.length > 128 || /[\u0000-\u001f\u007f<>\\/]/u.test(text) || /^(?:[a-z]:|[a-z][a-z0-9+.-]*:)/iu.test(text)) return fallback
+  return text
+}
+
 function redactText(value) {
   return String(value ?? 'Configuration operation failed')
     .replaceAll(/https?:\/\/[^\s)]+/giu, '[redacted-url]')
@@ -49,6 +56,30 @@ function diagnostic(error, fallbackCode = ERROR_CODES.CONFIG_INVALID, field) {
     message: redactText(error?.message ?? error),
     ...(error?.phase ? { phase: error.phase } : {}),
     ...(error?.resourceId ? { resourceId: error.resourceId } : {}),
+  }
+}
+
+function normalizeDiagnostic(value) {
+  const source = isObject(value) ? value : { message: value }
+  const code = typeof source.code === 'string' && source.code.length > 0 ? source.code : ERROR_CODES.CONFIG_INVALID
+  const severity = ['info', 'warning', 'error'].includes(source.severity) ? source.severity : 'error'
+  const rawField = typeof source.field === 'string' && source.field.length > 0 ? source.field : undefined
+  const field = rawField
+    ? /^(?:[a-z]:[\\/]|\\\\|\/|\/\/|[a-z][a-z0-9+.-]*:)/iu.test(rawField) ? redactText(rawField) : rawField
+    : undefined
+  const resourceId = typeof source.resourceId === 'string' && source.resourceId.length > 0
+    ? source.resourceId
+    : ID_PATTERNS.resource.test(source.projectId ?? '')
+      ? source.projectId
+      : undefined
+  return {
+    code,
+    severity,
+    ...(field ? { field } : {}),
+    message: redactText(source.message ?? source),
+    ...(typeof source.phase === 'string' && source.phase.length > 0 ? { phase: source.phase } : {}),
+    ...(resourceId ? { resourceId } : {}),
+    ...(typeof source.evidenceRef === 'string' && source.evidenceRef.length > 0 ? { evidenceRef: source.evidenceRef } : {}),
   }
 }
 
@@ -72,7 +103,7 @@ function envelope(status, data, diagnostics = [], details = {}) {
     requestId: resourceId('ev'),
     status,
     ...(data === undefined ? {} : { data }),
-    diagnostics,
+    diagnostics: diagnostics.map(normalizeDiagnostic),
     ...(details.errorCode ? { errorCode: details.errorCode } : {}),
     ...(details.phase ? { phase: details.phase } : {}),
     ...(details.resourceId ? { resourceId: details.resourceId } : {}),
@@ -391,10 +422,43 @@ export class WorkspaceConfigService {
     return { entry, config, digest, revision, latest, sourceDigest, drift }
   }
 
+  async projectCandidates(request = {}) {
+    return this.safeCall(async () => {
+      const workspace = await this.workspaceFor({ ...request, refresh: false })
+      const query = String(request.query ?? '').trim().toLowerCase()
+      const projects = workspace.projects
+        .map((entry) => {
+          const projectId = entry.baseline?.projectId ?? entry.projectId
+          const sourceProjectId = safeCandidateText(entry.sourceProjectId ?? entry.baseline?.key, projectId)
+          const displayName = safeCandidateText(entry.baseline?.displayName ?? entry.displayName, sourceProjectId)
+          const repositoryStatuses = Array.isArray(entry.repositoryStatuses) ? entry.repositoryStatuses : []
+          const repositoryStatus = repositoryStatuses.length === 0
+            ? 'unknown'
+            : repositoryStatuses.every((repository) => repository.status === 'locked')
+              ? 'locked'
+              : repositoryStatuses.some((repository) => repository.status === 'unavailable')
+                ? 'unavailable'
+                : 'unknown'
+          return {
+            workspaceId: workspace.workspaceId,
+            projectId,
+            sourceProjectId,
+            displayName,
+            status: entry.status ?? workspace.status,
+            knowledgeStatus: entry.knowledgeStatus ?? 'unknown',
+            repositoryStatus,
+          }
+        })
+        .filter((project) => query.length === 0 || [project.sourceProjectId, project.displayName, project.projectId].some((value) => String(value).toLowerCase().includes(query)))
+      return envelope('ok', { workspaceId: workspace.workspaceId, projects })
+    })
+  }
+
   async list(request = {}) {
     return this.safeCall(async () => {
       const workspace = await this.workspaceFor(request)
       const store = await this.openStore()
+      const diagnostics = redactLoadedWorkspace(workspace).diagnostics
       const projects = workspace.projects.map((entry) => {
         const projectId = entry.baseline?.projectId ?? entry.projectId
         const config = entry.baseline ? baselineToConfig(entry) : undefined
@@ -414,7 +478,7 @@ export class WorkspaceConfigService {
           repositoryStatuses: entry.repositoryStatuses,
         }
       })
-      return envelope('ok', { workspaceId: workspace.workspaceId, title: workspace.title, status: workspace.status, projects }, workspace.diagnostics.map((item) => ({ ...item, message: redactText(item.message) })))
+      return envelope('ok', { workspaceId: workspace.workspaceId, title: workspace.title, status: workspace.status, projects, diagnostics }, diagnostics)
     })
   }
 
@@ -633,9 +697,16 @@ export class WorkspaceConfigService {
       const capability = typeof picker?.capability === 'function' ? picker.capability() : undefined
       const native = capability === 'native' || capability?.kind === 'native' || capability?.type === 'native'
       const browse = capability === 'browse' || capability?.kind === 'browse' || capability?.type === 'browse'
-      if (browse) throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, 'Host browse Directory Picker is not enabled for local bindings', { phase: 'directory-picker' })
-      if (!native || typeof picker?.pick !== 'function') throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, 'Host native Directory Picker is unavailable', { phase: 'directory-picker' })
-      const path = await picker.pick(request.signal ?? new AbortController().signal)
+      if (request.selectedPath !== undefined) {
+        if (typeof request.selectedPath !== 'string' || !isAbsolute(request.selectedPath)) throw new XiaobaiError(ERROR_CODES.PATH_ESCAPE, 'Directory Picker returned an invalid path', { phase: 'directory-picker' })
+        const canonical = await this.resolvePickedDirectory(request.selectedPath)
+        const bindingRef = resourceId('binding')
+        this.bindings.set(bindingRef, { path: canonical, approvedRoots: [canonical] })
+        return envelope('ok', { bindingRef, kind: request.kind, locator: `binding/${sha256Digest(canonical).slice(7, 19)}`, digest: sha256Digest({ path: canonical }), readOnly: false, trust: 'external' })
+      }
+      if (browse) throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, '当前主机仅支持浏览式目录选择，请在目录浏览器中确认目录', { phase: 'directory-picker' })
+      if (!native || typeof capability?.pick !== 'function') throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, 'Host native Directory Picker is unavailable', { phase: 'directory-picker' })
+      const path = await capability.pick(request.signal ?? new AbortController().signal)
       if (path === null) return envelope('ok', { cancelled: true })
       if (typeof path !== 'string' || !isAbsolute(path)) throw new XiaobaiError(ERROR_CODES.PATH_ESCAPE, 'Directory Picker returned an invalid path', { phase: 'directory-picker' })
       const canonical = await this.resolvePickedDirectory(path)

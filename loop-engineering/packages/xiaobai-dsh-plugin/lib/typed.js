@@ -341,6 +341,10 @@ export const WorkspaceConfigRequestSchema = z.object({
   actor: z.union([z.string().min(1), z.object({ identity: z.string().min(1) }).strict()]).optional(),
 }).strict()
 
+export const ProjectCandidatesRequestSchema = WorkspaceConfigRequestSchema.extend({
+  query: z.string().max(120).optional(),
+}).strict()
+
 export const CreateProjectDraftRequestSchema = WorkspaceConfigRequestSchema.extend({
   operation: z.enum(['create', 'update']).optional(),
   config: ConfigPayloadSchema.optional(),
@@ -356,6 +360,7 @@ export const ApplyProjectConfigRequestSchema = WorkspaceConfigRequestSchema.exte
 export const DirectoryPickRequestSchema = WorkspaceConfigRequestSchema.extend({
   kind: z.enum(['workspace', 'repository', 'knowledge', 'artifact']),
   bindingRef: BindingRefSchema.optional(),
+  selectedPath: z.string().min(1).optional(),
 }).strict()
 export const RollbackProjectConfigRequestSchema = WorkspaceConfigRequestSchema.extend({
   revision: z.string().regex(/^rev_[a-z0-9][a-z0-9_-]{2,63}$/u),
@@ -410,6 +415,7 @@ const configInvocation = (method, inputSymbol = 'ProjectConfigRequest', resultSy
 
 export const CONFIG_REMOTE_INVOCATIONS = Object.freeze([
   configInvocation('list', 'WorkspaceConfigRequest'),
+  configInvocation('projectCandidates', 'ProjectCandidatesRequest'),
   configInvocation('get', 'WorkspaceConfigRequest'),
   configInvocation('createDraft', 'CreateProjectDraftRequest'),
   configInvocation('validate', 'ProjectConfigDraft'),
@@ -472,6 +478,7 @@ export function registerTypedContracts(ctx) {
       { name: 'ConfigHistoryEntry', schema: ConfigHistoryEntrySchema },
       { name: 'ResponseEnvelope', schema: ResponseEnvelopeSchema },
       { name: 'WorkspaceConfigRequest', schema: WorkspaceConfigRequestSchema },
+      { name: 'ProjectCandidatesRequest', schema: ProjectCandidatesRequestSchema },
       { name: 'CreateProjectDraftRequest', schema: CreateProjectDraftRequestSchema },
       { name: 'ApplyProjectConfigRequest', schema: ApplyProjectConfigRequestSchema },
       { name: 'DirectoryPickRequest', schema: DirectoryPickRequestSchema },
@@ -484,7 +491,7 @@ export function registerTypedContracts(ctx) {
         serviceModel('xiaobaiLoops', 'LoopCatalogService', [member('load', '(workspaceRoot: string) => Promise<LoopCatalog>'), member('list', '(input?: object) => LoopCatalog'), member('assess', '(input: object) => LoopAssessment'), member('plan', '(input: object) => LoopPlan'), member('run', '(input: object) => Promise<RunResult>')]),
         serviceModel('xiaobaiMemory', 'MemoryDomain', [member('put', '(recordId: string, value: MemoryRecord) => Promise<MemoryRecord>'), member('get', '(recordId: string) => MemoryRecord | undefined'), member('checkpoint', '(value: MemoryCheckpoint) => Promise<MemoryCheckpoint>'), member('audit', '(value: MemoryAudit) => Promise<MemoryAudit>'), member('pruneExpired', '(now?: string | number | Date) => Promise<RetentionResult>'), member('projectObsidian', '(options: object) => Promise<MemoryProjection>')]),
         serviceModel('xiaobaiPolicy', 'PolicyService', [member('resolve', '(kind: string, project: ProjectBaseline, options?: object) => PolicyContext'), member('resolveAll', '(project: ProjectBaseline, options?: object) => Record<string, PolicyContext>')]),
-        serviceModel('xiaobaiConfig', 'WorkspaceConfigService', [member('list', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('get', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('createDraft', '(request: CreateProjectDraftRequest) => Promise<ResponseEnvelope>'), member('validate', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('preview', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('pickDirectory', '(request: DirectoryPickRequest) => Promise<ResponseEnvelope>'), member('requestApproval', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('apply', '(request: ApplyProjectConfigRequest) => Promise<ResponseEnvelope>'), member('history', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('rollback', '(request: RollbackProjectConfigRequest) => Promise<ResponseEnvelope>')]),
+        serviceModel('xiaobaiConfig', 'WorkspaceConfigService', [member('list', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('projectCandidates', '(request: ProjectCandidatesRequest) => Promise<ResponseEnvelope>'), member('get', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('createDraft', '(request: CreateProjectDraftRequest) => Promise<ResponseEnvelope>'), member('validate', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('preview', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('pickDirectory', '(request: DirectoryPickRequest) => Promise<ResponseEnvelope>'), member('requestApproval', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'), member('apply', '(request: ApplyProjectConfigRequest) => Promise<ResponseEnvelope>'), member('history', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'), member('rollback', '(request: RollbackProjectConfigRequest) => Promise<ResponseEnvelope>')]),
       ],
       events: [
         { name: 'xiaobai/gate-decision', mode: 'emit', signature: '(decision: GateDecision) => void', tags: [] },

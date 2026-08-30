@@ -25,6 +25,7 @@ import {
   CreateProjectDraftRequestSchema,
   ApplyProjectConfigRequestSchema,
   DirectoryPickRequestSchema,
+  ProjectCandidatesRequestSchema,
   RollbackProjectConfigRequestSchema,
   CONFIG_REMOTE_INVOCATIONS,
 } from './typed.js'
@@ -65,6 +66,7 @@ const schemas = [
   ['CreateProjectDraftRequest', CreateProjectDraftRequestSchema],
   ['ApplyProjectConfigRequest', ApplyProjectConfigRequestSchema],
   ['DirectoryPickRequest', DirectoryPickRequestSchema],
+  ['ProjectCandidatesRequest', ProjectCandidatesRequestSchema],
   ['RollbackProjectConfigRequest', RollbackProjectConfigRequestSchema],
 ].map(([name, schema]) => ({ name, schema }))
 
@@ -82,6 +84,7 @@ export const TYPERT_MANIFEST = Object.freeze({
       tags: [],
       members: [
         member('list', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'),
+        member('projectCandidates', '(request: ProjectCandidatesRequest) => Promise<ResponseEnvelope>'),
         member('get', '(request: WorkspaceConfigRequest) => Promise<ResponseEnvelope>'),
         member('createDraft', '(request: CreateProjectDraftRequest) => Promise<ResponseEnvelope>'),
         member('validate', '(request: ProjectConfigDraft) => Promise<ResponseEnvelope>'),

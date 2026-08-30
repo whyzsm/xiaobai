@@ -17,6 +17,7 @@ import { registerPolicyService } from './policy.js'
 import { WorkspaceService } from './workspace.js'
 import { LoopCatalogService } from './loop-catalog.js'
 import { WorkspaceConfigService } from './config-console.js'
+import { registerProjectReferenceBridge } from './project-reference.js'
 
 const REPORT_ENV = 'XIAOBAI_DSH_M0_REPORT'
 
@@ -139,7 +140,7 @@ async function runM0Probe(ctx, config = {}) {
       { key: 'approval', method: 'request', required: true },
       { key: 'invariants', method: 'register', required: true },
       { key: 'typert', method: 'register', required: true },
-    ])
+    ], config.hostVersionOptions)
     report.capabilities = { ...report.capabilities, ...capability.capabilities }
     report.versions = capability.versions
     skillDisposer = registerSkillProvider(ctx, {
@@ -179,7 +180,7 @@ async function runM0Probe(ctx, config = {}) {
     if (config.probeWebServices === true) await ctx.inject(['workspaceRegistry', 'storageDomain'], (scopeCtx) => probeWebServices(scopeCtx, report))
     else await probeWebServices(ctx, report)
     const failedOperation = report.operations.find((operation) => operation.status === 'failed')
-    if (failedOperation) throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, `M0 probe failed at '${failedOperation.name}'`, { phase: 'm0-probe', actual: failedOperation, remediation: 'Use the verified dsh 0.1.0-rc.6 profile and rerun the capability probe.' })
+    if (failedOperation) throw new XiaobaiError(ERROR_CODES.HOST_UNSUPPORTED, `M0 probe failed at '${failedOperation.name}'`, { phase: 'm0-probe', actual: failedOperation, remediation: 'Use the verified dsh 0.1.1-rc.2 profile and rerun the capability probe.' })
     report.completed = true
   } catch (error) {
     primaryFailure = error
@@ -204,7 +205,7 @@ async function runM0Probe(ctx, config = {}) {
 }
 
 export const name = PACKAGE_NAME
-export const inject = ['skills', 'invariants', 'typert', 'approval']
+export const inject = ['skills', 'invariants', 'typert', 'approval', 'directoryPicker']
 
 export function apply(ctx, config = {}) {
   if (config.m0Probe === true) return runM0Probe(ctx, config)
@@ -213,7 +214,7 @@ export function apply(ctx, config = {}) {
     { key: 'approval', method: 'request', required: true },
     { key: 'invariants', method: 'register', required: true },
     { key: 'typert', method: 'register', required: true },
-  ])
+  ], config.hostVersionOptions)
   registerSkillProvider(ctx, {
     skillId: 'skill_xiaobai_context', name: 'project-context', version: '1.0.0', purpose: 'Resolve an explicit Project scope and its locked context', owner: PACKAGE_NAME,
     invocation: { modelInvocable: true, userInvocable: true }, requiredContext: ['project-scope', 'knowledge-lock'], capabilities: [], sideEffects: [], evidenceRequirements: ['context-digest'], trust: 'bundled',
@@ -230,6 +231,7 @@ export function apply(ctx, config = {}) {
   ctx.provide('xiaobaiWorkspace', workspaceService)
   ctx.provide('xiaobaiLoops', loopService)
   ctx.provide('xiaobaiConfig', configService)
+  registerProjectReferenceBridge(ctx, { workspaceService, projectRegistry: projectService })
   ctx.inject(['commands'], (commandCtx) => registerProjectCommands(commandCtx, projectService, workspaceService, loopService, configService))
 }
 
@@ -258,5 +260,6 @@ export * from './storage.js'
 export * from './loop-catalog.js'
 export * from './config-console.js'
 export * from './config-evaluator.js'
+export * from './project-reference.js'
 export * from './core-facade.js'
 export * from './projection.js'

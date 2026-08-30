@@ -269,6 +269,16 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
     if (!(await exists(configPath))) continue
     try {
       const project = await readYaml(configPath)
+      if (project?.kind === 'Project') {
+        diagnostics.push({
+          code: 'XIAOBAI_LEGACY_PROJECT_IGNORED',
+          severity: 'warning',
+          sourceProjectId: directory,
+          field: configPath,
+          message: 'Legacy Loop Project configuration is not a dsh ProjectGroup and was ignored.',
+        })
+        continue
+      }
       const localPathsPath = typeof project?.localPaths === 'string' ? sourcePath(projectRoot, project.localPaths) : resolve(projectRoot, '.loop/local.paths.yaml')
       const localPaths = await exists(localPathsPath) ? await readYaml(localPathsPath) : undefined
       const entry = baselineForProject(project, projectRoot, canonicalRoot, localPaths)

@@ -68,6 +68,32 @@ test('Workspace loader maps multiple Projects and preserves project identity acr
   }
 })
 
+test('Workspace loader ignores legacy Loop Project entries without blocking dsh ProjectGroups', async () => {
+  const fixtureValue = await fixture()
+  const legacyRoot = join(fixtureValue.root, 'projects', 'legacy-project', '.loop')
+  await mkdir(legacyRoot, { recursive: true })
+  await writeFile(join(legacyRoot, 'project.yaml'), `kind: Project
+id: legacy-project
+name: Legacy Project
+root: .
+defaultBranch: main
+`, 'utf8')
+  try {
+    const loaded = await loadWorkspaceConfig(fixtureValue.root)
+    assert.equal(loaded.status, 'attention')
+    assert.equal(loaded.projects.length, 1)
+    assert.equal(loaded.projects[0].sourceProjectId, 'alpha')
+    assert.equal(loaded.diagnostics.length, 1)
+    assert.equal(loaded.diagnostics[0].code, 'XIAOBAI_LEGACY_PROJECT_IGNORED')
+    assert.equal(loaded.diagnostics[0].severity, 'warning')
+    assert.equal(loaded.diagnostics[0].sourceProjectId, 'legacy-project')
+    assert.match(loaded.diagnostics[0].field, /projects[\\/]legacy-project[\\/]\.loop[\\/]project\.yaml$/u)
+    assert.equal(loaded.diagnostics[0].message, 'Legacy Loop Project configuration is not a dsh ProjectGroup and was ignored.')
+  } finally {
+    await rm(fixtureValue.root, { recursive: true, force: true })
+  }
+})
+
 test('Workspace loader fails closed on an approved-root escape', async () => {
   const fixtureValue = await fixture()
   const outside = await mkdtemp(join(tmpdir(), 'xiaobai-outside-'))

@@ -17,7 +17,7 @@ test('apply(ctx) provides Project, Workspace, and Loop facades without Host runt
     provide: (key, value) => { services.set(key, value); return () => {} },
     inject: (_keys, callback) => callback({ commands: { register: (definition) => { commands.push(definition.name); return () => {} } } }),
   }
-  apply(ctx)
+  apply(ctx, { hostVersionOptions: { searchPaths: [] } })
   assert.equal(services.has('xiaobaiProject'), true)
   assert.equal(services.has('xiaobaiWorkspace'), true)
   assert.equal(services.has('xiaobaiLoops'), true)

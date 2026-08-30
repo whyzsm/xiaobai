@@ -82,8 +82,16 @@ export function probeHostVersions(options = {}) {
 }
 
 export function getHostService(ctx, key) {
-  if (!ctx || typeof ctx.get !== 'function') return undefined
-  return ctx.get(key)
+  if (!ctx) return undefined
+  // Cordis fiber dependencies are exposed as injected context properties;
+  // ctx.get() only reads the current service store and misses sibling mounts.
+  try {
+    const injected = ctx[key]
+    if (injected !== undefined) return injected
+  } catch {
+    // An undeclared or inactive dependency falls through to the compatibility path.
+  }
+  return typeof ctx.get === 'function' ? ctx.get(key) : undefined
 }
 
 export function requireHostService(ctx, key, method, options = {}) {

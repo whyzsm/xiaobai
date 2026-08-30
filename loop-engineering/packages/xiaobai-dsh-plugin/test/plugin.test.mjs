@@ -200,7 +200,7 @@ test('M0 probe cleans Host registrations and temporary Workspace after a failed 
     const dispose = originalOn(event, listener, ...options)
     return event === 'approval/request' ? () => { state.approvalDisposed += 1; return dispose() } : dispose
   }
-  await assert.rejects(() => runM0Probe(ctx), (error) => error.code === ERROR_CODES.HOST_UNSUPPORTED)
+  await assert.rejects(() => runM0Probe(ctx, { hostVersionOptions: { searchPaths: [] } }), (error) => error.code === ERROR_CODES.HOST_UNSUPPORTED)
   assert.deepEqual(state.workspaceDeleted, ['ws_m0_probe'])
   assert.equal(state.skillDisposed, 1)
   assert.equal(state.approvalDisposed, 1)
