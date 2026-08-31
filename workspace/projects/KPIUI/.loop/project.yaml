@@ -1,0 +1,28 @@
+kind: ProjectGroup
+id: KPIUI
+name: KPIUI
+root: ../../.local/t-max/KPIUI/mounts
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xiaoneng
+  name: xiaoneng
+  localPathKey: xiaoneng
+  mount: ../../.local/t-max/KPIUI/mounts/background/xiaoneng
+  integration:
+    kind: skill-context
+    version: 2.0.0
+    contractVersion: 1.0.0
+    manifest: harness/runtime/manifest.yaml
+    contract: harness/contracts/runtime/skill-context.schema.json
+    evidenceBundles: [ane-page-rules, standard-page-contract, import-rules, api-binding-rules, reference-pages]
+    validators: [page-contract, page-structure, import-rule]
+    executionModes:
+      frontend-delivery: FullWorkflow
+repositories:
+  - id: KPIUI
+    name: KPIUI
+    localPathKey: KPIUI
+    mount: ../../.local/t-max/KPIUI/mounts/repos/KPIUI
+    remote: http://10.10.103.4/T-MAX/max-kpi-ui

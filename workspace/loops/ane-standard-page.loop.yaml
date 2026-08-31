@@ -43,6 +43,7 @@ verification:
     - page-structure-verified
     - evaluator-reused-contract
     - stage-timing-recorded
+    - promotion-approval
   allowSelfReview: false
 persistence:
   memory:
@@ -118,7 +119,7 @@ humanGate:
       requiredEvidenceTypes:
         - human-approval
       maxAgeMinutes: 240
-    - id: promotion-approval
+    - id: retrospective-promotion
       requiredBefore: promotion
       reviewers:
         - owner

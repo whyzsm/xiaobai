@@ -119,11 +119,11 @@ Before executing create, delete, or batch operations:
    - `workspace/.local/`
    - `workspace/workspace.local.yaml`
    - `workspace/projects/*/.loop/local.paths.yaml`
-3. T-MAX 代码仓和 `xiaoneng` 背景只能通过 ignored 的 `workspace/.local/t-max/mounts/` 挂载访问。挂载由小白 workspace 统一解析和维护；小能不创建或维护另一套 T-MAX 挂载。
+3. T-MAX 代码仓和 `xiaoneng` 背景只能通过 ignored 的 `workspace/.local/t-max/<project>/mounts/` 挂载访问。每个业务项目独立维护一仓一背景映射；挂载由小白 workspace 统一解析和维护，小能不创建或维护另一套 T-MAX 挂载。
 4. 如果需要刷新 T-MAX 挂载，运行：
 
 ```bash
-npm run mount:tmax
+npm run mount:<project>
 ```
 
 5. 提交前运行：
@@ -141,11 +141,11 @@ git status --short -uall
    - `workspace/.local/`
    - `workspace/workspace.local.yaml`
    - `workspace/projects/*/.loop/local.paths.yaml`
-3. T-MAX repositories and the `xiaoneng` background must be accessed through ignored mounts under `workspace/.local/t-max/mounts/`. The Xiaobai workspace is the single owner of mount resolution and maintenance; Xiaoneng does not create or maintain a second T-MAX mount tree.
+3. T-MAX repositories and the `xiaoneng` background must be accessed through ignored mounts under `workspace/.local/t-max/<project>/mounts/`. Each business project owns one repository/one-background mapping; the Xiaobai workspace owns mount resolution and maintenance, while Xiaoneng does not create or maintain another T-MAX mount tree.
 4. To refresh T-MAX mounts, run:
 
 ```bash
-npm run mount:tmax
+npm run mount:<project>
 ```
 
 5. Before committing, run:
@@ -166,21 +166,21 @@ Ensure this engineering repository's output does not include external repository
 npm install
 ```
 
-如果需要使用 T-MAX 代码仓和 `xiaoneng` 背景，必须先创建本机路径配置：
+如果需要使用某个 T-MAX 业务项目和 `xiaoneng` 背景，必须先创建该项目的本机路径配置：
 
 ```bash
-cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
+cp workspace/projects/<project>/.loop/local.paths.yaml.example workspace/projects/<project>/.loop/local.paths.yaml
 ```
 
-然后编辑 `workspace/projects/t-max/.loop/local.paths.yaml`，把 `xiaoneng` 和各 T-MAX 仓库路径改成这台电脑上的真实绝对路径。
+然后编辑 `workspace/projects/<project>/.loop/local.paths.yaml`，把 `xiaoneng` 和该项目唯一业务仓路径改成这台电脑上的真实绝对路径。
 
 编辑完成后运行：
 
 ```bash
-npm run mount:tmax
+npm run mount:<project>
 ```
 
-这个命令会在 ignored 的 `workspace/.local/t-max/mounts/` 下生成软链接。没有这一步，agent 仍可读取工程配置，但无法通过统一挂载路径访问本机 T-MAX 仓库和 `xiaoneng` 背景。
+这个命令会在 ignored 的 `workspace/.local/t-max/<project>/mounts/` 下生成软链接。没有这一步，agent 仍可读取工程配置，但无法通过该项目挂载路径访问本机 T-MAX 仓库和 `xiaoneng` 背景。
 
 如果接入新的项目组，也要沿用同样模式：提交项目级 `project.yaml`、`SKILL.md`、`local.paths.yaml.example` 和挂载脚本；不要提交本机 `local.paths.yaml`、`.local/` 软链接或外部代码仓内容。
 
@@ -192,21 +192,21 @@ After cloning this repository on a new machine, install dependencies first:
 npm install
 ```
 
-If T-MAX repositories and the `xiaoneng` background are needed, create the local path configuration first:
+If a T-MAX business project and the `xiaoneng` background are needed, create that project's local path configuration first:
 
 ```bash
-cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
+cp workspace/projects/<project>/.loop/local.paths.yaml.example workspace/projects/<project>/.loop/local.paths.yaml
 ```
 
-Then edit `workspace/projects/t-max/.loop/local.paths.yaml` and replace the `xiaoneng` and T-MAX repository paths with real absolute paths on that machine.
+Then edit `workspace/projects/<project>/.loop/local.paths.yaml` and replace the `xiaoneng` and that project's single T-MAX repository path with real absolute paths on that machine.
 
 After editing, run:
 
 ```bash
-npm run mount:tmax
+npm run mount:<project>
 ```
 
-This command generates symlinks under the ignored `workspace/.local/t-max/mounts/` directory. Without this step, agents can still read the engineering configuration, but they cannot access local T-MAX repositories or the `xiaoneng` background through the unified mount paths.
+This command generates symlinks under the ignored `workspace/.local/t-max/<project>/mounts/` directory. Without this step, agents can still read the engineering configuration, but they cannot access that project's T-MAX repository or the `xiaoneng` background through its project mount path.
 
 When adding a new project group, use the same pattern: commit the project-level `project.yaml`, `SKILL.md`, `local.paths.yaml.example`, and mount script; do not commit local `local.paths.yaml`, `.local/` symlinks, or external repository contents.
 

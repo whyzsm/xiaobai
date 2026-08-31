@@ -1,51 +1,39 @@
-# T-MAX Mounted Project Group / T-MAX 挂载项目组
+# T-MAX Shared Background / T-MAX 公共背景
 
 ## 中文
 
-这个目录用于持久化 T-MAX 项目组关系：小能（xiaoneng）业务背景对应多个 T-MAX 本地代码仓。
+`t-max` 目录现在只保留公共背景兼容入口，不再登记多个业务仓。指定的 8 个 T-MAX 业务仓已经拆成独立项目目录，每个项目只挂一个业务仓，并统一使用 `xiaoneng` 作为背景。
 
-## 目录结构
+独立项目：
 
-- `.loop/project.yaml`：机器可读的标准映射。
-- `.loop/local.paths.yaml.example`：每台电脑本机绝对路径的模板。
-- `.loop/local.paths.yaml`：本机私有绝对路径，已被 git 忽略。
-- `SKILL.md`：项目组级上下文，供 loop 和 agent 运行时读取。
-- `workspace/.local/t-max/mounts/background/xiaoneng`：生成的小能业务背景仓软链接。
-- `workspace/.local/t-max/mounts/repos/*`：生成的 T-MAX 代码仓软链接。
+- `dcm`
+- `KPIUI`
+- `max-console-ui`
+- `max-operate-monitor-ui`
+- `max-waybill-manage-ui`
+- `operateBusiness`
+- `operateSupport`
+- `scan`
 
-这些软链接不是代码副本。通过挂载路径修改代码，实际修改的是原始本地 git 仓库。
+每个项目的标准映射位于 `workspace/projects/<project>/.loop/project.yaml`。本机挂载位于被忽略的 `workspace/.local/t-max/<project>/`，公共背景和业务仓分别位于 `mounts/background/xiaoneng` 与 `mounts/repos/<repository>`。
 
-## 每台电脑的配置
-
-每台电脑都可以把小能业务背景和代码仓放在不同位置。
-
-1. 复制 `.loop/local.paths.yaml.example` 为 `.loop/local.paths.yaml`。
-2. 编辑 `.loop/local.paths.yaml`，填入这台电脑上的本机绝对路径。
-3. 在仓库根目录运行 `npm run mount:tmax`。
-
-不要提交 `.loop/local.paths.yaml`，也不要提交 `workspace/.local/` 下的任何生成物。
+使用项目对应的命令刷新挂载，例如 `npm run mount:dcm` 或 `npm run mount:operateSupport`。本机绝对路径配置位于各项目的 `.loop/local.paths.yaml`，该文件不提交。
 
 ## English
 
-This directory persists the T-MAX project-group relationship: the Xiaoneng business background mapped to multiple local T-MAX code repositories.
+The `t-max` directory now keeps only a compatibility entry for the shared background and no longer registers multiple business repositories. The selected eight T-MAX repositories are split into standalone project directories; each project mounts one repository and uses `xiaoneng` as its shared background.
 
-## Layout
+Standalone projects:
 
-- `.loop/project.yaml`: canonical machine-readable mapping.
-- `.loop/local.paths.yaml.example`: template for per-machine absolute paths.
-- `.loop/local.paths.yaml`: local-only absolute paths, ignored by git.
-- `SKILL.md`: project-group context for loop and agent runs.
-- `workspace/.local/t-max/mounts/background/xiaoneng`: generated symlink to the Xiaoneng business background repository.
-- `workspace/.local/t-max/mounts/repos/*`: generated symlinks to the mounted T-MAX code repositories.
+- `dcm`
+- `KPIUI`
+- `max-console-ui`
+- `max-operate-monitor-ui`
+- `max-waybill-manage-ui`
+- `operateBusiness`
+- `operateSupport`
+- `scan`
 
-The symlinks are intentionally not code copies. Changes made through a repository mount are changes in the original local git repository.
+Each project's canonical mapping is in `workspace/projects/<project>/.loop/project.yaml`. Local mounts are generated under ignored `workspace/.local/t-max/<project>/`; the background and business repository are mounted at `mounts/background/xiaoneng` and `mounts/repos/<repository>`.
 
-## Per-Machine Setup
-
-Each computer can keep the Xiaoneng business background and code repositories in different locations.
-
-1. Copy `.loop/local.paths.yaml.example` to `.loop/local.paths.yaml`.
-2. Edit `.loop/local.paths.yaml` to match that computer's local absolute paths.
-3. Run `npm run mount:tmax` from the repository root.
-
-Do not commit `.loop/local.paths.yaml` or anything generated under `workspace/.local/`.
+Run the command for the project you need, such as `npm run mount:dcm` or `npm run mount:operateSupport`. Machine-specific absolute paths are stored in each project's `.loop/local.paths.yaml`, which is never committed.

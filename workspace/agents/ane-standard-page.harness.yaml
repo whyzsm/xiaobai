@@ -33,7 +33,7 @@ context:
     - previous-memory
   # The selected Xiaoneng evidence bundles include schemas, validators, templates,
   # and reference pages; the runtime reserves 25% headroom for task context.
-  maxCharacters: 160000
+  maxCharacters: 400000
 completion:
   type: staged-objective
   conditions:

@@ -1,0 +1,6 @@
+# Copy to local.paths.yaml and replace the machine-local paths.
+# 复制为 local.paths.yaml 后，替换为本机绝对路径。
+background:
+  xiaoneng: /absolute/path/to/xiaoneng
+repositories:
+  KPIUI: /absolute/path/to/T-MAX/KPIUI

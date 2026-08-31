@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { AnySchema, ErrorObject } from 'ajv';
@@ -359,7 +359,43 @@ async function readEvidenceBundleSources(
       ...(bundle.validators ?? [])
     ]) paths.push(sourcePath);
   }
-  return Promise.all(unique(paths).map((sourcePath) => readSourceFile(sourceRoot, sourcePath)));
+  const sourceGroups = await Promise.all(
+    unique(paths).map((sourcePath) => readEvidenceSourceFiles(sourceRoot, sourcePath))
+  );
+  const sources: SourceFile[] = [];
+  const seen = new Set<string>();
+  for (const source of sourceGroups.flat()) {
+    if (seen.has(source.path)) continue;
+    seen.add(source.path);
+    sources.push(source);
+  }
+  return sources;
+}
+
+async function readEvidenceSourceFiles(sourceRoot: string, relativePath: string): Promise<SourceFile[]> {
+  assertSafeRelativePath(relativePath);
+  const declaredPath = path.resolve(sourceRoot, relativePath);
+  const resolvedPath = await realpath(declaredPath).catch(() => {
+    throw new Error(`SKILL_CONTEXT_SOURCE_MISSING: ${relativePath}`);
+  });
+  if (!containsPath(sourceRoot, resolvedPath)) {
+    throw new Error(`SKILL_CONTEXT_SOURCE_OUTSIDE_BACKGROUND: ${relativePath}`);
+  }
+
+  const sourceStat = await stat(resolvedPath);
+  if (sourceStat.isFile()) return [await readSourceFile(sourceRoot, relativePath)];
+  if (!sourceStat.isDirectory()) {
+    throw new Error(`SKILL_CONTEXT_SOURCE_NOT_FILE: ${relativePath}`);
+  }
+
+  const entries = (await readdir(resolvedPath, { withFileTypes: true }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const nestedSources = await Promise.all(
+    entries.map((entry) =>
+      readEvidenceSourceFiles(sourceRoot, path.posix.join(relativePath, entry.name))
+    )
+  );
+  return nestedSources.flat();
 }
 
 function selectRelevantMarkdown(content: string, needles: string[], maxCharacters: number): string {

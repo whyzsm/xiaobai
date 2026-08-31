@@ -33,7 +33,7 @@ context:
     - xiaoneng-evidence-selection
     - xiaoneng-page-contract
     - xiaoneng-import-rule
-  maxCharacters: 24000
+  maxCharacters: 400000
 completion:
   type: staged-objective
   conditions:

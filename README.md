@@ -32,10 +32,10 @@ npm test
 Local configuration:
 
 ```bash
-# T-MAX 代码仓和 xiaoneng 背景的本机路径
-# Local paths for T-MAX repositories and the xiaoneng background
-cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
-npm run mount:tmax
+# 选择一个 T-MAX 项目，复制该项目的本机路径模板并挂载
+# Choose a T-MAX project, copy its local-path template, and mount it
+cp workspace/projects/<project>/.loop/local.paths.yaml.example workspace/projects/<project>/.loop/local.paths.yaml
+npm run mount:<project>
 
 # 可选：将 memory 指向 Obsidian vault 中的同步目录
 # Optional: point memory to a synced directory in an Obsidian vault

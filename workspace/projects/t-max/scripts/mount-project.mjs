@@ -5,10 +5,17 @@ import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const projectDir = path.resolve(scriptDir, '..');
+const workspaceProjectsDir = path.resolve(scriptDir, '..', '..');
+const projectId = process.argv[2];
+
+if (!projectId || projectId.startsWith('-')) {
+  console.error('Usage: node workspace/projects/t-max/scripts/mount-project.mjs <project-id>');
+  process.exit(1);
+}
+
+const projectDir = path.join(workspaceProjectsDir, projectId);
 const projectConfigPath = path.join(projectDir, '.loop', 'project.yaml');
 const localPathsPath = path.join(projectDir, '.loop', 'local.paths.yaml');
-
 const projectConfig = readYaml(projectConfigPath);
 const localPaths = readYaml(localPathsPath);
 
@@ -47,8 +54,6 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-removeStaleBackgroundSymlinks(desiredMounts[0].mount);
-
 for (const desired of desiredMounts) {
   refreshSymlink(desired.target, desired.mount);
   console.log(`${path.relative(path.resolve(projectDir, '../..'), desired.mount)} -> ${desired.target}`);
@@ -85,25 +90,6 @@ function normalizeLocalPath(value) {
     });
 
   return path.resolve(expanded);
-}
-
-function removeStaleBackgroundSymlinks(desiredMount) {
-  const backgroundDir = path.dirname(desiredMount);
-  if (!fs.existsSync(backgroundDir)) {
-    return;
-  }
-
-  for (const entry of fs.readdirSync(backgroundDir)) {
-    const candidate = path.join(backgroundDir, entry);
-    if (candidate === desiredMount) {
-      continue;
-    }
-
-    if (!fs.lstatSync(candidate).isSymbolicLink()) {
-      throw new Error(`Refusing to remove stale non-symlink background mount: ${candidate}`);
-    }
-    fs.unlinkSync(candidate);
-  }
 }
 
 function refreshSymlink(target, mount) {

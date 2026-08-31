@@ -1,7 +1,7 @@
-kind: Project
-id: t-max
-name: T-MAX Shared Background
-root: ../../.local/t-max/shared/mounts
+kind: ProjectGroup
+id: dcm
+name: dcm
+root: ../../.local/t-max/dcm/mounts
 defaultBranch: master
 skill: SKILL.md
 localPaths: .loop/local.paths.yaml
@@ -9,7 +9,7 @@ background:
   id: xiaoneng
   name: xiaoneng
   localPathKey: xiaoneng
-  mount: ../../.local/t-max/shared/mounts/background/xiaoneng
+  mount: ../../.local/t-max/dcm/mounts/background/xiaoneng
   integration:
     kind: skill-context
     version: 2.0.0
@@ -28,4 +28,9 @@ background:
       - import-rule
     executionModes:
       frontend-delivery: FullWorkflow
-repositories: []
+repositories:
+  - id: dcm
+    name: dcm
+    localPathKey: dcm
+    mount: ../../.local/t-max/dcm/mounts/repos/dcm
+    remote: http://10.10.103.4/T-MAX/max-dcm-ui

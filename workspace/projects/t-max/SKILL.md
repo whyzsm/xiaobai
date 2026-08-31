@@ -1,99 +1,29 @@
-# T-MAX Project Group Skill / T-MAX 项目组技能
+# T-MAX Shared Background Skill / T-MAX 公共背景技能
 
 ## 中文
 
-## 目标
+当前 T-MAX 业务已按仓库拆成独立项目。`workspace/projects/t-max` 只保留公共背景兼容入口；实际业务项目位于同级目录，每个项目只允许一个业务仓，并统一使用 `xiaoneng` 背景。
 
-在当前 loop workspace 中持久化 T-MAX 项目背景，并把小能（xiaoneng）业务背景绑定到多个本地代码仓。
+每个独立项目都必须：
 
-## 背景
+1. 在自己的 `.loop/project.yaml` 中声明唯一业务仓和 `xiaoneng` 背景。
+2. 使用自己的挂载根目录 `../../.local/t-max/<project>/mounts`，避免不同项目共享可写业务仓入口。
+3. 修改业务仓前读取该项目的 `mounts/background/xiaoneng`，并检查业务仓自己的分支、工作区和已有改动。
+4. 将业务代码写入该项目唯一的 `mounts/repos/<repository>`，不把业务源码写入工程仓。
+5. 默认只做目标仓内的本地修改、静态检查和状态说明，不自动暂存、提交或推送。
 
-- 小能背景挂载：`../../.local/t-max/mounts/background/xiaoneng`
-- Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
-- 小能业务背景适用于 `.loop/project.yaml` 中列出的所有仓库。
-
-## 已挂载代码仓
-
-- `KPIUI`: `../../.local/t-max/mounts/repos/KPIUI`
-- `max-console-ui`: `../../.local/t-max/mounts/repos/max-console-ui`
-- `max-operate-monitor-ui`: `../../.local/t-max/mounts/repos/max-operate-monitor-ui`
-- `operateBusiness`: `../../.local/t-max/mounts/repos/operateBusiness`
-- `operateSupport`: `../../.local/t-max/mounts/repos/operateSupport`
-- `dcm`: `../../.local/t-max/mounts/repos/dcm`
-- `scan`: `../../.local/t-max/mounts/repos/scan`
-- `emt`: `../../.local/t-max/mounts/repos/emt`
-
-## 规则
-
-1. 小白解析目标仓挂载路径，并在修改任何 T-MAX 目标仓前读取 `workspace/.local/t-max/mounts/background/xiaoneng`；小能只提供业务背景和执行规则，不创建、解析或维护另一套 T-MAX 挂载。
-2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
-3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan、emt 中一致应用小能业务背景指导。
-4. 如果挂载缺失或失效，由小白工程运行 `npm run mount:tmax` 刷新挂载，不把挂载生命周期下放给小能。
-5. 仓库特定业务修改必须通过 `workspace/.local/t-max/mounts/repos/` 下选中的入口落到目标仓真实 worktree；允许修改目标仓源码，但不得把软链接、`local.paths.yaml` 或其它挂载基础设施当作业务交付内容修改或提交。
-6. 修改前检查目标仓库自己的 `git status` 和当前分支；不要假设所有 T-MAX 仓库使用相同默认分支，也不要混入或覆盖已有改动。
-7. 已选择 frontend-delivery loop 的任务必须先生成主设计文档和各仓补充分设计文档，通过独立设计评审并获得 `human-design-approval` 后，才允许进入编码；小改快路径不初始化该 loop，也不适用此设计门禁。
-8. 业务设计正文和业务代码只能落在当前参与开发的挂载目标仓；工程仓只记录状态、门禁结果、源链接、目标仓和 PR 链接。
-9. 在 T-MAX 背景下处理小能相关项目时，默认只做目标仓内的本地修改、校验和状态说明；除非用户明确授权对应动作，否则不要自动暂存、提交或推送目标仓改动。
-10. T-MAX 各业务仓默认已有用户启动的开发服务。Agent 禁止执行 `npm run start`、`yarn start`、`umi dev`、`npm run build`、`yarn build` 等启动或编译命令；只允许修改代码和执行静态检查，页面验证必须使用用户当前已经启动的地址。若确需停止、重启或执行构建，必须先获得用户明确授权。
-
-## 小改快路径
-
-当用户在 T-MAX 挂载仓里点名单个文件、单个字段、单个常量或一个明确删除/替换动作，并且现有实现路径已经明确、改动不会改变接口或数据来源时，按小改快路径执行。读取小能背景只限任务需要的规则，然后读取目标文件和必要直接引用；不要初始化 frontend-delivery loop、设计门禁、页面预检、组件全链路分析或完整页面契约。
-
-首次把字段接入数据字典、让多个请求参数改为同一动态来源或改变接口数据来源时，即使只涉及一个字段，也要路由到小能 `ApiIntegration.dictParam`。只有字典接入已经完成，后续仅删除硬编码、默认值或 fallback 时，才使用小改快路径。
-
-小改快路径只做用户要求的最小改动。验证限于 `rg` 定位与回查、`git diff --check`，以及必要时的目标文件 lint 或语法检查；不要默认构建、完整测试、checkpoint、audit、commit 或 push。
+公共背景源仍由 `.loop/local.paths.yaml` 中的 `background.xiaoneng` 指定。挂载命令统一复用 `scripts/mount-project.mjs`，通过 `npm run mount:<project>` 执行。
 
 ## English
 
-## Purpose
+T-MAX business repositories are now split into standalone projects. `workspace/projects/t-max` keeps only a compatibility entry for the shared background; actual business projects live beside it, each with exactly one business repository and the shared `xiaoneng` background.
 
-Persist the T-MAX project background in this loop workspace and bind the Xiaoneng business background to multiple local code repositories.
+Every standalone project must:
 
-## Background
+1. Declare exactly one business repository and the `xiaoneng` background in its own `.loop/project.yaml`.
+2. Use its own mount root at `../../.local/t-max/<project>/mounts` so projects do not share writable business-repository entries.
+3. Read the project's `mounts/background/xiaoneng` and inspect the repository's own branch, worktree, and existing changes before editing.
+4. Write business code only through that project's single `mounts/repos/<repository>` entry; never write business source into the engineering repository.
+5. Default to local edits, static checks, and status reporting in the target repository without automatic staging, commit, or push.
 
-- Xiaoneng background mount: `../../.local/t-max/mounts/background/xiaoneng`
-- Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
-- The Xiaoneng business background applies to every repository listed in `.loop/project.yaml`.
-
-## Mounted Repositories
-
-- `KPIUI`: `../../.local/t-max/mounts/repos/KPIUI`
-- `max-console-ui`: `../../.local/t-max/mounts/repos/max-console-ui`
-- `max-operate-monitor-ui`: `../../.local/t-max/mounts/repos/max-operate-monitor-ui`
-- `operateBusiness`: `../../.local/t-max/mounts/repos/operateBusiness`
-- `operateSupport`: `../../.local/t-max/mounts/repos/operateSupport`
-- `dcm`: `../../.local/t-max/mounts/repos/dcm`
-- `scan`: `../../.local/t-max/mounts/repos/scan`
-- `emt`: `../../.local/t-max/mounts/repos/emt`
-
-## Rules
-
-1. Xiaobai resolves the target repository mount and loads `workspace/.local/t-max/mounts/background/xiaoneng` before modifying any T-MAX target repository. Xiaoneng provides business context and execution rules only; it does not create, resolve, or maintain a second T-MAX mount tree.
-2. Treat the repositories as separate git worktrees even though they share the same project background.
-3. Apply the Xiaoneng business background consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, scan, and emt.
-4. If a mount is missing or broken, refresh it from the Xiaobai engineering repository with `npm run mount:tmax`; do not delegate mount lifecycle management to Xiaoneng.
-5. Apply repository-specific business changes through the selected entry under `workspace/.local/t-max/mounts/repos/` so they land in the target repository's real worktree. Editing target source is allowed, but symlinks, `local.paths.yaml`, and other mount infrastructure must not be changed or committed as business deliverables.
-6. Check the target repository's own `git status` and current branch before editing. Do not assume all T-MAX repositories use the same default branch, and do not mix in or overwrite existing changes.
-7. A task that has selected the frontend-delivery loop must create the master design document and repository supplements, pass independent design review, and record `human-design-approval` before implementation. The micro patch fast path does not initialize that loop and is exempt from this design gate.
-8. Business design bodies and business code belong only in participating mounted target repositories. The engineering repository records only state, gate results, source links, target repositories, and PR links.
-9. When working on Xiaoneng-related projects under the T-MAX background, default to local changes, verification, and status reporting inside the target repository. Do not stage, commit, or push target-repository changes unless the user explicitly authorizes the corresponding action.
-10. Each T-MAX business repository is assumed to have a development service already started by the user. The Agent must not run `npm run start`, `yarn start`, `umi dev`, `npm run build`, or `yarn build`, or equivalent startup/build commands. It may only modify code and run static checks; page verification must use the address currently started by the user. Stopping, restarting, or running a build requires explicit user authorization first.
-
-## Micro Patch Fast Path
-
-When the user names a single file, field, constant, or one explicit deletion/replacement inside a mounted T-MAX repository, and the existing implementation path is already clear without changing an API or data source, use the micro patch fast path. Load only the Xiaoneng background rules needed for the task, then read the target file and necessary direct references; do not initialize the frontend-delivery loop, design gates, page preflight, full component-chain analysis, or a full page contract.
-
-Route first-time data-dictionary integration, shared dynamic request-parameter sourcing, or another API data-source change to Xiaoneng `ApiIntegration.dictParam`, even when only one field is involved. Use the micro patch fast path only for a follow-up that removes a hardcoded value, default, or fallback after the dictionary integration already exists.
-
-The micro patch fast path applies only the smallest requested change. Verification is limited to `rg` lookup/recheck, `git diff --check`, and target-file lint or syntax checks when needed; do not run builds, full tests, checkpoints, audits, commits, or pushes by default.
-
-## ANE 标准页面路径 / ANE Standard Page Path
-
-新增菜单、路由或标准列表页时，优先由小白选择 `ane-standard-page` Loop。该 Loop 在编码前锁定小能背景、证据包、页面契约和导入规则；`frontend-delivery` 只用于跨仓复杂交付、重大页面重构、外部 API 契约变化或明确要求完整设计评审的任务。小能只提供规则、契约、模板、参考实现和纯校验，不创建小白任务、不维护小白状态机、不决定任务完成。
-
-For new menus, routes, or standard list pages, Xiaobai should select the `ane-standard-page` Loop first. That Loop locks the Xiaoneng background, evidence bundles, page contract, and import rule before coding; `frontend-delivery` is reserved for cross-repository complex delivery, major page refactors, external API contract changes, or explicitly requested full design review. Xiaoneng provides rules, contracts, templates, reference implementations, and pure validators only; it does not create Xiaobai tasks, maintain Xiaobai's state machine, or decide task completion.
-
-标准页任务必须记录 `background-context.json`、`evidence-selection.json`、`page-contract.json` 和 `import-rule.json`，并由 Generator 与 Evaluator 复用相同的 `contextDigest`、`contractDigest`。禁止使用 `mock/User/auth.json`、本地 mock 数据和写死的上传结果；小能仓目录不能成为业务页面生产运行时依赖。
-
-Standard-page tasks must record `background-context.json`, `evidence-selection.json`, `page-contract.json`, and `import-rule.json`, and Generator and Evaluator must reuse the same `contextDigest` and `contractDigest`. `mock/User/auth.json`, local mock data, and hardcoded upload results are forbidden; the Xiaoneng checkout must not become a production runtime dependency of a business page.
+The shared background source remains configured as `background.xiaoneng` in each `.loop/local.paths.yaml`. Mounting reuses `scripts/mount-project.mjs` through `npm run mount:<project>`.

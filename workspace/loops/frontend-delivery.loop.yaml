@@ -44,6 +44,7 @@ verification:
     - ui-smoke-desktop
     - ui-smoke-mobile
     - pr-ready
+    - promotion-approval
   allowSelfReview: false
 persistence:
   memory:
@@ -163,7 +164,7 @@ humanGate:
       requiredEvidenceTypes:
         - human-approval
       maxAgeMinutes: 240
-    - id: promotion-approval
+    - id: retrospective-promotion
       requiredBefore: promotion
       reviewers:
         - owner

@@ -1,0 +1,28 @@
+kind: ProjectGroup
+id: scan
+name: scan
+root: ../../.local/t-max/scan/mounts
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xiaoneng
+  name: xiaoneng
+  localPathKey: xiaoneng
+  mount: ../../.local/t-max/scan/mounts/background/xiaoneng
+  integration:
+    kind: skill-context
+    version: 2.0.0
+    contractVersion: 1.0.0
+    manifest: harness/runtime/manifest.yaml
+    contract: harness/contracts/runtime/skill-context.schema.json
+    evidenceBundles: [ane-page-rules, standard-page-contract, import-rules, api-binding-rules, reference-pages]
+    validators: [page-contract, page-structure, import-rule]
+    executionModes:
+      frontend-delivery: FullWorkflow
+repositories:
+  - id: scan
+    name: scan
+    localPathKey: scan
+    mount: ../../.local/t-max/scan/mounts/repos/scan
+    remote: http://10.10.103.4/T-MAX/max-scan-ui

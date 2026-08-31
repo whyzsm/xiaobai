@@ -37,6 +37,7 @@ import {
 } from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { standardPageArtifactRoot } from '../packages/shared/src/taskArtifacts';
+import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
 
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, 'workspace');
@@ -93,6 +94,7 @@ async function createSkillContextFixture() {
   await mkdir(path.join(sourceRoot, 'harness', 'contracts', 'runtime'), { recursive: true });
   await mkdir(path.join(sourceRoot, 'skills', 'op-ship-ops'), { recursive: true });
   await mkdir(path.join(sourceRoot, 'skills', 'op-ship-ops', 'references'), { recursive: true });
+  await mkdir(path.join(sourceRoot, 'skills', 'op-ship-ops', 'examples', 'pattern', 'nested'), { recursive: true });
   await symlink(sourceRoot, mount, 'dir');
 
   await writeFile(
@@ -108,6 +110,16 @@ async function createSkillContextFixture() {
   await writeFile(
     path.join(sourceRoot, 'skills', 'op-ship-ops', 'references', 'build-gate.md'),
     '# Build Gate\n\nSELECTED_REFERENCE_CONTENT\n',
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'skills', 'op-ship-ops', 'examples', 'pattern', 'index.js'),
+    'DIRECTORY_EVIDENCE_ROOT\n',
+    'utf8'
+  );
+  await writeFile(
+    path.join(sourceRoot, 'skills', 'op-ship-ops', 'examples', 'pattern', 'nested', 'rule.md'),
+    'DIRECTORY_EVIDENCE_NESTED\n',
     'utf8'
   );
   await writeFile(
@@ -142,6 +154,10 @@ executionModes:
         - op-ship-ops
       requiresStageArtifacts: true
       nextState: understand_requirement
+evidenceBundles:
+  fixture-directory:
+    templates:
+      - skills/op-ship-ops/examples/pattern
 stageOrder:
   - understand_requirement
 stages:
@@ -213,6 +229,21 @@ function skillContextTestSchema() {
       ownerAgent: { type: 'string', minLength: 1 },
       ownerSkills: { type: 'array', items: { type: 'string', minLength: 1 } },
       selectedReferences: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'path', 'digest'],
+          properties: {
+            id: { type: 'string' },
+            path: { type: 'string' },
+            digest
+          }
+        }
+      },
+      contractDigest: digest,
+      evidenceBundles: { type: 'array', items: { type: 'string' } },
+      sourceFiles: {
         type: 'array',
         items: {
           type: 'object',
@@ -405,7 +436,7 @@ function standardPageContract(
   const contract = {
     contractVersion: '2.0.0',
     taskId,
-    projectId: 't-max',
+    projectId: context.projectId,
     repositoryId: fixture.plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId,
     pageType: 'StandardPage',
     standardPageProfile: 'standard-list',
@@ -493,6 +524,26 @@ test('skill context resolver assembles a contract from registered sources only',
   assert.match(context.documents[3].content, /SELECTED_REFERENCE_CONTENT/);
   assert.doesNotMatch(JSON.stringify(context), /MUST_NOT_BE_LOADED|unregistered-link/);
   assert(context.characters <= fixture.plan.maxCharacters);
+});
+
+test('skill context resolver expands directory evidence into registered files', async () => {
+  const fixture = await createSkillContextFixture();
+  const context = await new SkillContextResolver(fixture.workspaceRoot).resolve({
+    ...fixture.plan,
+    evidenceBundles: ['fixture-directory']
+  });
+
+  const expectedPaths = [
+    'skills/op-ship-ops/examples/pattern/index.js',
+    'skills/op-ship-ops/examples/pattern/nested/rule.md'
+  ];
+  assert.deepEqual(context.skillContext.sourceFiles?.map((source) => source.path), expectedPaths);
+  assert.deepEqual(
+    context.documents.filter((document) => document.roles.includes('evidence')).map((document) => document.path),
+    expectedPaths
+  );
+  assert.match(JSON.stringify(context), /DIRECTORY_EVIDENCE_ROOT/);
+  assert.match(JSON.stringify(context), /DIRECTORY_EVIDENCE_NESTED/);
 });
 
 test('skill context resolver fails closed when the declared contract is missing', async () => {
@@ -2066,7 +2117,7 @@ test('frontend delivery loop gates design approval before implementation', async
   assert.equal(plan.orchestrator?.routesTo.discoverySkill, 'frontend-delivery');
   assert.equal(plan.orchestrator?.routesTo.generatorAgent, 'frontend-generator.agent.yaml');
   assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, 'frontend-evaluator.agent.yaml');
-  assert.equal(plan.orchestrator?.routesTo.project.projectId, 't-max');
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 'operateBusiness');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
@@ -2074,9 +2125,9 @@ test('frontend delivery loop gates design approval before implementation', async
     status: 'planned',
     kind: 'skill-context',
     contractVersion: '1.0.0',
-    projectId: 't-max',
+    projectId: 'operateBusiness',
     backgroundId: 'xiaoneng',
-    sourceMount: '.local/t-max/mounts/background/xiaoneng',
+    sourceMount: '.local/t-max/operateBusiness/mounts/background/xiaoneng',
     manifestPath: 'harness/runtime/manifest.yaml',
     contractPath: 'harness/contracts/runtime/skill-context.schema.json',
     executionMode: 'FullWorkflow',
@@ -2088,7 +2139,7 @@ test('frontend delivery loop gates design approval before implementation', async
       'reference-pages'
     ],
     validators: ['page-contract', 'page-structure', 'import-rule'],
-    maxCharacters: 18000
+    maxCharacters: 300000
   });
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
@@ -2107,9 +2158,10 @@ test('frontend delivery loop gates design approval before implementation', async
     'release',
     'external-api-contract-change',
     'major-dependency-upgrade',
-    'destructive-file-change'
+    'destructive-file-change',
+    'promotion'
   ]);
-  assert.equal(plan.humanGate.gates.length, 6);
+  assert.equal(plan.humanGate.gates.length, 8);
   assert.equal(
     plan.evaluations.every((evaluation) =>
       evaluation.requiredChecks.includes('human-design-approval') &&
@@ -2149,7 +2201,8 @@ test('frontend delivery exposes explicit workflow stages and yuque api shape', a
       'human-design-approval',
       'frontend-implementation',
       'implementation-verification',
-      'pr-readiness'
+      'pr-readiness',
+      'retrospective-promotion'
     ]
   );
   assert.equal(plan.workflow?.stages.every((stage) => stage.status === 'planned'), true);
@@ -2405,11 +2458,11 @@ test('dry-run text output prints workflow stages', async () => {
     'operateBusiness'
   ]);
 
-  assert.match(stdout, /Workflow stages: 9/);
+  assert.match(stdout, /Workflow stages: 10/);
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
-  assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
+  assert.match(stdout, /Resolved target: operateBusiness -> operateBusiness -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
+  assert.match(stdout, /Project route: operateBusiness -> xiaoneng, repositories: 1/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
 });
@@ -2565,6 +2618,31 @@ test('trunkFeeder project background mounts skill folder and trunkFeeder-ui repo
   const readme = await readText(path.join(projectRoot, 'README.md'));
   assert.match(readme, /trunkFeeder-ui\/skill/);
   assert.match(readme, /workspace\/\.local\/trunkFeeder\/mounts\/repos\/trunkFeeder-ui/);
+});
+
+test('selected T-MAX repositories resolve to standalone projects with shared Xiaoneng background', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const repositories = [
+    'dcm',
+    'KPIUI',
+    'max-console-ui',
+    'max-operate-monitor-ui',
+    'max-waybill-manage-ui',
+    'operateBusiness',
+    'operateSupport',
+    'scan'
+  ];
+
+  for (const repositoryId of repositories) {
+    const route = await resolveProjectRoute(workspaceRoot, loop, { targetRepository: repositoryId });
+    assert.equal(route.project.id, repositoryId);
+    assert.equal(route.project.background?.id, 'xiaoneng');
+    assert.equal(route.project.repositories?.length, 1);
+    assert.equal(route.repository?.id, repositoryId);
+    assert.match(route.project.background?.mount ?? '', new RegExp(`t-max/${repositoryId}/mounts/background/xiaoneng$`));
+    assert.match(route.repository?.mount ?? '', new RegExp(`t-max/${repositoryId}/mounts/repos/${repositoryId}$`));
+  }
 });
 
 test('simulation writes deterministic artifacts without real stage events', async () => {
