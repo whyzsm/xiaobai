@@ -31,6 +31,9 @@ deploy/
 .understand-anything/
 output/
 
+# Plugin distribution archives (packaged build output — regenerate, do not commit)
+*.zip
+
 # Executables
 *.swf
 *.air
