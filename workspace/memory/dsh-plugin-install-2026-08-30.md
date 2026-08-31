@@ -8,31 +8,31 @@ The local `@xiaobai/dsh-plugin` has been installed into the dsh `web` profile. T
 
 ## 安装来源与环境 / Source And Environment
 
-- 插件来源 / Source: `/Users/seminzhu/Documents/zsm/ai/aicode/xbaiProjectCode/loop-engineering/packages/xiaobai-dsh-plugin`
+- 插件来源 / Source: `<repo-root>/loop-engineering/packages/xiaobai-dsh-plugin`
 - 插件版本 / Plugin version: `0.1.0`
 - dsh host: `0.1.0-rc.6`
-- 目标 profile / Target profile: `/Users/seminzhu/.dsh/profiles/web`
+- 目标 profile / Target profile: `~/.dsh/profiles/web`
 - 包管理器 / Package manager: pnpm `11.22.0`
 
 ## 验证证据 / Verification Evidence
 
 - `dsh plugin --profile web add <local-path>` returned exit code `0`.
-- Profile manifest contains `@xiaobai/dsh-plugin: link:/Users/seminzhu/Documents/zsm/ai/aicode/xbaiProjectCode/loop-engineering/packages/xiaobai-dsh-plugin`.
+- Profile manifest contains `@xiaobai/dsh-plugin: link:<repo-root>/loop-engineering/packages/xiaobai-dsh-plugin`.
 - The profile node module resolves to the plugin `lib/index.js`.
 - `dsh --profile web --dump-config` returned exit code `0` and composed `xiaobai-invariants` plus `xiaobai-dsh` layers.
 - The dsh command must use a pnpm executable that is not intercepted by Corepack's parent Yarn `packageManager` setting.
 
 - `dsh plugin --profile web add <local-path>` returned exit code `0`.
-- The profile manifest contains `@xiaobai/dsh-plugin: link:/Users/seminzhu/Documents/zsm/ai/aicode/xbaiProjectCode/loop-engineering/packages/xiaobai-dsh-plugin`.
+- The profile manifest contains `@xiaobai/dsh-plugin: link:<repo-root>/loop-engineering/packages/xiaobai-dsh-plugin`.
 - The profile node module resolves to the plugin `lib/index.js`.
 - `dsh --profile web --dump-config` returned exit code `0` and composed the `xiaobai-invariants` and `xiaobai-dsh` layers.
 - The dsh command must use a pnpm executable that is not intercepted by Corepack's parent Yarn `packageManager` setting.
 
 ## 后续 / Follow-up
 
-重启 dsh web profile 后即可使用新 bundle。工程仓只保留本记录和插件源码；`/Users/seminzhu/.dsh` 下的 profile manifest、lockfile 和 link 属于本机状态。
+重启 dsh web profile 后即可使用新 bundle。工程仓只保留本记录和插件源码；`~/.dsh` 下的 profile manifest、lockfile 和 link 属于本机状态。
 
-Restart the dsh web profile to use the new bundle. The engineering repository keeps only this record and the plugin source; the profile manifest, lockfile, and link under `/Users/seminzhu/.dsh` are machine-local state.
+Restart the dsh web profile to use the new bundle. The engineering repository keeps only this record and the plugin source; the profile manifest, lockfile, and link under `~/.dsh` are machine-local state.
 
 ## 启动诊断 / Startup Diagnosis
 
@@ -52,9 +52,9 @@ Startup still requires migrating the old rc.2 credential layout: `~/.dsh/.creden
 
 ## rc.6 凭据迁移与 Node 24 启动验证 / rc.6 Credential Migration And Node 24 Startup Verification
 
-已在用户确认后备份 `/Users/seminzhu/.dsh/.credentials.yaml` 到 `/tmp/dsh-credentials.yaml.before-rc6-20260830`，并使用 YAML 解析将 `refs` 中的 3 个字符串凭据提升到顶层；当前凭据文件与备份权限均为 `0600`，密钥值未输出到终端。该备份位于本机临时目录，不属于工程仓提交边界。
+已在用户确认后备份 `~/.dsh/.credentials.yaml` 到 `/tmp/dsh-credentials.yaml.before-rc6-20260830`，并使用 YAML 解析将 `refs` 中的 3 个字符串凭据提升到顶层；当前凭据文件与备份权限均为 `0600`，密钥值未输出到终端。该备份位于本机临时目录，不属于工程仓提交边界。
 
-After user confirmation, `/Users/seminzhu/.dsh/.credentials.yaml` was backed up to `/tmp/dsh-credentials.yaml.before-rc6-20260830`. A YAML parser promoted the three string credentials from `refs` to the top level; both the live file and backup have `0600` permissions, and no secret values were printed. The backup is machine-local temporary state outside the engineering repository commit boundary.
+After user confirmation, `~/.dsh/.credentials.yaml` was backed up to `/tmp/dsh-credentials.yaml.before-rc6-20260830`. A YAML parser promoted the three string credentials from `refs` to the top level; both the live file and backup have `0600` permissions, and no secret values were printed. The backup is machine-local temporary state outside the engineering repository commit boundary.
 
 已通过 `fnm use 24` 确认 Node `v24.19.0` 与 npm `11.17.0`，并在该 Node 版本下串行启动 `deepseekHarness`：插件输出显示中文提示已就绪、配置客户端已暴露提示词注入设置、`web` profile 热装卸监督器已启动，服务地址为 `http://127.0.0.1:56232`。HTTP 根页面返回 `200 OK`，启动清单包含 dsh boot manifest 和 `deepseek-harness-zh_pro` 插件。
 
@@ -76,9 +76,9 @@ Rule: after changing `deepseekHarness` dsh dependencies, profile, or credentials
 
 ## 本次 dsh web profile 更新 / Current dsh Web Profile Update
 
-已在 dsh `0.1.0-rc.6` 的 `web` profile 重新注册本地 `@xiaobai/dsh-plugin` link。使用 Node `v24.19.0` 和独立 pnpm `11.22.0` 执行 `dsh plugin --profile web add "@xiaobai/dsh-plugin@link:/Users/seminzhu/Documents/zsm/ai/aicode/xbaiProjectCode/loop-engineering/packages/xiaobai-dsh-plugin"`，命令返回 `Already up to date` 并成功完成。
+已在 dsh `0.1.0-rc.6` 的 `web` profile 重新注册本地 `@xiaobai/dsh-plugin` link。使用 Node `v24.19.0` 和独立 pnpm `11.22.0` 执行 `dsh plugin --profile web add "@xiaobai/dsh-plugin@link:<repo-root>/loop-engineering/packages/xiaobai-dsh-plugin"`，命令返回 `Already up to date` 并成功完成。
 
-The local `@xiaobai/dsh-plugin` link was re-registered in the dsh `0.1.0-rc.6` `web` profile. The update used Node `v24.19.0` and standalone pnpm `11.22.0` with `dsh plugin --profile web add "@xiaobai/dsh-plugin@link:/Users/seminzhu/Documents/zsm/ai/aicode/xbaiProjectCode/loop-engineering/packages/xiaobai-dsh-plugin"`; it returned `Already up to date` and completed successfully.
+The local `@xiaobai/dsh-plugin` link was re-registered in the dsh `0.1.0-rc.6` `web` profile. The update used Node `v24.19.0` and standalone pnpm `11.22.0` with `dsh plugin --profile web add "@xiaobai/dsh-plugin@link:<repo-root>/loop-engineering/packages/xiaobai-dsh-plugin"`; it returned `Already up to date` and completed successfully.
 
 验证证据：profile `package.json` 和 `pnpm-lock.yaml` 均指向该本地 link，`dsh.profile.bundles` 包含 `@xiaobai/dsh-plugin`，`dsh plugin --profile web why @xiaobai/dsh-plugin` 返回本地源码目录，`dsh --profile web --dump-config` 成功解析该 bundle；link 下的 `index.js`、Client bundle、`config-console.js` 和 `typert.js` 语法检查通过。当前没有运行中的 dsh 进程，因此没有强制终止用户进程；下次启动 `web` profile 时加载此更新。
 

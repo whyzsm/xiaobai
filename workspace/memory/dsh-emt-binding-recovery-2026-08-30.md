@@ -2,9 +2,9 @@
 
 ## 结论 / Outcome
 
-本机 `t-max` 项目因 `emt` 仓库没有本地路径绑定，导致 `@t-max` 选择后提交失败，并在运行结果区域表现为空白。已将 `emt` 绑定到真实仓库 `/Users/seminzhu/Documents/ane/code/git/emtui`，并通过现有挂载脚本恢复统一挂载。
+本机 `t-max` 项目因 `emt` 仓库没有本地路径绑定，导致 `@t-max` 选择后提交失败，并在运行结果区域表现为空白。已将 `emt` 绑定到真实仓库 `<emt-local-checkout>`，并通过现有挂载脚本恢复统一挂载。
 
-The local `t-max` project failed after selecting `@t-max` because the `emt` repository had no local path binding, leaving the run result area visually blank. The binding now points to the real repository at `/Users/seminzhu/Documents/ane/code/git/emtui`, and the shared mount has been restored with the existing mount script.
+The local `t-max` project failed after selecting `@t-max` because the `emt` repository had no local path binding, leaving the run result area visually blank. The binding now points to the real repository at `<emt-local-checkout>`, and the shared mount has been restored with the existing mount script.
 
 ## 验证 / Verification
 
