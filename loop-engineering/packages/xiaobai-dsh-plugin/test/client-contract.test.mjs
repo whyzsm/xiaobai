@@ -48,11 +48,11 @@ function createElement(type, props, ...children) {
   return { type, props: { ...(props || {}), children: children.length === 1 ? children[0] : children }, children }
 }
 
-function reactMock() {
+function reactMock(options = {}) {
   return {
     createElement,
-    useEffect: () => {},
-    useState: () => [0, () => {}],
+    useEffect: options.useEffect || (() => {}),
+    useState: options.useState || (() => [0, () => {}]),
   }
 }
 
@@ -75,15 +75,16 @@ test('Client bundle targets rc.6 list Slots and declares the complete config Rem
   assert.equal(/slots\.register\(\{ name: "conversation"/.test(source), false)
 })
 
-test('Client registration keeps Xiaobai as a Settings-only contribution', async () => {
+test('Client registration exposes settings and the project Hero bridge', async () => {
   const source = await readFile(sourcePath, 'utf8')
   const plugin = loadClient(source)
   const registrations = []
   const result = plugin.factory((name) => name === 'react' ? reactMock() : undefined)
   result.apply(clientContext(registrations, async () => () => {}, { list: async () => ({ ok: true, value: { status: 'ok', data: { projects: [] }, diagnostics: [] } }) }))
-  assert.deepEqual(registrations.map(({ descriptor }) => descriptor.name), ['settings.section'])
-  assert.deepEqual(registrations.map(({ descriptor }) => descriptor.id), ['xiaobai-workspace'])
-  assert.deepEqual(registrations.map(({ descriptor }) => descriptor.label), ['小白'])
+  assert.deepEqual(registrations.map(({ descriptor }) => descriptor.name), ['conversation.input.dock', 'conversation.session.header.actions', 'settings.section'])
+  assert.deepEqual(registrations.map(({ descriptor }) => descriptor.id), ['xiaobai-project-hero', 'xiaobai-project-header', 'xiaobai-workspace'])
+  assert.deepEqual(registrations.map(({ descriptor }) => descriptor.label), [undefined, undefined, '小白'])
+  assert.match(source, /matchSpace\(_session, token\)/)
 })
 
 test('Client renders a visible loading state while the Remote namespace mounts', async () => {
@@ -142,7 +143,7 @@ test('Client registers the @ Project source and preserves opaque Project identit
   const registrations = []
   let projectSource
   const remoteService = {
-    list: async () => ({ ok: true, value: { status: 'ok', data: { projects: [] }, diagnostics: [] } }),
+    list: async () => ({ ok: true, value: { status: 'ok', data: { workspaceId: 'ws_client_test', projects: [{ workspaceId: 'ws_client_test', projectId: 'prj_client_test', sourceProjectId: 't-max', displayName: 'T-MAX' }] }, diagnostics: [] } }),
     projectCandidates: async () => ({ ok: true, value: { status: 'ok', data: { projects: [{ workspaceId: 'ws_client_test', projectId: 'prj_client_test', sourceProjectId: 't-max', displayName: 'T-MAX', knowledgeStatus: 'locked', repositoryStatus: 'locked' }] }, diagnostics: [] } }),
   }
   const inputTriggers = { registerSource: (value) => { projectSource = value; return () => {} } }
@@ -150,15 +151,99 @@ test('Client registers the @ Project source and preserves opaque Project identit
   result.apply(clientContext(registrations, async () => () => {}, remoteService, undefined, inputTriggers))
   await new Promise((resolve) => setTimeout(resolve, 10))
   assert.equal(projectSource.trigger, '@')
-  assert.equal(projectSource.name, 'xiaobai-project')
+  assert.equal(projectSource.name, '项目')
+  assert.equal(projectSource.showGroupTitle, undefined)
   const candidates = await projectSource.candidates({ sessionId: 'session_client_test' }, { query: 't-max', position: 'leading', signal: new AbortController().signal })
   assert.equal(candidates.length, 1)
   assert.match(candidates[0].name, /@t-max/)
   assert.doesNotMatch(JSON.stringify(candidates[0]), /(?:[a-z]:[\\/]|\\\\|\/Users\/|https?:\/\/)/u)
   const picked = projectSource.onPick({ candidate: candidates[0], session: { sessionId: 'session_client_test' }, position: 'leading', via: 'menu', span: { start: 0, end: 1, draftRev: 1 } })
-  assert.equal(picked.insert.source, 'xiaobai-project')
+  assert.equal(picked.insert.source, '项目')
+  assert.equal(picked.insert.label, 't-max')
   assert.equal(picked.insert.clipboardText, '@t-max')
+  assert.doesNotMatch(picked.insert.label, /^@/u)
+  assert.equal(picked.insert.appearance, 'session')
   assert.match(await projectSource.codec.serialize(picked.insert.ref, new AbortController().signal), /project-id="prj_client_test"/)
+  const restored = projectSource.matchSpace({ sessionId: 'session_client_test' }, '@t-max')
+  assert.equal(restored.insert.label, 't-max')
+  assert.equal(projectSource.matchSpace({ sessionId: 'session_client_test' }, '@t-max/config'), undefined)
+  assert.match(source, /function projectFileMentionKeys\(/)
+  assert.match(source, /data-xiaobai-project-file-row/)
+  assert.match(source, /occurrence\.length/)
+  assert.match(source, /data-at-file-dock/)
+})
+
+test('Client shows a persisted project in the session header and can prepare a replacement', async () => {
+  const source = await readFile(sourcePath, 'utf8')
+  const plugin = loadClient(source)
+  const registrations = []
+  const result = plugin.factory((name) => name === 'react' ? reactMock() : undefined)
+  const project = { workspaceId: 'ws_header_test', projectId: 'prj_header_test', sourceProjectId: 't-max', displayName: 'T-MAX' }
+  result.apply(clientContext(registrations, async () => () => {}, {
+    list: async () => ({ ok: true, value: { status: 'ok', data: { workspaceId: project.workspaceId, projects: [project] }, diagnostics: [] } }),
+  }))
+  await new Promise((resolve) => setTimeout(resolve, 10))
+
+  const input = { draft: '', occurrences: [] }
+  let nextDraft = input.draft
+  const header = registrations.find(({ descriptor }) => descriptor.id === 'xiaobai-project-header').component({
+    sessionId: 'session_header_test',
+    useInput: (selector) => selector(input),
+    useSession: (selector) => selector({ chat: { nodes: { values: () => [{ kind: 'user', seq: 1, content: [{ type: 'text', text: '<xiaobai-project workspace-id="ws_header_test" project-id="prj_header_test">t-max</xiaobai-project>' }] } ] } } }),
+    useSessions: (selector) => selector({ byId: { session_header_test: { displayTitle: '@t-max' } } }),
+    inputActions: { setDraft: (value) => { nextDraft = value } },
+  })
+  assert.match(render(header).join(' '), /当前项目：t-max/)
+  const change = findButton(header, '当前项目：t-max')
+  assert.ok(change)
+  change.props.onClick()
+  assert.equal(nextDraft, '@')
+})
+
+test('Client resolves a legacy @ project from the session title when the snapshot has no project node', async () => {
+  const source = await readFile(sourcePath, 'utf8')
+  const plugin = loadClient(source)
+  const registrations = []
+  const project = { workspaceId: 'ws_legacy_title_test', projectId: 'prj_legacy_title_test', sourceProjectId: 't-max', displayName: 'T-MAX' }
+  let candidateCalls = 0
+  const remoteService = {
+    list: async () => ({ ok: true, value: { status: 'ok', data: { workspaceId: project.workspaceId, projects: [] }, diagnostics: [] } }),
+    projectCandidates: async () => {
+      candidateCalls += 1
+      return { ok: true, value: { status: 'ok', data: { projects: [project] }, diagnostics: [] } }
+    },
+  }
+  let hookIndex = 0
+  const hookState = []
+  const result = plugin.factory((name) => name === 'react' ? reactMock({
+    useState: (initial) => {
+      const index = hookIndex++
+      if (!(index in hookState)) hookState[index] = initial
+      return [hookState[index], (value) => { hookState[index] = typeof value === 'function' ? value(hookState[index]) : value }]
+    },
+    useEffect: (effect) => { void effect() },
+  }) : undefined)
+  result.apply(clientContext(registrations, async () => () => {}, remoteService))
+  await new Promise((resolve) => setTimeout(resolve, 10))
+
+  const headerComponent = registrations.find(({ descriptor }) => descriptor.id === 'xiaobai-project-header').component
+  const input = { draft: '', occurrences: [] }
+  const renderHeader = () => {
+    hookIndex = 0
+    return headerComponent({
+      sessionId: 'session_legacy_title_test',
+      useInput: (selector) => selector(input),
+      useSession: (selector) => selector({ chat: { nodes: { values: () => [] } } }),
+      useSessions: (selector) => selector({ byId: { session_legacy_title_test: { displayTitle: '@t-max' } } }),
+      inputActions: { setDraft: () => {} },
+    })
+  }
+
+  assert.deepEqual(render(renderHeader()), [])
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  const header = render(renderHeader()).join(' ')
+  assert.match(header, /当前项目：t-max/)
+  assert.equal(candidateCalls, 1)
 })
 
 function findButton(node, label) {

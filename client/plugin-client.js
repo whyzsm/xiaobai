@@ -39,7 +39,7 @@ window.__ModuleLoader__.load({
     };
     const REMOTE_MOUNT_TIMEOUT_MS = 10000;
     const REMOTE_REQUEST_TIMEOUT_MS = 10000;
-    const PROJECT_REFERENCE_SOURCE = "xiaobai-project";
+    const PROJECT_INPUT_SOURCE = "项目";
     const PROJECT_REFERENCE_TAG = "xiaobai-project";
     const WORKSPACE_ID_PATTERN = /^ws_[a-z0-9][a-z0-9_-]{2,63}$/;
     const PROJECT_ID_PATTERN = /^prj_[a-z0-9][a-z0-9_-]{2,63}$/;
@@ -127,6 +127,8 @@ window.__ModuleLoader__.load({
       rollbackApprovalId: undefined,
       notice: [],
       directoryPicker: { open: false, kind: undefined, listing: undefined, loading: false, error: undefined },
+      sessionProjectOverrides: new Map(),
+      projectCatalog: new Map(),
     };
     let remoteMountTask;
     let remountRemote = () => {};
@@ -167,7 +169,7 @@ window.__ModuleLoader__.load({
       try { reference = typeof value === "string" ? JSON.parse(value) : value; } catch { return undefined; }
       if (!reference || typeof reference !== "object" || Array.isArray(reference)) return undefined;
       if (!WORKSPACE_ID_PATTERN.test(reference.workspaceId || "") || !PROJECT_ID_PATTERN.test(reference.projectId || "")) return undefined;
-      const label = String(reference.label || "").trim();
+      const label = String(reference.label || "").trim().replace(/^@+/u, "");
       if (!label || label.length > 128 || /[\u0000-\u001f\u007f<>]/u.test(label)) return undefined;
       return { workspaceId: reference.workspaceId, projectId: reference.projectId, label };
     }
@@ -177,36 +179,219 @@ window.__ModuleLoader__.load({
     }
 
     function projectCandidate(candidate) {
-      const label = String(candidate?.sourceProjectId || candidate?.displayName || "").trim();
-      const reference = projectReference({ workspaceId: candidate?.workspaceId, projectId: candidate?.projectId, label });
+      const reference = projectReference({
+        workspaceId: candidate?.workspaceId,
+        projectId: candidate?.projectId,
+        label: candidate?.sourceProjectId || candidate?.displayName,
+      });
       if (!reference) return undefined;
       const knowledge = PROJECT_STATUS_LABELS[candidate.knowledgeStatus] || PROJECT_STATUS_LABELS.unknown;
       const repository = PROJECT_STATUS_LABELS[candidate.repositoryStatus] || PROJECT_STATUS_LABELS.unknown;
       return {
-        name: `@${label}`,
-        description: `${candidate.displayName || label} · 知识${knowledge} · 仓库${repository}`,
+        name: `@${reference.label}`,
+        description: `${candidate.displayName || reference.label} · 知识${knowledge} · 仓库${repository}`,
         value: JSON.stringify(reference),
       };
     }
 
+    function projectReferenceFromCandidate(candidate) {
+      return projectReference({
+        workspaceId: candidate?.workspaceId,
+        projectId: candidate?.projectId,
+        label: candidate?.sourceProjectId || candidate?.displayName,
+      });
+    }
+
+    function rememberProjectReferences(projects) {
+      for (const project of Array.isArray(projects) ? projects : []) {
+        const reference = projectReferenceFromCandidate(project);
+        if (reference) state.projectCatalog.set(reference.label, reference);
+      }
+    }
+
+    function projectReferenceFromCatalog(label) {
+      const normalized = String(label || "").trim().replace(/^@+/u, "");
+      return normalized ? state.projectCatalog.get(normalized) : undefined;
+    }
+
+    function projectMentionLabel(value) {
+      const text = String(value || "");
+      const match = /(?:^|\s)@([^\s@/\\]+)(?=\s|$)/u.exec(text);
+      return match?.[1];
+    }
+
+    function projectReferenceFromWorkspaceLabel(workspace, label) {
+      const normalized = String(label || "").trim().replace(/^@+/u, "");
+      if (!normalized || !workspace) return undefined;
+      const matches = (workspace.projects || [])
+        .map(projectReferenceFromCandidate)
+        .filter((reference) => reference?.label === normalized);
+      return matches.length === 1 ? matches[0] : undefined;
+    }
+
+    async function resolveProjectReference(label) {
+      const normalized = String(label || "").trim().replace(/^@+/u, "");
+      if (!normalized) return undefined;
+      const local = projectReferenceFromWorkspaceLabel(state.workspace, normalized) || projectReferenceFromCatalog(normalized);
+      if (local) return local;
+      if (!state.remote || typeof state.remote.projectCandidates !== "function") return undefined;
+      try {
+        const envelope = await remoteCall("projectCandidates", { query: normalized, ...(state.workspace?.workspaceId ? { workspaceId: state.workspace.workspaceId } : {}) }, REMOTE_REQUEST_TIMEOUT_MS);
+        if (envelope?.status !== "ok") return undefined;
+        const projects = Array.isArray(envelope.data?.projects) ? envelope.data.projects : [];
+        rememberProjectReferences(projects);
+        const matches = projects.map(projectReferenceFromCandidate).filter((reference) => reference?.label === normalized);
+        return matches.length === 1 ? matches[0] : undefined;
+      } catch { return undefined; }
+    }
+
+    function projectReferenceForWorkspace(reference, workspace) {
+      if (!reference) return undefined;
+      if (workspace?.workspaceId && reference.workspaceId !== workspace.workspaceId) return undefined;
+      return reference;
+    }
+
+    function projectReferenceFromSerializedText(text) {
+      let result;
+      for (const match of String(text || "").matchAll(/<xiaobai-project\b([^>]*)>([\s\S]*?)<\/xiaobai-project>/gu)) {
+        const attributes = match[1] || "";
+        const workspaceId = attributes.match(/\bworkspace-id="([^"]+)"/u)?.[1];
+        const projectId = attributes.match(/\bproject-id="([^"]+)"/u)?.[1];
+        const label = String(match[2] || "")
+          .replaceAll("&lt;", "<")
+          .replaceAll("&gt;", ">")
+          .replaceAll("&quot;", '"')
+          .replaceAll("&#39;", "'")
+          .replaceAll("&amp;", "&");
+        result = projectReference({ workspaceId, projectId, label });
+      }
+      return result;
+    }
+
+    function projectTextFromNode(node) {
+      return Array.isArray(node?.content)
+        ? node.content.filter((block) => block?.type === "text").map((block) => block.text || "").join("")
+        : "";
+    }
+
+    function projectReferenceFromSessionSnapshot(snapshot) {
+      const values = typeof snapshot?.chat?.nodes?.values === "function" ? [...snapshot.chat.nodes.values()] : [];
+      values.sort((left, right) => Number(right?.seq || 0) - Number(left?.seq || 0));
+      for (const node of values) {
+        if (node?.kind !== "user" && node?.kind !== "steering") continue;
+        const reference = projectReferenceFromSerializedText(projectTextFromNode(node));
+        if (reference) return reference;
+      }
+      return undefined;
+    }
+
+    function projectReferenceFromDraft(input, workspace) {
+      return projectReferenceFromWorkspaceLabel(workspace, projectMentionLabel(input?.draft));
+    }
+
+    function currentProjectForSession({ sessionId, input, persistedProject, title, workspace }) {
+      if (state.sessionProjectOverrides.has(sessionId)) return state.sessionProjectOverrides.get(sessionId) || undefined;
+      const occurrence = projectOccurrence(input);
+      const live = projectReferenceForWorkspace(occurrence, workspace);
+      if (live) return live;
+      return projectReferenceForWorkspace(projectReferenceFromDraft(input, workspace), workspace)
+        || projectReferenceFromCatalog(projectMentionLabel(input?.draft))
+        || projectReferenceForWorkspace(persistedProject, workspace)
+        || projectReferenceFromWorkspaceLabel(workspace, projectMentionLabel(title))
+        || projectReferenceFromCatalog(projectMentionLabel(title));
+    }
+
+    function findProjectMentionRange(text, label) {
+      const expected = String(label || "").trim().replace(/^@+/u, "");
+      if (!expected) return undefined;
+      for (const match of String(text || "").matchAll(/(?:^|\s)@([^\s@/\\]+)(?=\s|$)/gu)) {
+        if (match[1] !== expected) continue;
+        const start = match.index + (match[0].startsWith(" ") || match[0].startsWith("\n") || match[0].startsWith("\t") ? 1 : 0);
+        return { start, end: start + expected.length + 1 };
+      }
+      return undefined;
+    }
+
+    function projectRange(input, selected) {
+      const occurrence = selected?.occurrence;
+      if (occurrence && Number.isInteger(occurrence.offset) && occurrence.offset >= 0) {
+        const length = Number.isInteger(occurrence.length) && occurrence.length > 0 ? occurrence.length : selected.label.length + 1;
+        return { start: occurrence.offset, end: occurrence.offset + length };
+      }
+      return findProjectMentionRange(input?.draft, selected?.label);
+    }
+
+    function projectDraftAfterRange(draft, range) {
+      if (!range) return draft;
+      let end = range.end;
+      if (draft[end] === " ") end += 1;
+      return draft.slice(0, range.start) + draft.slice(end);
+    }
+
+    function clearProjectForSession(sessionId, input, inputActions, selected) {
+      if (inputActions && selected && typeof input?.draft === "string") {
+        const range = projectRange(input, selected);
+        if (range) inputActions.setDraft(projectDraftAfterRange(input.draft, range));
+      }
+      if (sessionId) state.sessionProjectOverrides.set(sessionId, null);
+      notify();
+    }
+
+    function focusProjectDraft(caret) {
+      if (typeof document === "undefined") return;
+      setTimeout(() => {
+        const textarea = document.querySelector("textarea");
+        if (!textarea) return;
+        textarea.focus();
+        textarea.setSelectionRange?.(caret, caret);
+      }, 0);
+    }
+
+    function prepareProjectReplacement(sessionId, input, inputActions, selected) {
+      if (!inputActions) return;
+      const draft = typeof input?.draft === "string" ? input.draft : "";
+      const range = projectRange(input, selected);
+      if (!range) {
+        state.sessionProjectOverrides.set(sessionId, null);
+        inputActions.setDraft("@");
+        notify();
+        focusProjectDraft(1);
+        return;
+      }
+      const rest = projectDraftAfterRange(draft, range).replace(/^\s+/u, "");
+      const prefix = draft.slice(0, range.start);
+      const next = `${prefix}@${rest ? ` ${rest}` : ""}`;
+      state.sessionProjectOverrides.set(sessionId, null);
+      inputActions.setDraft(next);
+      notify();
+      focusProjectDraft(prefix.length + 1);
+    }
+
     const projectSource = {
       trigger: "@",
-      name: PROJECT_REFERENCE_SOURCE,
+      name: PROJECT_INPUT_SOURCE,
       order: 70,
-      showGroupTitle: false,
       async candidates(_session, { query, signal }) {
         if (signal?.aborted || !state.remote || typeof state.remote.projectCandidates !== "function") return [];
         try {
           const envelope = await remoteCall("projectCandidates", { query: query || "", ...(state.workspace?.workspaceId ? { workspaceId: state.workspace.workspaceId } : {}) }, REMOTE_REQUEST_TIMEOUT_MS);
           if (signal?.aborted || envelope?.status !== "ok") return [];
+          rememberProjectReferences(envelope.data?.projects);
           return (envelope.data?.projects || []).map(projectCandidate).filter(Boolean);
         } catch { return []; }
       },
-      onPick({ candidate }) {
+      onPick({ candidate, session }) {
         const reference = projectReference(candidate?.value);
         if (!reference) return undefined;
+        if (session?.sessionId) state.sessionProjectOverrides.delete(session.sessionId);
         const mention = `@${reference.label}`;
-        return { insert: { source: PROJECT_REFERENCE_SOURCE, ref: JSON.stringify(reference), label: mention, clipboardText: mention } };
+        return { insert: { source: PROJECT_INPUT_SOURCE, ref: JSON.stringify(reference), label: reference.label, appearance: "session", clipboardText: mention } };
+      },
+      matchSpace(_session, token) {
+        const label = projectMentionLabel(token);
+        const reference = projectReferenceFromWorkspaceLabel(state.workspace, label);
+        if (!reference || token !== `@${reference.label}`) return undefined;
+        return { insert: { source: PROJECT_INPUT_SOURCE, ref: JSON.stringify(reference), label: reference.label, appearance: "session", clipboardText: token } };
       },
       codec: {
         clipboardText: (ref) => {
@@ -221,6 +406,199 @@ window.__ModuleLoader__.load({
         },
       },
     };
+
+    function projectOccurrences(input) {
+      const occurrences = Array.isArray(input?.occurrences) ? input.occurrences : [];
+      return occurrences.map((occurrence) => {
+        if (occurrence?.source !== PROJECT_INPUT_SOURCE) return undefined;
+        const reference = projectReference(occurrence.ref);
+        return reference ? { ...reference, occurrence } : undefined;
+      }).filter(Boolean);
+    }
+
+    function projectOccurrence(input) {
+      return projectOccurrences(input).at(-1);
+    }
+
+    function removeProjectOccurrence(input, inputActions, occurrence) {
+      if (!inputActions || !occurrence || typeof input?.draft !== "string") return;
+      const start = occurrence.offset;
+      if (!Number.isInteger(start) || start < 0 || start >= input.draft.length) return;
+      let end = start + (Number.isInteger(occurrence.length) && occurrence.length > 0 ? occurrence.length : 1);
+      if (input.draft[end] === " ") end += 1;
+      inputActions.setDraft(input.draft.slice(0, start) + input.draft.slice(end));
+    }
+
+    function markProjectChips(input) {
+      if (typeof document === "undefined") return;
+      const projectOccurrenceIds = new Set(projectOccurrences(input).map(({ occurrence }) => String(occurrence.occurrenceId)));
+      for (const chip of document.querySelectorAll('[data-input-backdrop] [data-decoration="chip"]')) {
+        const occurrenceId = chip.getAttribute("data-occurrence");
+        if (occurrenceId && projectOccurrenceIds.has(occurrenceId)) {
+          if (chip.getAttribute("data-xiaobai-project-chip") !== "true") chip.setAttribute("data-xiaobai-project-chip", "true");
+        } else if (chip.hasAttribute("data-xiaobai-project-chip")) chip.removeAttribute("data-xiaobai-project-chip");
+      }
+    }
+
+    function projectFileMentionKeys(input) {
+      if (typeof input?.draft !== "string") return new Set();
+      const projectKeys = new Set(projectOccurrences(input).map(({ label, occurrence }) => `${occurrence.offset}:${label}`));
+      const mentionKeys = new Set();
+      const seen = new Set();
+      let ordinal = 0;
+      for (const match of input.draft.matchAll(/@([^\s@]+)/gu)) {
+        const relative = String(match[1] || "").replace(/\/$/u, "");
+        if (!relative || seen.has(relative)) continue;
+        seen.add(relative);
+        if (projectKeys.has(`${match.index}:${relative}`)) mentionKeys.add(`${ordinal}:${relative}`);
+        ordinal += 1;
+      }
+      return mentionKeys;
+    }
+
+    function markProjectFileRows(input) {
+      if (typeof document === "undefined") return;
+      const projectKeys = projectFileMentionKeys(input);
+      for (const dock of document.querySelectorAll('[data-at-file-dock="true"]')) {
+        const rows = [...dock.querySelectorAll('[data-at-file-row="true"]')];
+        for (const [ordinal, row] of rows.entries()) {
+          const path = row.querySelector('.dsh_atFile_path');
+          const relative = path?.getAttribute("title") || "";
+          const isProjectRow = projectKeys.has(`${ordinal}:${relative}`);
+          const wasProjectRow = row.getAttribute("data-xiaobai-project-file-row") === "true";
+          if (isProjectRow) {
+            row.setAttribute("data-xiaobai-project-file-row", "true");
+            row.hidden = true;
+          } else if (wasProjectRow) {
+            row.removeAttribute("data-xiaobai-project-file-row");
+            row.hidden = false;
+          }
+        }
+        const allRowsHidden = rows.length > 0 && rows.every((row) => row.hidden);
+        const wasDockHidden = dock.getAttribute("data-xiaobai-project-file-dock-hidden") === "true";
+        if (allRowsHidden) {
+          dock.setAttribute("data-xiaobai-project-file-dock-hidden", "true");
+          dock.hidden = true;
+        } else if (wasDockHidden) {
+          dock.removeAttribute("data-xiaobai-project-file-dock-hidden");
+          dock.hidden = false;
+        }
+      }
+    }
+
+    function projectHeroRows() {
+      if (typeof document === "undefined") return [];
+      return [...document.querySelectorAll('[class*="heroWorkspaceRow"]')];
+    }
+
+    function updateProjectHero(input, inputActions, sessionId) {
+      if (typeof document === "undefined") return;
+      markProjectChips(input);
+      markProjectFileRows(input);
+      const selected = projectOccurrence(input);
+      for (const row of projectHeroRows()) {
+        const anchor = row.querySelector('[data-slot="conversation.hero.agentPreset"]');
+        let hero = row.querySelector('[data-xiaobai-project-hero]');
+        if (!selected || !anchor) {
+          hero?.remove();
+          continue;
+        }
+        if (!hero) {
+          hero = row.ownerDocument.createElement("span");
+          hero.setAttribute("data-xiaobai-project-hero", "true");
+          hero.setAttribute("role", "group");
+          hero.className = "xb-project-hero";
+          const label = row.ownerDocument.createElement("span");
+          label.setAttribute("data-xiaobai-project-label", "true");
+          hero.appendChild(label);
+          const clear = row.ownerDocument.createElement("button");
+          clear.type = "button";
+          clear.className = "xb-project-hero-clear";
+          clear.setAttribute("aria-label", "清除项目");
+          clear.title = "清除项目";
+          clear.textContent = "×";
+          hero.appendChild(clear);
+        }
+        if (hero.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", hero);
+        const label = hero.querySelector('[data-xiaobai-project-label]');
+        if (label && label.textContent !== selected.label) label.textContent = selected.label;
+        const ariaLabel = `当前项目：${selected.label}`;
+        if (hero.getAttribute("aria-label") !== ariaLabel) hero.setAttribute("aria-label", ariaLabel);
+        const clear = hero.querySelector(".xb-project-hero-clear");
+        if (clear) clear.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          clearProjectForSession(sessionId, input, inputActions, selected);
+        };
+      }
+    }
+
+    function ProjectHeroBridge({ session, input, inputActions }) {
+      useEffect(() => {
+        if (typeof document === "undefined") return undefined;
+        const sync = () => updateProjectHero(input, inputActions, session?.sessionId);
+        sync();
+        const observer = typeof MutationObserver === "function" && document.body
+          ? new MutationObserver(sync)
+          : undefined;
+        observer?.observe(document.body, { childList: true, subtree: true });
+        return () => {
+          observer?.disconnect();
+          for (const hero of document.querySelectorAll('[data-xiaobai-project-hero]')) hero.remove();
+          for (const chip of document.querySelectorAll('[data-xiaobai-project-chip="true"]')) chip.removeAttribute("data-xiaobai-project-chip");
+          for (const row of document.querySelectorAll('[data-xiaobai-project-file-row="true"]')) {
+            row.removeAttribute("data-xiaobai-project-file-row");
+            row.hidden = false;
+          }
+          for (const dock of document.querySelectorAll('[data-xiaobai-project-file-dock-hidden="true"]')) {
+            dock.removeAttribute("data-xiaobai-project-file-dock-hidden");
+            dock.hidden = false;
+          }
+        };
+      }, [input, inputActions]);
+      return null;
+    }
+
+    function ProjectHeaderAction({ sessionId, useSession, useSessions, useInput, inputActions }) {
+      const store = useStore();
+      const input = useInput((value) => value);
+      const persistedProject = useSession((value) => projectReferenceFromSessionSnapshot(value));
+      const title = useSessions((value) => value.byId[sessionId]?.title || value.byId[sessionId]?.displayTitle || "");
+      const selected = currentProjectForSession({ sessionId, input, persistedProject, title, workspace: store.workspace });
+      const titleLabel = projectMentionLabel(title);
+      const inputLabel = projectMentionLabel(input?.draft);
+      const legacyLabel = titleLabel || inputLabel;
+      const [resolvedProject, setResolvedProject] = useState();
+      useEffect(() => {
+        let active = true;
+        if (selected || !legacyLabel || state.sessionProjectOverrides.has(sessionId)) {
+          setResolvedProject(undefined);
+          return () => { active = false; };
+        }
+        setResolvedProject(undefined);
+        void resolveProjectReference(legacyLabel).then((reference) => {
+          if (active) setResolvedProject(reference);
+        });
+        return () => { active = false; };
+      }, [sessionId, legacyLabel, selected?.label, store.workspace?.workspaceId]);
+      const effectiveSelected = selected || resolvedProject;
+      if (!effectiveSelected) return null;
+      return h("span", { className: "xb-project-header", role: "group", "aria-label": `当前项目：${effectiveSelected.label}` },
+        h("button", {
+          type: "button",
+          className: "xb-project-header-change",
+          onClick: () => prepareProjectReplacement(sessionId, input, inputActions, effectiveSelected),
+          title: "更换项目",
+          "aria-label": `更换项目，当前为${effectiveSelected.label}`,
+        }, `当前项目：${effectiveSelected.label}`),
+        h("button", {
+          type: "button",
+          className: "xb-project-header-clear",
+          onClick: () => clearProjectForSession(sessionId, input, inputActions, effectiveSelected),
+          title: "清除项目",
+          "aria-label": "清除项目",
+        }, "×"));
+    }
 
     function withTimeout(promise, timeoutMs) {
       return new Promise((resolve, reject) => {
@@ -322,6 +700,7 @@ window.__ModuleLoader__.load({
       try {
         const envelope = await remoteCall("list", state.workspaceBindingRef ? { workspaceBindingRef: state.workspaceBindingRef } : {}, REMOTE_REQUEST_TIMEOUT_MS);
         state.workspace = envelope.data;
+        rememberProjectReferences(envelope.data?.projects);
         const workspaceStatus = envelope.data?.status;
         state.phase = workspaceStatus === "invalid" ? "invalid" : workspaceStatus === "drift" ? "conflict" : phaseFor(envelope.status, envelope.diagnostics);
         state.notice = envelope.status === "ok" ? diagnosticsOf({ diagnostics: envelope.data?.diagnostics || envelope.diagnostics }, "WORKSPACE_LOAD_FAILED", "工作区加载失败，请重试。") : diagnosticsOf(envelope, "WORKSPACE_LOAD_FAILED", "工作区加载失败，请重试。");
@@ -872,6 +1251,21 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"]{background:transparent!important;border-color:transparent!important;color:transparent!important;opacity:0!important}
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"] *{color:transparent!important}
+[data-at-file-row="true"][data-xiaobai-project-file-row="true"]{display:none!important}
+[data-at-file-dock="true"][data-xiaobai-project-file-dock-hidden="true"]{display:none!important}
+.xb-project-hero{box-sizing:border-box;display:inline-flex;align-items:center;gap:2px;min-width:0;max-width:min(220px,42vw);height:30px;padding:0 3px 0 10px;border:2px solid var(--dsw-alias-state-business-primary,#1296ff);border-radius:5px;background:color-mix(in srgb,var(--dsw-alias-state-business-primary,#1296ff) 8%,transparent);color:var(--dsw-alias-state-business-primary,#1296ff);font:inherit;font-size:13px;line-height:20px}
+.xb-project-hero [data-xiaobai-project-label]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xb-project-hero-clear{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:18px;line-height:20px;cursor:pointer}
+.xb-project-hero-clear:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.xb-project-header{box-sizing:border-box;display:inline-flex;align-items:center;gap:2px;min-width:0;max-width:min(280px,38vw);height:28px;padding:0 3px 0 8px;border:1px solid var(--dsw-alias-state-business-primary,#1296ff);border-radius:5px;background:color-mix(in srgb,var(--dsw-alias-state-business-primary,#1296ff) 8%,transparent);color:var(--dsw-alias-state-business-primary,#1296ff);font:inherit;font-size:12px;line-height:18px}
+.xb-project-header-change{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 4px;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.xb-project-header-change:hover{color:var(--dsw-alias-label-primary)}
+.xb-project-header-clear{display:inline-grid;place-items:center;flex:none;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:16px;line-height:18px;cursor:pointer}
+.xb-project-header-clear:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+`;
+    const CONFIG_CSS = `
 .xb-config-console{box-sizing:border-box;width:100%;max-width:900px;padding:8px 0;color:var(--dsw-alias-label-primary);font:inherit}.xb-config-header,.xb-config-list-head,.xb-config-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.xb-config-header h1,.xb-config-list-head h2,.xb-config-editor-head h2,.xb-config-history h3{margin:0;font-size:18px;line-height:26px;font-weight:600}.xb-config-history h3{font-size:14px;margin-bottom:8px}.xb-config-status,.xb-config-meta,.xb-config-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.xb-config-status-conflict,.xb-config-status-invalid,.xb-config-status-error{color:var(--dsw-alias-state-error-primary)}.xb-config-status-loaded,.xb-config-status-approval{color:var(--dsw-alias-state-success-primary)}.xb-config-button{min-height:32px;padding:5px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}.xb-config-button:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}.xb-config-button:disabled{opacity:.45;cursor:not-allowed}.xb-config-button.primary{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-inverted)}.xb-config-icon-button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:22px;line-height:28px;cursor:pointer}.xb-config-projects{margin-top:12px;border-top:1px solid var(--dsw-alias-border-l1)}.xb-config-project{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.xb-config-project-main{display:flex;flex-direction:column;min-width:0;gap:3px}.xb-config-state{display:flex;align-items:center;min-height:48px;margin-top:16px;padding:14px 0;border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:13px}.xb-config-empty{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;padding:14px 0;border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1)}.xb-config-editor{margin-top:12px}.xb-config-section{min-width:0;margin:16px 0 0;padding:12px 0 0;border:0;border-top:1px solid var(--dsw-alias-border-l1)}.xb-config-section legend{padding:0 8px 0 0;color:var(--dsw-alias-label-primary);font-size:13px;font-weight:600}.xb-config-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.xb-config-field{display:flex;flex-direction:column;gap:5px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.xb-config-field input,.xb-config-field select{box-sizing:border-box;width:100%;min-height:34px;padding:6px 8px;border:1px solid var(--dsw-alias-border-l1);border-radius:5px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}.xb-config-field input:disabled{opacity:.72}.xb-config-check{display:flex;align-items:center;align-self:end;min-height:34px;gap:7px;color:var(--dsw-alias-label-secondary);font-size:12px}.xb-config-check input{margin:0}.xb-config-field-action{display:flex;align-items:end;min-height:34px}.xb-config-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.xb-config-diagnostics{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:12px;line-height:18px}.xb-config-diagnostic{padding:6px 8px;border-left:3px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}.xb-config-error{border-left-color:var(--dsw-alias-state-error-primary)}.xb-config-warning{border-left-color:var(--dsw-alias-state-warn-primary)}.xb-config-result,.xb-config-history{display:flex;flex-direction:column;gap:5px;margin-top:16px;padding-top:12px;border-top:1px solid var(--dsw-alias-border-l1);font-size:13px}.xb-config-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.xb-config-history-row>div{display:flex;flex-direction:column;gap:2px;min-width:0}.xb-config-rollback{margin-top:12px;padding:10px 0;border-top:1px solid var(--dsw-alias-border-l1)}.xb-config-shortcut{margin:4px;padding:5px 8px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}.xb-config-shortcut:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}.xb-config-overlay{position:fixed;inset:0;z-index:100;display:flex;justify-content:flex-end;background:rgba(0,0,0,.22)}.xb-config-overlay-panel{box-sizing:border-box;width:min(820px,100vw);height:100%;overflow:auto;padding:24px;background:var(--dsw-alias-bg-base);box-shadow:-8px 0 24px rgba(0,0,0,.18)}.xb-config-overlay-close{position:absolute;top:14px;right:18px}.xb-config-picker-backdrop{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.28)}.xb-config-picker{box-sizing:border-box;display:flex;flex-direction:column;width:min(680px,100%);max-height:min(620px,100%);overflow:hidden;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;box-shadow:0 12px 36px rgba(0,0,0,.22)}.xb-config-picker-head,.xb-config-picker-foot{display:flex;align-items:center;gap:12px;padding:14px 18px}.xb-config-picker-head{justify-content:space-between;border-bottom:1px solid var(--dsw-alias-border-l1)}.xb-config-picker-crumbs{display:flex;align-items:center;gap:4px;min-height:36px;padding:0 18px;overflow:auto;border-bottom:1px solid var(--dsw-alias-border-l1);white-space:nowrap}.xb-config-picker-crumb-seat{display:inline-flex;align-items:center;gap:4px}.xb-config-picker-crumb-separator{color:var(--dsw-alias-label-tertiary)}.xb-config-picker-crumb{border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}.xb-config-picker-crumb:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.xb-config-picker-body{min-height:180px;overflow:auto;padding:14px 18px}.xb-config-picker-list{display:flex;flex-direction:column;gap:4px}.xb-config-picker-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;padding:4px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.xb-config-picker-folder{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.xb-config-picker-status,.xb-config-picker-error{color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.xb-config-picker-error{color:var(--dsw-alias-state-error-primary)}.xb-config-picker-foot{flex-wrap:wrap;border-top:1px solid var(--dsw-alias-border-l1)}.xb-config-picker-current{flex:1 1 160px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px}.xb-config-picker-foot .xb-config-button{flex:0 0 auto}@media(max-width:600px){.xb-config-fields{grid-template-columns:minmax(0,1fr)}.xb-config-empty{align-items:flex-start;flex-direction:column}.xb-config-overlay-panel{padding:16px}.xb-config-actions .xb-config-button{flex:1 1 140px}.xb-config-picker-backdrop{padding:8px}.xb-config-picker-foot .xb-config-button{flex:1 1 120px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}`;
 
     function apply(ctx) {
@@ -882,7 +1276,7 @@ window.__ModuleLoader__.load({
       if (typeof document !== "undefined" && !document.querySelector("style[data-plugin-css='xiaobai-dsh-plugin']")) {
         const style = document.createElement("style");
         style.dataset.pluginCss = "xiaobai-dsh-plugin";
-        style.textContent = CSS;
+        style.textContent = CSS + CONFIG_CSS;
         document.head.appendChild(style);
       }
       if (inputTriggers && typeof inputTriggers.registerSource === "function") ctx.effect(() => inputTriggers.registerSource(projectSource), "xiaobai-dsh-plugin: @project source");
@@ -937,6 +1331,8 @@ window.__ModuleLoader__.load({
           void dispose?.();
         };
       }, "xiaobai-dsh-plugin: remote");
+      slots.inject("conversation.input.dock", () => slots.register({ name: "conversation.input.dock", id: "xiaobai-project-hero", order: 5 }, ProjectHeroBridge));
+      slots.inject("conversation.session.header.actions", () => slots.register({ name: "conversation.session.header.actions", id: "xiaobai-project-header", order: -5 }, ProjectHeaderAction));
       slots.inject("settings.section", () => slots.register({ name: "settings.section", id: "xiaobai-workspace", order: 60, label: "小白" }, ConsoleView));
     }
 
