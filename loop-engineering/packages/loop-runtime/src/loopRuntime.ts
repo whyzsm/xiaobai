@@ -75,7 +75,7 @@ export class LoopRuntime {
     const [state, inbox, skill, evidence, harness, evaluator, orchestrator] = await Promise.all([
       memoryStore.readState(),
       memoryStore.readInbox(),
-      skillRuntime.loadDiscoverySkill(loop, project.id),
+      skillRuntime.loadDiscoverySkill(loop, project.id, projectRoute.projectRoot, project),
       connectorRuntime.collect(loop.discovery.sources),
       harnessRuntime.load(loop),
       agentRuntime.loadAgent(loop.verification.evaluator, loop),

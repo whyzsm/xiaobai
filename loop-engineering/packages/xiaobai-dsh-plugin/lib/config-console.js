@@ -230,6 +230,8 @@ function baselineToConfig(entry) {
     memory: { ...baseline.memory },
     artifact: { locator: safeLocator(baseline.artifactRoot, `artifacts/${baseline.key}`), readOnly: false },
     qualityCommands: { ...baseline.qualityCommands },
+    ...(entry.parentGroupId ? { parentGroupId: entry.parentGroupId } : {}),
+    ...(entry.sharedContextId ? { sharedContextId: entry.sharedContextId } : {}),
   }
 }
 
@@ -310,32 +312,48 @@ function configToBaseline(config, workspaceId, projectId) {
   })
 }
 
-function sourceProjectConfig(config) {
+function sourceProjectConfig(config, metadata = {}) {
+  const sourceConfig = metadata.sourceConfig
+  const parentGroupId = metadata.parentGroupId ?? config.parentGroupId
+  const sharedContextId = metadata.sharedContextId ?? config.sharedContextId
   const repositories = config.repositories.map((repository, index) => ({
     ...repository,
     repoId: repository.repoId ?? shortResource('repo', { key: config.key, name: repository.name, index }),
     ...(repository.source === 'local' && !repository.bindingRef ? { bindingRef: shortResource('binding', { key: config.key, name: repository.name, index }) } : {}),
   }))
-  return {
+  const source = {
+    kind: parentGroupId ? 'Project' : sourceConfig?.kind ?? 'ProjectGroup',
     id: config.key,
     name: config.displayName,
+    root: sourceConfig?.root ?? '.',
+    defaultBranch: sourceConfig?.defaultBranch ?? 'master',
+    ...(sourceConfig?.skill ? { skill: sourceConfig.skill } : {}),
+    ...(sourceConfig?.discoverySkills ? { discoverySkills: sourceConfig.discoverySkills } : {}),
     owner: config.owner,
     classification: config.classification,
-    repositories: repositories.map((repository) => ({
+    ...(parentGroupId ? { parentGroup: parentGroupId } : {}),
+    ...(sharedContextId ? { sharedContext: sharedContextId } : sourceConfig?.sharedContext ? { sharedContext: sourceConfig.sharedContext } : {}),
+    repositories: repositories.map((repository, index) => ({
       id: repository.repoId,
       name: repository.name,
-      mount: safeLocator(repository.locator, `repositories/${safeKey(repository.name, 'repository')}`),
+      mount: safeLocator(sourceConfig?.repositories?.[index]?.mount, 'repositories/' + safeKey(repository.name, 'repository')),
       ...(repository.bindingRef ? { localPathKey: repository.bindingRef } : {}),
       readOnly: repository.readOnly,
+      ...(sourceConfig?.repositories?.[index]?.remote ? { remote: sourceConfig.repositories[index].remote } : {}),
     })),
-    background: config.knowledgeBindings[0] ? {
+    qualityCommands: { ...config.qualityCommands },
+  }
+  if (!parentGroupId && config.knowledgeBindings[0]) {
+    source.background = {
       id: config.knowledgeBindings[0].knowledgeId ?? safeKey(config.knowledgeBindings[0].source, 'project-background'),
       ...(config.knowledgeBindings[0].locator ? { mount: safeLocator(config.knowledgeBindings[0].locator, undefined) } : {}),
       ...(config.knowledgeBindings[0].bindingRef ? { localPathKey: config.knowledgeBindings[0].bindingRef } : {}),
       integration: { contractVersion: config.knowledgeBindings[0].revision },
-    } : undefined,
-    qualityCommands: { ...config.qualityCommands },
+    }
   }
+  if (sourceConfig?.localPaths) source.localPaths = sourceConfig.localPaths
+  if (sourceConfig?.children) source.children = sourceConfig.children
+  return source
 }
 
 function safeLocalBinding(value) {
@@ -408,6 +426,17 @@ export class WorkspaceConfigService {
     const entry = workspace.projects.find((candidate) => candidate.baseline?.projectId === projectId || candidate.projectId === projectId)
     if (!entry) throw new XiaobaiError(ERROR_CODES.PROJECT_NOT_FOUND, `Project '${projectId}' is not registered in this Workspace`, { resourceId: projectId, phase: 'config-project' })
     return entry.baseline ? entry : { ...entry, baseline: entry.baseline }
+  }
+
+  projectGroup(workspace, groupId) {
+    if (typeof groupId !== 'string' || groupId.length === 0) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, 'A parent ProjectGroup id is required for child Project creation', { phase: 'config-project' })
+    }
+    const group = (workspace.projectGroups ?? []).find((candidate) => candidate.id === groupId || candidate.name === groupId)
+    if (!group || !group.sourceConfig?.children || !group.projectRoot) {
+      throw new XiaobaiError(ERROR_CODES.PROJECT_NOT_FOUND, `ProjectGroup '${groupId}' is not registered for child Project creation`, { resourceId: groupId, phase: 'config-project' })
+    }
+    return group
   }
 
   async currentState(workspace, projectId, store) {
@@ -515,6 +544,16 @@ export class WorkspaceConfigService {
       if (operation === 'update' && !request.projectId) throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, 'Update drafts require an existing Project id', { phase: 'config-draft' })
       if (operation === 'create' && request.projectId) throw new XiaobaiError(ERROR_CODES.CONFIG_CONFLICT, 'Create drafts cannot include an existing Project id', { phase: 'config-draft' })
       if (current && config.key !== current.config.key) throw new XiaobaiError(ERROR_CODES.CONFIG_CONFLICT, 'Project identity key cannot change during an update; create a new Project instead', { resourceId: projectId, phase: 'config-draft' })
+      if (config.parentGroupId) {
+        const group = this.projectGroup(workspace, config.parentGroupId)
+        if (current?.parentGroupId && current.parentGroupId !== config.parentGroupId) throw new XiaobaiError(ERROR_CODES.CONFIG_CONFLICT, 'A child Project cannot move between ProjectGroups during an update', { resourceId: projectId, phase: 'config-draft' })
+        if (!current && workspace.projects.some((entry) => entry.parentGroupId === config.parentGroupId && entry.baseline?.key === config.key)) {
+          throw new XiaobaiError(ERROR_CODES.CONFIG_CONFLICT, `Project key '${config.key}' already exists in ProjectGroup '${config.parentGroupId}'`, { resourceId: config.parentGroupId, phase: 'config-draft' })
+        }
+      } else if (current?.parentGroupId) {
+        config.parentGroupId = current.parentGroupId
+        config.sharedContextId = current.sharedContextId
+      }
       projectId = projectId ?? projectIdFor(workspace.workspaceId, config)
       const existing = workspace.projects.some((entry) => entry.baseline?.projectId === projectId)
       if (operation === 'create' && existing) throw new XiaobaiError(ERROR_CODES.CONFIG_CONFLICT, 'A Project with this identity already exists', { resourceId: projectId, phase: 'config-draft' })
@@ -552,6 +591,14 @@ export class WorkspaceConfigService {
     try { baseline = configToBaseline(draft.config, workspace.workspaceId, draft.projectId) } catch (error) { diagnostics.push(diagnostic(error, ERROR_CODES.CONFIG_INVALID, 'config')) }
     if (draft.operation === 'update' && !draft.projectId) diagnostics.push({ code: ERROR_CODES.CONFIG_INVALID, severity: 'error', field: 'projectId', message: 'Update drafts require a Project id.', phase: 'config-validation' })
     if (draft.operation === 'create' && draft.projectId) diagnostics.push({ code: ERROR_CODES.CONFIG_INVALID, severity: 'error', field: 'projectId', message: 'Create drafts must not reuse an existing Project id.', phase: 'config-validation' })
+    if (draft.config.parentGroupId) {
+      try {
+        const group = this.projectGroup(workspace, draft.config.parentGroupId)
+        if (!draft.config.sharedContextId && group.sharedContextId) draft.config.sharedContextId = group.sharedContextId
+      } catch (error) {
+        diagnostics.push(diagnostic(error, ERROR_CODES.CONFIG_INVALID, 'parentGroupId'))
+      }
+    }
     return { baseline, diagnostics }
   }
 
@@ -585,6 +632,10 @@ export class WorkspaceConfigService {
     if (this.bindings.has(bindingRef)) return this.bindings.get(bindingRef)
     if (entry?.localBindings?.[bindingRef]) return entry.localBindings[bindingRef]
     if (entry?.background?.bindingRef === bindingRef) return { path: entry.background.localPath, approvedRoots: entry.background.approvedRoots }
+    const repositoryBinding = entry?.localPaths?.repositories?.[bindingRef]
+    if (repositoryBinding) return repositoryBinding
+    const backgroundBinding = entry?.localPaths?.background?.[bindingRef]
+    if (backgroundBinding) return backgroundBinding
     return undefined
   }
 
@@ -607,31 +658,51 @@ export class WorkspaceConfigService {
 
   async materializeFiles(workspace, draft, state) {
     const projectId = draft.projectId ?? projectIdFor(workspace.workspaceId, draft.config)
-    const projectRoot = assertWorkspacePath(workspace.workspaceRoot, resolve(workspace.workspaceRoot, CONFIG_ROOT, draft.config.key))
+    const parentGroupId = state?.entry?.parentGroupId ?? draft.config.parentGroupId
+    const group = parentGroupId ? this.projectGroup(workspace, parentGroupId) : undefined
+    const projectRoot = assertWorkspacePath(
+      workspace.workspaceRoot,
+      state?.entry?.projectRoot
+        ?? (group ? resolve(group.projectRoot, group.sourceConfig.children.directory, safeKey(draft.config.key)) : resolve(workspace.workspaceRoot, CONFIG_ROOT, safeKey(draft.config.key)))
+    )
     const loopRoot = resolve(projectRoot, '.loop')
-    const sharedPath = assertWorkspacePath(workspace.workspaceRoot, resolve(loopRoot, 'project.yaml'))
-    const localPath = assertWorkspacePath(workspace.workspaceRoot, resolve(loopRoot, 'local.paths.yaml'))
+    const sharedPath = assertWorkspacePath(workspace.workspaceRoot, state?.entry?.configPath ?? resolve(loopRoot, 'project.yaml'))
+    const localPath = assertWorkspacePath(workspace.workspaceRoot, group?.localPathsPath ?? resolve(loopRoot, 'local.paths.yaml'))
     await assertSafeWriteTarget(workspace.workspaceRoot, sharedPath)
+    const writesInheritedLocalPaths = Boolean(group)
     await assertSafeWriteTarget(workspace.workspaceRoot, localPath)
-    const source = sourceProjectConfig(draft.config)
-    const local = { repositories: {} }
+    const source = sourceProjectConfig(draft.config, {
+      parentGroupId,
+      sharedContextId: state?.entry?.sharedContextId ?? group?.sharedContextId,
+      sourceConfig: state?.entry?.sourceConfig,
+    })
+    const local = writesInheritedLocalPaths
+      ? cloneCanonical(group?.localPaths ?? {})
+      : { repositories: {} }
+    if (!isObject(local.repositories)) local.repositories = {}
     for (const repository of draft.config.repositories) {
       if (repository.source !== 'local') continue
       const bindingRef = repository.bindingRef ?? repository.repoId ?? shortResource('binding', { key: draft.config.key, name: repository.name, index: draft.config.repositories.indexOf(repository) })
-      const path = await this.resolveBinding(state?.entry, bindingRef, `repositories.${repository.name}`)
+      const path = await this.resolveBinding(state?.entry ?? group, bindingRef, `repositories.${repository.name}`)
       local.repositories[bindingRef] = path
     }
     const knowledge = draft.config.knowledgeBindings[0]
     if (knowledge?.bindingRef) {
-      const path = await this.resolveBinding(state?.entry, knowledge.bindingRef, 'knowledgeBindings.0')
-      local.background = { [knowledge.bindingRef]: path }
+      const path = await this.resolveBinding(state?.entry ?? group, knowledge.bindingRef, 'knowledgeBindings.0')
+      local.background = { ...(isObject(local.background) ? local.background : {}), [knowledge.bindingRef]: path }
     }
     const files = [{
-      locator: `projects/${draft.config.key}/.loop/project.yaml`,
+      locator: relative(workspace.workspaceRoot, sharedPath).split(sep).join('/'),
       path: sharedPath,
       content: YAML.stringify(source),
     }]
-    if (Object.keys(local.repositories).length > 0 || local.background) files.push({ locator: `projects/${draft.config.key}/.loop/local.paths.yaml`, path: localPath, content: YAML.stringify(local) })
+    if (Object.keys(local.repositories).length > 0 || local.background) {
+      files.push({
+        locator: relative(workspace.workspaceRoot, localPath).split(sep).join('/'),
+        path: localPath,
+        content: YAML.stringify(local),
+      })
+    }
     const snapshots = await Promise.all(files.map(async (file) => ({ ...file, snapshot: await fileSnapshot(file.path) })))
     return { projectId, projectRoot, files, snapshots, sharedPath, localPath }
   }

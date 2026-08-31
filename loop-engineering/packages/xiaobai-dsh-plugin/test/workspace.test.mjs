@@ -14,6 +14,7 @@ import {
   loadLoopCatalog,
   loadWorkspaceConfig,
   redactLoadedWorkspace,
+  resolveWorkspaceProject,
 } from '../lib/index.js'
 
 async function fixture() {
@@ -65,6 +66,72 @@ test('Workspace loader maps multiple Projects and preserves project identity acr
   } finally {
     await rm(first.root, { recursive: true, force: true })
     await rm(second.root, { recursive: true, force: true })
+  }
+})
+
+test('Workspace loader exposes an empty ProjectGroup for first-child creation and routes nested children', async () => {
+  const fixtureValue = await fixture()
+  const groupRoot = join(fixtureValue.root, 'projects', 'alpha')
+  const childrenRoot = join(groupRoot, 'projects')
+  const childRoot = join(childrenRoot, 'child')
+  await mkdir(childrenRoot, { recursive: true })
+  await writeFile(join(groupRoot, '.loop', 'project.yaml'), `kind: ProjectGroup
+id: alpha
+name: Alpha
+owner: platform
+classification: internal
+skill: SKILL.md
+sharedContext: alpha-shared
+background:
+  id: alpha-context
+  localPathKey: alphaContext
+  mount: ../../mounts/alpha-background
+children:
+  directory: projects
+  sharedContext: alpha-shared
+  requireSingleRepository: true
+repositories:
+  - id: alpha-repository
+    name: alpha-repository
+    localPathKey: alphaRepository
+    mount: ../../mounts/alpha-repository
+`, 'utf8')
+  try {
+    const empty = await loadWorkspaceConfig(fixtureValue.root)
+    assert.equal(empty.projectGroups.length, 1)
+    assert.equal(empty.projectGroups[0].childCount, 0)
+    assert.equal(empty.projects.length, 0)
+
+    await mkdir(join(childRoot, '.loop'), { recursive: true })
+    await writeFile(join(childRoot, '.loop', 'project.yaml'), `kind: Project
+id: alpha-child
+name: Alpha Child
+root: .
+defaultBranch: main
+parentGroup: alpha
+sharedContext: alpha-shared
+repositories:
+  - id: child-repository
+    name: child-repository
+    localPathKey: alphaRepository
+    mount: ../../../../mounts/alpha-repository
+`, 'utf8')
+    const loaded = await loadWorkspaceConfig(fixtureValue.root)
+    assert.equal(loaded.projectGroups[0].childProjectIds.length, 1)
+    assert.equal(loaded.projects.length, 1)
+    assert.equal(loaded.projects[0].sourceProjectId, 'alpha-child')
+    assert.equal(loaded.projects[0].parentGroupId, 'alpha')
+    assert.equal(loaded.projects[0].sharedContextId, 'alpha-shared')
+    assert.equal(loaded.projects[0].knowledgeStatus, 'locked')
+    assert.throws(
+      () => resolveWorkspaceProject(loaded, 'alpha'),
+      (error) => error.code === ERROR_CODES.PROJECT_GROUP_TARGET,
+    )
+    const redacted = redactLoadedWorkspace({ ...loaded, workspaceId: 'ws_nested_test' })
+    assert.equal(JSON.stringify(redacted).includes(fixtureValue.root), false)
+    assert.equal(redacted.projectGroups[0].childProjectIds[0], 'alpha-child')
+  } finally {
+    await rm(fixtureValue.root, { recursive: true, force: true })
   }
 })
 

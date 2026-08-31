@@ -52,6 +52,11 @@ function formatAjvErrors(name: string, errors: ErrorObject[] | null | undefined)
   });
 }
 
+function isWithin(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (relative.length > 0 && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+}
+
 async function validateObject(
   ajv: Ajv2020,
   schemaName: SchemaName,
@@ -81,25 +86,44 @@ export async function validateWorkspace(
   }
 
   let resolvedProject: Awaited<ReturnType<typeof resolveProjectRoute>> | undefined;
+  let validationProject: {
+    project: Awaited<ReturnType<typeof resolveProjectRoute>>['project'];
+    projectRoot: string;
+  } | undefined;
   try {
     resolvedProject = await resolveProjectRoute(workspaceRoot, loop, {
       targetProject: loop.handoff.project
     });
+    validationProject = resolvedProject;
     if (resolvedProject.project.id !== loop.handoff.project) {
       errors.push(
         `Loop project id must match project.yaml id: loop=${loop.handoff.project}, project.yaml=${resolvedProject.project.id}`
       );
     }
   } catch (error) {
-    errors.push(error instanceof Error ? error.message : String(error));
+    if (!isProjectGroupTargetError(error)) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    } else {
+      const declaredProject = await readDeclaredProject(workspaceRoot, loop.handoff.project);
+      if (!declaredProject) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      } else {
+        // A loop may declare a ProjectGroup as its routing namespace. Execution
+        // still requires a concrete child target at dry-run/execute time.
+        validationProject = declaredProject;
+      }
+    }
   }
 
-  const projectRoot = resolvedProject?.projectRoot ?? path.join(workspaceRoot, 'projects', loop.handoff.project);
-  const projectSkill = path.join(projectRoot, resolvedProject?.project.skill ?? 'SKILL.md');
+  const projectRoot = validationProject?.projectRoot ?? path.join(workspaceRoot, 'projects', loop.handoff.project);
+  const projectSkill = path.join(projectRoot, validationProject?.project.skill ?? 'SKILL.md');
+  if (!isWithin(workspaceRoot, projectSkill)) {
+    errors.push(`Project skill mapping escapes workspace root: ${projectSkill}`);
+  }
   let skillPackageAssets: SkillPackageAssetPlan | undefined;
-  if (resolvedProject) {
+  if (validationProject) {
     try {
-      skillPackageAssets = await resolveSkillPackageAssets(projectRoot, resolvedProject.project);
+      skillPackageAssets = await resolveSkillPackageAssets(projectRoot, validationProject.project);
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
     }
@@ -112,7 +136,7 @@ export async function validateWorkspace(
       return path.join(workspaceRoot, 'agents', fileName);
     }
   };
-  const mappedDiscoverySkill = resolvedProject?.project.discoverySkills?.[loop.discovery.skill];
+  const mappedDiscoverySkill = validationProject?.project.discoverySkills?.[loop.discovery.skill];
   if (!mappedDiscoverySkill) {
     errors.push(`Missing discovery skill mapping: ${loop.discovery.skill} for project ${loop.handoff.project}`);
   }
@@ -120,13 +144,8 @@ export async function validateWorkspace(
     projectRoot,
     mappedDiscoverySkill ?? path.join('.loop', 'skills', `${loop.discovery.skill}.SKILL.md`)
   );
-  const discoverySkillRelative = path.relative(projectRoot, discoverySkill);
-  if (
-    discoverySkillRelative === '..' ||
-    discoverySkillRelative.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(discoverySkillRelative)
-  ) {
-    errors.push(`Discovery skill mapping escapes project root: ${discoverySkill}`);
+  if (!isWithin(workspaceRoot, discoverySkill)) {
+    errors.push(`Discovery skill mapping escapes workspace root: ${discoverySkill}`);
   }
   const orchestratorPath = loop.orchestrator?.agent ? resolveAgentPath(loop.orchestrator.agent) : undefined;
   const generatorPath = resolveAgentPath(loop.generator.agent);
@@ -339,4 +358,19 @@ export async function validateWorkspace(
     ok: errors.length === 0,
     errors
   };
+}
+
+async function readDeclaredProject(
+  workspaceRoot: string,
+  projectId: string
+): Promise<{ project: Awaited<ReturnType<typeof resolveProjectRoute>>['project']; projectRoot: string } | undefined> {
+  const projectRoot = path.join(workspaceRoot, 'projects', projectId);
+  const projectPath = path.join(projectRoot, '.loop', 'project.yaml');
+  if (!(await pathExists(projectPath))) return undefined;
+  const project = await readYamlFile<Awaited<ReturnType<typeof resolveProjectRoute>>['project']>(projectPath);
+  return project.kind === 'ProjectGroup' && project.children ? { project, projectRoot } : undefined;
+}
+
+function isProjectGroupTargetError(error: unknown): boolean {
+  return error instanceof Error && /Target project '.+' is a ProjectGroup and cannot be used as an execution target/.test(error.message);
 }

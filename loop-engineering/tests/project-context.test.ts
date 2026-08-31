@@ -15,12 +15,12 @@ test('LoopRuntime exposes one frozen ProjectContext on the plan and route', asyn
     now: new Date('2026-08-28T00:00:00.000Z')
   });
 
-  assert.equal(plan.projectContext.projectId, 't-max');
+  assert.equal(plan.projectContext.projectId, 'tmax-operate-support');
   assert.equal(plan.projectRoute.projectContext, plan.projectContext);
   assert.equal(plan.orchestrator?.routesTo.project, plan.projectRoute);
   assert.equal(Object.isFrozen(plan.projectContext), true);
   assert.equal(plan.projectContext.repositoryRoot.endsWith('/repos/operateSupport'), true);
-  assert.equal(plan.projectContext.memoryNamespace, 'project:t-max/loop:frontend-delivery');
+  assert.equal(plan.projectContext.memoryNamespace, 'project:tmax-operate-support/loop:frontend-delivery');
   assert.match(plan.projectContext.policyDigest, /^[a-f0-9]{64}$/);
 });
 

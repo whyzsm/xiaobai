@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { realpathSync } from 'node:fs';
 import { RuntimePlan } from './types';
 
 export type StandardPageArtifactName =
@@ -39,8 +40,18 @@ export function standardPageArtifactRoot(
       : undefined;
   if (!repository) return undefined;
   const root = path.resolve(workspaceRoot, repository.mount);
-  const relative = path.relative(path.resolve(workspaceRoot), root);
-  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+  const workspace = path.resolve(workspaceRoot);
+  const relative = path.relative(workspace, root);
+  const lexicalInside = relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+  let canonicalAliasInside = false;
+  try {
+    const canonicalWorkspace = realpathSync(workspace);
+    const canonicalRelative = path.relative(canonicalWorkspace, root);
+    canonicalAliasInside = canonicalRelative === '' || (!canonicalRelative.startsWith(`..${path.sep}`) && canonicalRelative !== '..' && !path.isAbsolute(canonicalRelative));
+  } catch {
+    // A missing workspace remains governed by the lexical check below.
+  }
+  if (!lexicalInside && !canonicalAliasInside) {
     throw new Error(`XIAONENG_TASK_ARTIFACT_REPOSITORY_OUTSIDE_WORKSPACE: ${repository.id}`);
   }
   return path.join(root, '.xiaoneng', 'runtime', 'tasks', encodeURIComponent(taskId));

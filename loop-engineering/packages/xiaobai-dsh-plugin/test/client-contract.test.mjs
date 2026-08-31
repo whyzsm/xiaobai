@@ -171,6 +171,41 @@ test('Client registers the @ Project source and preserves opaque Project identit
   assert.match(source, /data-xiaobai-project-file-row/)
   assert.match(source, /occurrence\.length/)
   assert.match(source, /data-at-file-dock/)
+  assert.match(source, /data-xiaobai-project-chip=\"true\"\]\{display:inline!important/)
+  assert.match(source, /data-xiaobai-project-chip=\"true\"\]\{[^}]*border:0!important[^}]*background:transparent!important/)
+  assert.match(source, /data-xiaobai-project-chip=\"true\"\] \.uV2eYG_chipTrigger\{display:inline!important\}/)
+  assert.match(source, /data-xiaobai-project-chip=\"true\"\] \.uV2eYG_chipTriggerGlyph\{color:inherit!important\}/)
+  assert.match(source, /data-xiaobai-project-chip=\"true\"\] \.uV2eYG_chipIcon\{display:none!important\}/)
+})
+
+test('Client restores a project from the persisted plain @ draft after refresh', async () => {
+  const source = await readFile(sourcePath, 'utf8')
+  const plugin = loadClient(source)
+  const registrations = []
+  const project = { workspaceId: 'ws_restored_draft_test', projectId: 'prj_restored_draft_test', sourceProjectId: 't-max', displayName: 'T-MAX' }
+  const result = plugin.factory((name) => name === 'react' ? reactMock() : undefined)
+  result.apply(clientContext(registrations, async () => () => {}, {
+    list: async () => ({ ok: true, value: { status: 'ok', data: { workspaceId: project.workspaceId, projects: [project] }, diagnostics: [] } }),
+  }))
+  await new Promise((resolve) => setTimeout(resolve, 10))
+
+  const input = { draft: '@t-max ', occurrences: [] }
+  const header = registrations.find(({ descriptor }) => descriptor.id === 'xiaobai-project-header').component({
+    sessionId: 'session_restored_draft_test',
+    useInput: (selector) => selector(input),
+    useSession: (selector) => selector({ chat: { nodes: { values: () => [] } } }),
+    useSessions: (selector) => selector({ byId: { session_restored_draft_test: { displayTitle: '' } } }),
+    inputActions: { setDraft: () => {} },
+  })
+
+  assert.match(render(header).join(' '), /当前项目：t-max/)
+})
+
+test('Client resolves a plain @ draft before updating the project Hero and file rail', async () => {
+  const source = await readFile(sourcePath, 'utf8')
+  assert.match(source, /void resolveProjectReference\(inputLabel\)\.then\(/)
+  assert.match(source, /resolvedProject\);/)
+  assert.match(source, /currentProjectForSession\(\{ sessionId, input, persistedProject, workspace: store\.workspace \}\)/)
 })
 
 test('Client shows a persisted project in the session header and can prepare a replacement', async () => {

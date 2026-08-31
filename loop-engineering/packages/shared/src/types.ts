@@ -134,6 +134,23 @@ export interface ProjectSpec {
   localPaths?: string;
   background?: ProjectBackground;
   repositories?: ProjectRepository[];
+  children?: ProjectGroupChildren;
+  /** ProjectGroup id for a child Project declaration. */
+  parentGroup?: string;
+  /** Shared context id for a child, or the group-level shared declaration. */
+  sharedContext?: string | SharedProjectContext;
+}
+
+export interface ProjectGroupChildren {
+  directory: string;
+  sharedContext?: string;
+  requireSingleRepository?: boolean;
+}
+
+export interface SharedProjectContext {
+  id: string;
+  file: string;
+  inherit?: string[];
 }
 
 export interface ProjectBackground {

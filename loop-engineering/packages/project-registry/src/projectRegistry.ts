@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { readdir } from 'node:fs/promises';
+import { readdir, realpath } from 'node:fs/promises';
 import {
   LoopSpec,
   ProjectRepository,
@@ -18,6 +18,7 @@ interface ProjectRegistryEntry {
   project: ProjectSpec;
   projectRoot: string;
   localPaths?: ProjectLocalPaths;
+  childProjectIds?: string[];
 }
 
 interface ProjectMatch {
@@ -107,10 +108,128 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
     const localPaths = localPathsPath && (await pathExists(localPathsPath))
       ? await readYamlFile<ProjectLocalPaths>(localPathsPath)
       : undefined;
-    entries.push({ project, projectRoot, localPaths });
+    const children = await loadChildProjectEntries(project, projectRoot, workspaceRoot, localPaths);
+    entries.push({
+      project,
+      projectRoot,
+      localPaths,
+      ...(children.length > 0 ? { childProjectIds: children.map(({ project: child }) => child.id) } : {})
+    });
+    entries.push(...children);
   }
 
   return entries;
+}
+
+async function loadChildProjectEntries(
+  group: ProjectSpec,
+  groupRoot: string,
+  workspaceRoot: string,
+  groupLocalPaths?: ProjectLocalPaths
+): Promise<ProjectRegistryEntry[]> {
+  if (group.kind !== 'ProjectGroup' || !group.children) return [];
+  const declaredChildrenRoot = resolveWithin(groupRoot, group.children.directory, 'ProjectGroup children directory');
+  if (!(await pathExists(declaredChildrenRoot))) {
+    throw new Error(`ProjectGroup '${group.id}' children directory is missing: ${path.relative(workspaceRoot, declaredChildrenRoot)}`);
+  }
+  const childrenRoot = await resolveExistingWithin(groupRoot, declaredChildrenRoot, 'ProjectGroup children directory');
+  const childDirectories = (await readdir(childrenRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  const entries: ProjectRegistryEntry[] = [];
+  for (const directory of childDirectories) {
+    const childRoot = path.join(childrenRoot, directory);
+    const childPath = path.join(childRoot, '.loop', 'project.yaml');
+    if (!(await pathExists(childPath))) continue;
+    const childConfigPath = await resolveExistingWithin(childRoot, childPath, 'ProjectGroup child configuration');
+    const child = await readYamlFile<ProjectSpec>(childConfigPath);
+    if (child.kind !== 'Project') {
+      throw new Error(`ProjectGroup '${group.id}' child '${directory}' must use kind: Project`);
+    }
+    if (child.parentGroup !== group.id) {
+      throw new Error(`Project '${child.id ?? directory}' must declare parentGroup: ${group.id}`);
+    }
+    const expectedShared = typeof group.sharedContext === 'object'
+      ? group.sharedContext.id
+      : group.children.sharedContext ?? group.sharedContext;
+    const actualShared = typeof child.sharedContext === 'string' ? child.sharedContext : child.sharedContext?.id;
+    if (expectedShared && actualShared !== expectedShared) {
+      throw new Error(`Project '${child.id ?? directory}' must reference shared context '${expectedShared}'`);
+    }
+    const localPathsPath = child.localPaths
+      ? path.resolve(childRoot, child.localPaths)
+      : group.localPaths
+        ? path.resolve(groupRoot, group.localPaths)
+        : undefined;
+    const localPaths = localPathsPath && (await pathExists(localPathsPath))
+      ? await readYamlFile<ProjectLocalPaths>(localPathsPath)
+      : groupLocalPaths;
+    entries.push({
+      project: materializeChildProject(group, child, groupRoot, childRoot),
+      projectRoot: childRoot,
+      localPaths
+    });
+  }
+  if (group.children.requireSingleRepository !== false) {
+    for (const entry of entries) {
+      if ((entry.project.repositories ?? []).length !== 1) {
+        throw new Error(`Project '${entry.project.id}' must declare exactly one repository`);
+      }
+    }
+  }
+  return entries;
+}
+
+function materializeChildProject(
+  group: ProjectSpec,
+  child: ProjectSpec,
+  groupRoot: string,
+  childRoot: string
+): ProjectSpec {
+  const inheritedBackground = group.background
+    ? {
+        ...group.background,
+        mount: rebasePath(groupRoot, childRoot, group.background.mount),
+        integration: group.background.integration
+      }
+    : undefined;
+  const inheritedDiscoverySkills = group.discoverySkills
+    ? Object.fromEntries(
+        Object.entries(group.discoverySkills).map(([id, value]) => [id, rebasePath(groupRoot, childRoot, value)])
+      )
+    : undefined;
+  const inheritedSkill = group.skill ? rebasePath(groupRoot, childRoot, group.skill) : child.skill;
+  return {
+    ...group,
+    ...child,
+    kind: 'Project',
+    root: child.root ?? '.',
+    skill: child.skill ?? inheritedSkill ?? 'SKILL.md',
+    ...(child.discoverySkills ? {} : inheritedDiscoverySkills ? { discoverySkills: inheritedDiscoverySkills } : {}),
+    ...(child.background ? {} : inheritedBackground ? { background: inheritedBackground } : {}),
+    ...(child.sharedContext ? {} : group.sharedContext ? { sharedContext: group.sharedContext } : {})
+  };
+}
+
+function resolveWithin(root: string, relativePath: string, label: string): string {
+  const resolved = path.resolve(root, relativePath);
+  if (!containsPath(root, resolved)) throw new Error(`${label} escapes its ProjectGroup root`);
+  return resolved;
+}
+
+async function resolveExistingWithin(root: string, candidate: string, label: string): Promise<string> {
+  const canonicalRoot = await realpath(root);
+  const canonicalCandidate = await realpath(candidate);
+  if (!containsPath(canonicalRoot, canonicalCandidate)) {
+    throw new Error(`${label} escapes its ProjectGroup root`);
+  }
+  return canonicalCandidate;
+}
+
+function rebasePath(fromRoot: string, toRoot: string, relativePath: string): string {
+  const resolved = path.resolve(fromRoot, relativePath);
+  return path.relative(toRoot, resolved) || '.';
 }
 
 function findProjectMatches(
@@ -136,6 +255,7 @@ function findRepositoryMatches(
 ): ProjectMatch[] {
   const matches: ProjectMatch[] = [];
   for (const entry of entries) {
+    if (entry.childProjectIds && entry.childProjectIds.length > 0) continue;
     for (const repository of entry.project.repositories ?? []) {
       const aliases = [repository.id, repository.name, repository.localPathKey].filter(
         (alias): alias is string => Boolean(alias)
@@ -161,6 +281,7 @@ function findRemoteMatches(
 ): ProjectMatch[] {
   const matches: ProjectMatch[] = [];
   for (const entry of entries) {
+    if (entry.childProjectIds && entry.childProjectIds.length > 0) continue;
     for (const repository of entry.project.repositories ?? []) {
       if (sameRemote(repository.remote, target)) {
         matches.push({
@@ -181,6 +302,7 @@ function findCwdMatches(entries: ProjectRegistryEntry[], targetCwd: string): Pro
   const matches: ProjectMatch[] = [];
 
   for (const entry of entries) {
+    if (entry.childProjectIds && entry.childProjectIds.length > 0) continue;
     const projectRootMount = path.resolve(entry.projectRoot, entry.project.root);
     if (containsPath(projectRootMount, cwd)) {
       matches.push({
@@ -257,6 +379,11 @@ function requireSingleMatch(matches: ProjectMatch[], label: string, target: stri
       .sort()
       .join(', ');
     throw new Error(`Target ${label} is ambiguous: ${target}. Candidates: ${candidates}`);
+  }
+  if (unique[0].entry.childProjectIds && unique[0].entry.childProjectIds.length > 0 && !unique[0].repository) {
+    throw new Error(
+      `Target project '${target}' is a ProjectGroup and cannot be used as an execution target. Choose a child Project: ${unique[0].entry.childProjectIds.join(', ')}`
+    );
   }
   return unique[0];
 }

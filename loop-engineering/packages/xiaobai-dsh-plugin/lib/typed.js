@@ -236,6 +236,8 @@ const ConfigArtifactSchema = z.object({
 }).strict()
 const ConfigPayloadSchema = z.object({
   key: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/u),
+  parentGroupId: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/u).optional(),
+  sharedContextId: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/u).optional(),
   displayName: z.string().min(1),
   owner: z.string().min(1),
   classification: ClassificationSchema,

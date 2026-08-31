@@ -31,12 +31,22 @@ test('project-assess uses the loaded Workspace service when an explicit workspac
   const workspaceService = {
     current: undefined,
     load: async ({ workspaceRoot }) => {
-      workspaceService.current = { workspaceRoot, workspaceId: 'ws_assess_test', status: 'loaded', projects: [] }
+      workspaceService.current = {
+        workspaceRoot,
+        workspaceId: 'ws_assess_test',
+        status: 'loaded',
+        projects: [{ projectId: 'prj_assess_test', sourceProjectId: 'assess-test' }],
+      }
       return workspaceService.current
     },
     assessProject: (input) => {
       assessments.push(input)
-      return { projectId: input.projectId, valid: true, knowledgeStatus: 'locked', diagnostics: [] }
+      return {
+        projectId: input.projectId,
+        valid: true,
+        knowledgeStatus: 'locked',
+        diagnostics: [{ projectId: input.projectId, field: '/private/workspace/projects/alpha/.loop/project.yaml', message: "Cannot read '/private/workspace/projects/alpha/.loop/project.yaml' password=hidden" }],
+      }
     },
   }
   const loopService = {
@@ -54,6 +64,37 @@ test('project-assess uses the loaded Workspace service when an explicit workspac
   assert.equal(envelope.ok, true)
   assert.deepEqual(assessments, [{ projectId: 'prj_assess_test' }])
   assert.equal(JSON.stringify(envelope).includes('/private/workspace'), false)
+  assert.equal(envelope.value.diagnostics[0].field, 'projects/alpha/.loop/project.yaml')
+  assert.equal(envelope.value.diagnostics[0].message.includes('password=hidden'), false)
+})
+
+test('project commands reject a ProjectGroup target even when the loaded catalog has no child rows', async () => {
+  const definitions = []
+  const workspaceService = {
+    current: undefined,
+    load: async ({ workspaceRoot }) => {
+      workspaceService.current = {
+        workspaceRoot,
+        workspaceId: 'ws_group_target_test',
+        status: 'loaded',
+        projectGroups: [{ id: 't-max', childProjectIds: ['tmax-app'] }],
+        projects: [],
+        diagnostics: [],
+      }
+      return workspaceService.current
+    },
+    assessProject: () => ({ valid: true }),
+  }
+  registerProjectCommands(
+    { commands: { register: (definition) => { definitions.push(definition); return () => {} } } },
+    { assessBaseline: () => ({}) },
+    workspaceService,
+  )
+
+  const result = await definitions[1].handler({ rawInput: '{"workspaceRoot":"/private/workspace","projectId":"t-max"}' })
+  const envelope = JSON.parse(result.text)
+  assert.equal(result.kind, 'error')
+  assert.equal(envelope.error.code, ERROR_CODES.PROJECT_GROUP_TARGET)
 })
 
 test('command input parsing fails with the registered contract error', async () => {

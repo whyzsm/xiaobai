@@ -56,6 +56,13 @@ function projectProjection(entry) {
     memoryNamespaceId: baseline?.memory?.namespaceId,
     configDigest: baseline?.configDigest ?? entry?.configDigest,
     pathBindingDigest: entry?.pathBindingDigest,
+    parentGroupId: safeText(entry?.parentGroupId, null),
+    sharedContextId: safeText(entry?.sharedContextId, null),
+    repositoryBindingStatus: repositories.length === 1
+      ? mountedRepositoryCount === 1 ? 'locked' : 'unavailable'
+      : repositories.length === 0 ? 'missing' : 'invalid',
+    sharedBackgroundStatus: entry?.knowledgeStatus
+      ?? (entry?.background?.configured ? (entry.background.mounted ? 'locked' : 'unavailable') : 'missing'),
   }
 }
 
@@ -143,6 +150,16 @@ export function buildMonitorProjection(input = {}) {
   const requestedWorkspaceId = input.workspaceId ?? loadedWorkspace?.workspaceId ?? loadedWorkspace?.id
   const workspaceId = safeText(requestedWorkspaceId, opaqueId('ws', loadedWorkspace?.title ?? input.workspaceTitle ?? 'workspace'))
   const projects = entries.map(projectProjection)
+  const projectGroups = (Array.isArray(input.projectGroups) ? input.projectGroups : Array.isArray(loadedWorkspace?.projectGroups) ? loadedWorkspace.projectGroups : [])
+    .map((group) => ({
+      groupId: safeText(group?.groupId ?? group?.id, 'group-unknown'),
+      name: safeText(group?.name, group?.groupId ?? group?.id ?? 'Unnamed project group'),
+      childProjectIds: Array.isArray(group?.childProjectIds) ? group.childProjectIds.map((value) => safeText(value)).filter(Boolean) : [],
+      childCount: Number.isSafeInteger(group?.childCount) ? group.childCount : Array.isArray(group?.childProjectIds) ? group.childProjectIds.length : 0,
+      sharedContextId: safeText(group?.sharedContextId, null),
+      sharedBackgroundStatus: safeText(group?.sharedBackgroundStatus, 'unmeasured'),
+      source: safeLocator(group?.source),
+    }))
   const loops = (Array.isArray(input.loops) ? input.loops : []).map(loopProjection)
   const runs = (Array.isArray(input.runs) ? input.runs : []).map(runProjection)
   const lineage = entries.flatMap(lineageForProject)
@@ -161,7 +178,9 @@ export function buildMonitorProjection(input = {}) {
       title: safeText(input.workspaceTitle ?? loadedWorkspace?.title, 'Xiaobai Workspace'),
       status: safeText(loadedWorkspace?.status ?? input.workspaceStatus, 'unmeasured'),
       projectCount: projects.length,
+      projectGroupCount: projectGroups.length,
     },
+    projectGroups,
     projects,
     loops,
     runs,

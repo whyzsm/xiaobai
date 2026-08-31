@@ -80,17 +80,24 @@ export async function discoverSkillPackageLoops(workspaceRoot: string): Promise<
   const entries = await loadProjectEntries(workspaceRoot);
   const declaredIds = new Set<string>();
   const pathsById = new Map<string, string>();
+  const declarationsById = new Map<string, string>();
 
   for (const entry of entries) {
     const declarations = entry.project.background?.integration?.assets?.loops ?? {};
+    const plan = await resolveSkillPackageAssets(entry.projectRoot, entry.project);
     for (const loopId of Object.keys(declarations)) {
-      if (declaredIds.has(loopId)) {
+      const relativePath = declarations[loopId];
+      const packageRoot = plan?.root ?? path.resolve(entry.projectRoot, entry.project.background?.mount ?? '.');
+      const declarationPath = path.resolve(packageRoot, relativePath);
+      const declarationKey = declarationPath;
+      const previousPath = declarationsById.get(loopId);
+      if (previousPath && previousPath !== declarationKey) {
         throw new Error(`Skill package loop is declared by multiple projects: ${loopId}`);
       }
       declaredIds.add(loopId);
+      declarationsById.set(loopId, declarationKey);
     }
 
-    const plan = await resolveSkillPackageAssets(entry.projectRoot, entry.project);
     if (!plan?.available) continue;
     for (const [loopId, loopPath] of plan.loops) pathsById.set(loopId, loopPath);
   }
@@ -149,12 +156,58 @@ async function loadProjectEntries(workspaceRoot: string): Promise<ProjectEntry[]
     const projectRoot = path.join(projectsRoot, projectDir);
     const projectPath = path.join(projectRoot, '.loop', 'project.yaml');
     if (!(await fileExists(projectPath))) continue;
-    entries.push({
-      projectRoot,
-      project: YAML.parse(await readFile(projectPath, 'utf8')) as ProjectSpec
-    });
+    const project = YAML.parse(await readFile(projectPath, 'utf8')) as ProjectSpec;
+    if (project.kind !== 'ProjectGroup' || !project.children) {
+      entries.push({ projectRoot, project });
+      continue;
+    }
+    const declaredChildrenRoot = path.resolve(projectRoot, project.children.directory);
+    if (!(await fileExists(declaredChildrenRoot))) continue;
+    const childrenRoot = await resolveExistingWithin(projectRoot, declaredChildrenRoot, 'ProjectGroup children directory');
+    const childDirectories = (await readdir(childrenRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    for (const childDirectory of childDirectories) {
+      const childRoot = path.join(childrenRoot, childDirectory);
+      const childPath = path.join(childRoot, '.loop', 'project.yaml');
+      if (!(await fileExists(childPath))) continue;
+      const childConfigPath = await resolveExistingWithin(childRoot, childPath, 'ProjectGroup child configuration');
+      const child = YAML.parse(await readFile(childConfigPath, 'utf8')) as ProjectSpec;
+      if (child.kind !== 'Project' || child.parentGroup !== project.id) continue;
+      entries.push({
+        projectRoot: childRoot,
+        project: materializeChildProject(project, child, projectRoot, childRoot)
+      });
+    }
   }
   return entries;
+}
+
+function materializeChildProject(
+  group: ProjectSpec,
+  child: ProjectSpec,
+  groupRoot: string,
+  childRoot: string
+): ProjectSpec {
+  const background = group.background
+    ? { ...group.background, mount: rebasePath(groupRoot, childRoot, group.background.mount) }
+    : undefined;
+  const discoverySkills = group.discoverySkills
+    ? Object.fromEntries(Object.entries(group.discoverySkills).map(([id, value]) => [id, rebasePath(groupRoot, childRoot, value)]))
+    : undefined;
+  return {
+    ...group,
+    ...child,
+    kind: 'Project',
+    skill: child.skill ?? rebasePath(groupRoot, childRoot, group.skill),
+    ...(child.background ? {} : background ? { background } : {}),
+    ...(child.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {})
+  };
+}
+
+function rebasePath(fromRoot: string, toRoot: string, relativePath: string): string {
+  return path.relative(toRoot, path.resolve(fromRoot, relativePath)) || '.';
 }
 
 function packageBasename(relativePath: string): string {
@@ -198,4 +251,14 @@ async function requirePackageFile(
     throw new Error(`skill package ${what} is declared but not a file for project ${projectId}: ${relativePath}`);
   }
   return canonicalFile;
+}
+
+async function resolveExistingWithin(root: string, candidate: string, label: string): Promise<string> {
+  const canonicalRoot = await realpath(root);
+  const canonicalCandidate = await realpath(candidate);
+  const relativePath = path.relative(canonicalRoot, canonicalCandidate);
+  if (relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
+    throw new Error(`${label} escapes its ProjectGroup root`);
+  }
+  return canonicalCandidate;
 }

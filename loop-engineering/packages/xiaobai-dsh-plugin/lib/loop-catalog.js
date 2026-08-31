@@ -5,6 +5,7 @@ import {
   loadCoreLoopCatalog,
   planCoreLoop,
 } from './core-facade.js'
+import { canonicalLoopForProject, loopTargetsProject, resolveWorkspaceProject } from './project-target.js'
 
 export { loadCoreLoopCatalog as loadLoopCatalog }
 
@@ -13,10 +14,12 @@ export class LoopCatalogService {
     this.loader = options.loader ?? loadCoreLoopCatalog
     this.executionFacade = options.executionFacade
     this.current = undefined
+    this.workspace = undefined
   }
 
-  async load(workspaceRoot) {
+  async load(workspaceRoot, workspace) {
     this.current = await this.loader(workspaceRoot)
+    this.workspace = workspace
     return this.current
   }
 
@@ -27,7 +30,15 @@ export class LoopCatalogService {
 
   list(input = {}) {
     const catalog = this.requireCatalog()
-    const loops = input.projectId ? catalog.loops.filter((loop) => loop.targetProjectId === input.projectId) : catalog.loops
+    if (!input.projectId && !input.targetProject) return { ...catalog, loops: catalog.loops }
+    const resolved = this.workspace
+      ? resolveWorkspaceProject(this.workspace, input.projectId ?? input.targetProject, { phase: 'loop-list' })
+      : { projectId: input.projectId ?? input.targetProject, entry: undefined }
+    const loops = catalog.loops
+      .filter((loop) => !this.workspace || loopTargetsProject(this.workspace, loop, resolved.entry))
+      .map((loop) => this.workspace
+        ? canonicalLoopForProject(this.workspace, loop, { projectId: resolved.projectId }, 'loop-list')
+        : loop)
     return { ...catalog, loops }
   }
 
@@ -38,17 +49,23 @@ export class LoopCatalogService {
   }
 
   assess(input = {}) {
-    return assessCoreLoop(this.requireLoop(input.loopId, 'loop-assessment'))
+    const loop = this.requireLoop(input.loopId, 'loop-assessment')
+    const resolved = this.workspace ? canonicalLoopForProject(this.workspace, loop, input, 'loop-assessment') : loop
+    return { ...assessCoreLoop(resolved), projectId: resolved.targetProjectId, targetProjectId: resolved.targetProjectId }
   }
 
   plan(input = {}) {
-    return planCoreLoop(this.requireLoop(input.loopId, 'loop-planning'), input)
+    const loop = this.requireLoop(input.loopId, 'loop-planning')
+    const resolved = this.workspace ? canonicalLoopForProject(this.workspace, loop, input, 'loop-planning') : loop
+    return planCoreLoop(resolved, { ...input, projectId: resolved.targetProjectId })
   }
 
   async run(input = {}) {
     if (typeof this.executionFacade !== 'function') {
       throw new XiaobaiError(ERROR_CODES.EXECUTION_UNSUPPORTED, 'This plugin exposes Loop catalog and plan only; the Host execution bridge is unavailable', { resourceId: input.loopId, phase: 'loop-run', remediation: 'Provide a verified Host Agent execution bridge before invoking loop-run.' })
     }
-    return this.executionFacade({ ...input, loop: this.requireLoop(input.loopId, 'loop-run') })
+    const loop = this.requireLoop(input.loopId, 'loop-run')
+    const resolved = this.workspace ? canonicalLoopForProject(this.workspace, loop, input, 'loop-run') : loop
+    return this.executionFacade({ ...input, projectId: resolved.targetProjectId, loop: resolved })
   }
 }

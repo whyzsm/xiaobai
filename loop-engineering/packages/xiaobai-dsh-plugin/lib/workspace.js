@@ -64,7 +64,7 @@ function sourcePath(projectRoot, relativePath) {
   return candidate
 }
 
-function baselineForProject(project, projectRoot, workspaceRoot, localPaths) {
+function baselineForProject(project, projectRoot, workspaceRoot, localPaths, metadata = {}) {
   if (!project || typeof project !== 'object' || Array.isArray(project)) {
     throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, 'ProjectGroup configuration must be an object', { phase: 'workspace-config' })
   }
@@ -186,12 +186,15 @@ function baselineForProject(project, projectRoot, workspaceRoot, localPaths) {
     sourceProjectId,
     projectRoot,
     configPath: sourcePath(projectRoot, '.loop/project.yaml'),
+    localPaths,
     source: {
-      kind: 'project-group',
+      kind: metadata.kind ?? 'project-group',
       id: sourceProjectId,
       revision: 'filesystem',
       digest: sha256Digest({ project, sourceProjectId }),
+      ...(metadata.parentProjectId ? { parentProjectId: metadata.parentProjectId } : {}),
     },
+    ...(metadata.sourceConfig ? { sourceConfig: metadata.sourceConfig } : {}),
     localBindings,
     background: background ? {
       id: background.id ?? sourceProjectId,
@@ -206,6 +209,109 @@ function baselineForProject(project, projectRoot, workspaceRoot, localPaths) {
     configDigest: sha256Digest({ project, sourceProjectId, projectPath: relative(workspaceRoot, projectRoot) }),
     pathBindingDigest: sha256Digest({ repositories: localBindings, background: backgroundLocal?.path }),
   }
+}
+
+function rebasePath(fromRoot, toRoot, relativePath) {
+  return relative(toRoot, resolve(fromRoot, relativePath)) || '.'
+}
+
+function materializeChildProject(group, child, groupRoot, childRoot) {
+  const background = group.background
+    ? { ...group.background, mount: rebasePath(groupRoot, childRoot, group.background.mount) }
+    : undefined
+  const discoverySkills = group.discoverySkills
+    ? Object.fromEntries(Object.entries(group.discoverySkills).map(([id, value]) => [id, rebasePath(groupRoot, childRoot, value)]))
+    : undefined
+  return {
+    ...group,
+    ...child,
+    kind: 'Project',
+    skill: child.skill ?? rebasePath(groupRoot, childRoot, group.skill),
+    ...(child.background ? {} : background ? { background } : {}),
+    ...(child.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {}),
+    ...(child.sharedContext ? {} : group.sharedContext ? { sharedContext: group.sharedContext } : {}),
+  }
+}
+
+function sharedContextId(group) {
+  return typeof group.sharedContext === 'string'
+    ? group.sharedContext
+    : group.sharedContext?.id
+}
+
+function redactDiagnosticLocator(value, workspaceRoot) {
+  if (typeof value !== 'string' || value.length === 0) return undefined
+  if (/^[a-z]:[\\/]/i.test(value) || /^\\\\|^\/\//.test(value)) return undefined
+  if (!isAbsolute(value)) return value
+  if (!workspaceRoot) return undefined
+  const relation = relative(workspaceRoot, resolve(value))
+  if (relation === '..' || relation.startsWith(`..${sep}`) || isAbsolute(relation)) return undefined
+  return relation || '.'
+}
+
+function redactDiagnosticMessage(value) {
+  return String(value ?? 'Diagnostic')
+    .replaceAll(/https?:\/\/[^\s)]+/gi, '[redacted-url]')
+    .replaceAll(/(?:[a-z]:[\\/]|\\\\|\/)[^\s'"()<>]+/gi, '[redacted-path]')
+    .replaceAll(/((?:token|password|secret|credential))=\S+/gi, '$1=[redacted]')
+}
+
+export function redactWorkspaceDiagnostics(diagnostics, workspaceRoot) {
+  return (Array.isArray(diagnostics) ? diagnostics : []).map(({ sourceProjectId, projectId, code, severity, field, message }) => ({
+    sourceProjectId,
+    projectId,
+    code,
+    severity,
+    ...(redactDiagnosticLocator(field, workspaceRoot) ? { field: redactDiagnosticLocator(field, workspaceRoot) } : {}),
+    message: redactDiagnosticMessage(message),
+  }))
+}
+
+async function loadChildProjects(group, groupRoot, workspaceRoot, localPaths) {
+  if (group.kind !== 'ProjectGroup' || !group.children) return []
+  const childrenRoot = sourcePath(groupRoot, group.children.directory)
+  if (!(await exists(childrenRoot))) {
+    throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `ProjectGroup '${group.id}' children directory is missing`, { phase: 'workspace-config', resourceId: group.id })
+  }
+  if (group.sharedContext && typeof group.sharedContext === 'object') {
+    const sharedFile = sourcePath(groupRoot, group.sharedContext.file)
+    if (!(await exists(sharedFile))) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Shared context file is missing for ProjectGroup '${group.id}'`, { phase: 'workspace-config', resourceId: group.id })
+    }
+  }
+  const childDirectories = (await readdir(childrenRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+  const entries = []
+  const seenIds = new Set()
+  for (const directory of childDirectories) {
+    const childRoot = resolve(childrenRoot, directory)
+    const childPath = resolve(childRoot, '.loop/project.yaml')
+    if (!(await exists(childPath))) continue
+    const child = await readYaml(childPath)
+    if (child?.kind !== 'Project') {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `ProjectGroup child '${directory}' must use kind: Project`, { phase: 'workspace-config', resourceId: group.id })
+    }
+    if (typeof child.id !== 'string' || child.id.length === 0 || seenIds.has(child.id)) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `ProjectGroup '${group.id}' contains a duplicate or missing child Project id`, { phase: 'workspace-config', resourceId: group.id })
+    }
+    seenIds.add(child.id)
+    if (child.parentGroup !== group.id) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Project '${child.id}' must declare parentGroup: ${group.id}`, { phase: 'workspace-config', resourceId: child.id })
+    }
+    const expectedShared = sharedContextId(group) ?? group.children.sharedContext
+    const actualShared = typeof child.sharedContext === 'string' ? child.sharedContext : child.sharedContext?.id
+    if (expectedShared && actualShared !== expectedShared) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Project '${child.id}' must reference shared context '${expectedShared}'`, { phase: 'workspace-config', resourceId: child.id })
+    }
+    const materialized = materializeChildProject(group, child, groupRoot, childRoot)
+    if (group.children.requireSingleRepository !== false && (!Array.isArray(materialized.repositories) || materialized.repositories.length !== 1)) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Project '${child.id}' must declare exactly one repository`, { phase: 'workspace-config', resourceId: child.id })
+    }
+    entries.push({ project: materialized, projectRoot: childRoot, localPaths, parentGroupId: group.id, sharedContextId: expectedShared, sourceConfig: child })
+  }
+  return entries
 }
 
 async function inspectBackground(entry, diagnostics) {
@@ -263,6 +369,7 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
   if (!(await exists(projectsRoot))) throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Workspace projects directory is missing: ${projectsRoot}`, { phase: 'workspace-config', actual: projectsRoot })
   const directories = (await readdir(projectsRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
   const projects = []
+  const projectGroups = []
   for (const directory of directories) {
     const projectRoot = resolve(projectsRoot, directory)
     const configPath = resolve(projectRoot, '.loop/project.yaml')
@@ -281,13 +388,42 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
       }
       const localPathsPath = typeof project?.localPaths === 'string' ? sourcePath(projectRoot, project.localPaths) : resolve(projectRoot, '.loop/local.paths.yaml')
       const localPaths = await exists(localPathsPath) ? await readYaml(localPathsPath) : undefined
-      const entry = baselineForProject(project, projectRoot, canonicalRoot, localPaths)
-      entry.knowledgeStatus = await inspectBackground(entry, diagnostics)
-      entry.repositoryStatuses = await Promise.all(entry.baseline.repositories.map((repository) => inspectRepository(entry, repository, diagnostics)))
-      if (entry.localBindings && Object.keys(entry.localBindings).length === 0) {
-        diagnostics.push({ code: 'XIAOBAI_LOCAL_PATHS_MISSING', severity: 'warning', projectId: entry.baseline.projectId, sourceProjectId: entry.sourceProjectId, field: 'localPaths', message: 'No local repository path bindings were resolved.' })
+      const isChildProjectGroup = project?.kind === 'ProjectGroup' && Boolean(project.children)
+      const children = await loadChildProjects(project, projectRoot, canonicalRoot, localPaths)
+      if (isChildProjectGroup) {
+        projectGroups.push({
+          id: project.id ?? directory,
+          name: project.name ?? project.id ?? directory,
+          childCount: children.length,
+          childProjectIds: children.map((child) => child.project.id).sort(),
+          childrenDirectory: project.children.directory,
+          sharedContextId: sharedContextId(project) ?? null,
+          source: `projects/${directory}/.loop/project.yaml`,
+          projectRoot,
+          configPath,
+          sourceConfig: project,
+          localPaths,
+          localPathsPath: localPathsPath,
+        })
       }
-      projects.push(entry)
+      const candidates = isChildProjectGroup
+        ? children
+        : [{ project, projectRoot, localPaths, parentGroupId: undefined, sharedContextId: undefined, sourceConfig: project }]
+      for (const candidate of candidates) {
+        const entry = baselineForProject(candidate.project, candidate.projectRoot, canonicalRoot, candidate.localPaths, {
+          kind: candidate.parentGroupId ? 'project-child' : 'project-group',
+          parentProjectId: candidate.parentGroupId,
+          sourceConfig: candidate.sourceConfig,
+        })
+        entry.parentGroupId = candidate.parentGroupId
+        entry.sharedContextId = candidate.sharedContextId
+        entry.knowledgeStatus = await inspectBackground(entry, diagnostics)
+        entry.repositoryStatuses = await Promise.all(entry.baseline.repositories.map((repository) => inspectRepository(entry, repository, diagnostics)))
+        if (entry.localBindings && Object.keys(entry.localBindings).length === 0) {
+          diagnostics.push({ code: 'XIAOBAI_LOCAL_PATHS_MISSING', severity: 'warning', projectId: entry.baseline.projectId, sourceProjectId: entry.sourceProjectId, field: 'localPaths', message: 'No local repository path bindings were resolved.' })
+        }
+        projects.push(entry)
+      }
     } catch (error) {
       diagnostics.push({ code: error.code ?? ERROR_CODES.CONFIG_INVALID, severity: 'error', sourceProjectId: directory, field: configPath, message: error.message })
     }
@@ -306,6 +442,7 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
     title: options.title ?? canonicalRoot.split(sep).at(-1),
     sourceRevision: options.sourceRevision ?? 'filesystem',
     configDigest: sha256Digest({ projects: projects.map((entry) => entry.configDigest).sort(), sourceRevision: options.sourceRevision ?? 'filesystem' }),
+    projectGroups,
     projects,
     diagnostics,
     status,
@@ -313,19 +450,6 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
 }
 
 export function redactLoadedWorkspace(workspace) {
-  const diagnosticLocator = (value) => {
-    if (typeof value !== 'string' || value.length === 0) return undefined
-    if (/^[a-z]:[\\/]/i.test(value) || /^\\\\|^\/\//.test(value)) return undefined
-    if (!isAbsolute(value)) return value
-    if (!workspace.workspaceRoot) return undefined
-    const relation = relative(workspace.workspaceRoot, resolve(value))
-    if (relation === '..' || relation.startsWith(`..${sep}`) || isAbsolute(relation)) return undefined
-    return relation || '.'
-  }
-  const diagnosticMessage = (value) => String(value ?? 'Diagnostic')
-    .replaceAll(/https?:\/\/[^\s)]+/gi, '[redacted-url]')
-    .replaceAll(/(?:[a-z]:[\\/]|\\\\|\/)[^\s'"()<>]+/gi, '[redacted-path]')
-    .replaceAll(/((?:token|password|secret|credential))=\S+/gi, '$1=[redacted]')
   return {
     schemaVersion: workspace.schemaVersion,
     workspaceId: workspace.workspaceId,
@@ -333,14 +457,16 @@ export function redactLoadedWorkspace(workspace) {
     sourceRevision: workspace.sourceRevision,
     configDigest: workspace.configDigest,
     status: workspace.status,
-    diagnostics: workspace.diagnostics.map(({ sourceProjectId, projectId, code, severity, field, message }) => ({
-      sourceProjectId,
-      projectId,
-      code,
-      severity,
-      ...(diagnosticLocator(field) ? { field: diagnosticLocator(field) } : {}),
-      message: diagnosticMessage(message),
+    projectGroups: (workspace.projectGroups ?? []).map((group) => ({
+      id: group.id,
+      name: group.name,
+      childCount: group.childCount,
+      childProjectIds: group.childProjectIds,
+      childrenDirectory: group.childrenDirectory,
+      sharedContextId: group.sharedContextId,
+      source: group.source,
     })),
+    diagnostics: redactWorkspaceDiagnostics(workspace.diagnostics, workspace.workspaceRoot),
     projects: workspace.projects.map((entry) => {
       const repositoryStatuses = entry.repositoryStatuses ?? []
       return {
@@ -356,6 +482,8 @@ export function redactLoadedWorkspace(workspace) {
         memoryNamespaceId: entry.baseline.memory.namespaceId,
         baseline: entry.baseline,
         source: entry.source,
+        ...(entry.parentGroupId ? { parentGroupId: entry.parentGroupId } : {}),
+        ...(entry.sharedContextId ? { sharedContextId: entry.sharedContextId } : {}),
         configDigest: entry.configDigest,
         pathBindingDigest: entry.pathBindingDigest,
       }

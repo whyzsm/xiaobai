@@ -1,26 +1,34 @@
 import path from 'node:path';
 import { ConnectorEvidence, Finding, LoopSpec, ProjectSpec, SkillDocument } from '../../shared/src/types';
 import { pathExists, readText, readYamlFile } from '../../shared/src/fs';
+import { realpath } from 'node:fs/promises';
 
 export class SkillRuntime {
   constructor(private readonly workspaceRoot: string) {}
 
-  async loadDiscoverySkill(loop: LoopSpec, projectId: string): Promise<SkillDocument> {
-    const projectRoot = path.join(this.workspaceRoot, 'projects', projectId);
-    const project = await readYamlFile<ProjectSpec>(path.join(projectRoot, '.loop', 'project.yaml'));
+  async loadDiscoverySkill(loop: LoopSpec, projectId: string, projectRoot?: string, projectOverride?: ProjectSpec): Promise<SkillDocument> {
+    const resolvedProjectRoot = projectRoot ?? path.join(this.workspaceRoot, 'projects', projectId);
+    const project = projectOverride ?? await readYamlFile<ProjectSpec>(path.join(resolvedProjectRoot, '.loop', 'project.yaml'));
     const mappedSkill = project.discoverySkills?.[loop.discovery.skill];
     if (!mappedSkill) {
       throw new Error(`Discovery skill mapping is missing for project ${projectId}: ${loop.discovery.skill}`);
     }
-    const skillPath = path.resolve(projectRoot, mappedSkill);
-    const relative = path.relative(projectRoot, skillPath);
+    const skillPath = path.resolve(resolvedProjectRoot, mappedSkill);
+    const workspaceRoot = await realpath(this.workspaceRoot);
+    const lexicalWorkspaceRoot = path.resolve(this.workspaceRoot);
+    const relative = path.relative(lexicalWorkspaceRoot, skillPath);
     if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-      throw new Error(`Discovery skill mapping escapes project root: ${projectId}/${loop.discovery.skill}`);
+      throw new Error(`Discovery skill mapping escapes workspace root: ${projectId}/${loop.discovery.skill}`);
     }
     if (!(await pathExists(skillPath))) {
       throw new Error(`Mapped discovery skill does not exist for project ${projectId}: ${skillPath}`);
     }
-    const content = await readText(skillPath);
+    const resolvedSkillPath = await realpath(skillPath);
+    const canonicalRelative = path.relative(workspaceRoot, resolvedSkillPath);
+    if (canonicalRelative === '..' || canonicalRelative.startsWith(`..${path.sep}`) || path.isAbsolute(canonicalRelative)) {
+      throw new Error(`Discovery skill mapping escapes workspace root: ${projectId}/${loop.discovery.skill}`);
+    }
+    const content = await readText(resolvedSkillPath);
     const decisionRules = content
       .split('\n')
       .map((line) => line.trim())
@@ -28,7 +36,7 @@ export class SkillRuntime {
 
     return {
       id: loop.discovery.skill,
-      path: skillPath,
+      path: resolvedSkillPath,
       content,
       decisionRules
     };

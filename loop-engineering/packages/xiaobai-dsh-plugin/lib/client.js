@@ -286,7 +286,8 @@ window.__ModuleLoader__.load({
     }
 
     function projectReferenceFromDraft(input, workspace) {
-      return projectReferenceFromWorkspaceLabel(workspace, projectMentionLabel(input?.draft));
+      const label = projectMentionLabel(input?.draft);
+      return projectReferenceFromWorkspaceLabel(workspace, label) || projectReferenceFromCatalog(label);
     }
 
     function currentProjectForSession({ sessionId, input, persistedProject, title, workspace }) {
@@ -440,9 +441,10 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function projectFileMentionKeys(input) {
+    function projectFileMentionKeys(input, workspace) {
       if (typeof input?.draft !== "string") return new Set();
       const projectKeys = new Set(projectOccurrences(input).map(({ label, occurrence }) => `${occurrence.offset}:${label}`));
+      const plainProjectLabel = projectReferenceFromDraft(input, workspace)?.label;
       const mentionKeys = new Set();
       const seen = new Set();
       let ordinal = 0;
@@ -450,15 +452,15 @@ window.__ModuleLoader__.load({
         const relative = String(match[1] || "").replace(/\/$/u, "");
         if (!relative || seen.has(relative)) continue;
         seen.add(relative);
-        if (projectKeys.has(`${match.index}:${relative}`)) mentionKeys.add(`${ordinal}:${relative}`);
+        if (projectKeys.has(`${match.index}:${relative}`) || relative === plainProjectLabel) mentionKeys.add(`${ordinal}:${relative}`);
         ordinal += 1;
       }
       return mentionKeys;
     }
 
-    function markProjectFileRows(input) {
+    function markProjectFileRows(input, workspace) {
       if (typeof document === "undefined") return;
-      const projectKeys = projectFileMentionKeys(input);
+      const projectKeys = projectFileMentionKeys(input, workspace);
       for (const dock of document.querySelectorAll('[data-at-file-dock="true"]')) {
         const rows = [...dock.querySelectorAll('[data-at-file-row="true"]')];
         for (const [ordinal, row] of rows.entries()) {
@@ -491,11 +493,11 @@ window.__ModuleLoader__.load({
       return [...document.querySelectorAll('[class*="heroWorkspaceRow"]')];
     }
 
-    function updateProjectHero(input, inputActions, sessionId) {
+    function updateProjectHero(input, inputActions, sessionId, workspace, persistedProject, resolvedProject) {
       if (typeof document === "undefined") return;
       markProjectChips(input);
-      markProjectFileRows(input);
-      const selected = projectOccurrence(input);
+      markProjectFileRows(input, workspace);
+      const selected = currentProjectForSession({ sessionId, input, persistedProject, workspace }) || resolvedProject;
       for (const row of projectHeroRows()) {
         const anchor = row.querySelector('[data-slot="conversation.hero.agentPreset"]');
         let hero = row.querySelector('[data-xiaobai-project-hero]');
@@ -534,9 +536,27 @@ window.__ModuleLoader__.load({
     }
 
     function ProjectHeroBridge({ session, input, inputActions }) {
+      const store = useStore();
+      const sessionId = session?.sessionId;
+      const persistedProject = projectReferenceFromSessionSnapshot(session);
+      const inputLabel = projectMentionLabel(input?.draft);
+      const selected = currentProjectForSession({ sessionId, input, persistedProject, workspace: store.workspace });
+      const [resolvedProject, setResolvedProject] = useState();
+      useEffect(() => {
+        let active = true;
+        if (selected || !inputLabel || state.sessionProjectOverrides.has(sessionId)) {
+          setResolvedProject(undefined);
+          return () => { active = false; };
+        }
+        setResolvedProject(undefined);
+        void resolveProjectReference(inputLabel).then((reference) => {
+          if (active) setResolvedProject(reference);
+        });
+        return () => { active = false; };
+      }, [sessionId, inputLabel, selected?.label, store.workspace?.workspaceId]);
       useEffect(() => {
         if (typeof document === "undefined") return undefined;
-        const sync = () => updateProjectHero(input, inputActions, session?.sessionId);
+        const sync = () => updateProjectHero(input, inputActions, sessionId, store.workspace, persistedProject, resolvedProject);
         sync();
         const observer = typeof MutationObserver === "function" && document.body
           ? new MutationObserver(sync)
@@ -555,7 +575,7 @@ window.__ModuleLoader__.load({
             dock.hidden = false;
           }
         };
-      }, [input, inputActions]);
+      }, [input, inputActions, session, sessionId, store.workspace, resolvedProject]);
       return null;
     }
 
@@ -1251,8 +1271,11 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"]{background:transparent!important;border-color:transparent!important;color:transparent!important;opacity:0!important}
-[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"] *{color:transparent!important}
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"]{display:inline!important;box-sizing:content-box;min-width:0;padding:0!important;border:0!important;border-radius:0;background:transparent!important;color:var(--dsw-alias-label-primary)!important;line-height:inherit;vertical-align:baseline}
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"] .uV2eYG_chipTrigger{display:inline!important}
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"] .uV2eYG_chipTriggerGlyph{color:inherit!important}
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"] .uV2eYG_chipIcon{display:none!important}
+[data-input-backdrop] [data-decoration="chip"][data-xiaobai-project-chip="true"]>span:not(.uV2eYG_chipTrigger){color:inherit!important}
 [data-at-file-row="true"][data-xiaobai-project-file-row="true"]{display:none!important}
 [data-at-file-dock="true"][data-xiaobai-project-file-dock-hidden="true"]{display:none!important}
 .xb-project-hero{box-sizing:border-box;display:inline-flex;align-items:center;gap:2px;min-width:0;max-width:min(220px,42vw);height:30px;padding:0 3px 0 10px;border:2px solid var(--dsw-alias-state-business-primary,#1296ff);border-radius:5px;background:color-mix(in srgb,var(--dsw-alias-state-business-primary,#1296ff) 8%,transparent);color:var(--dsw-alias-state-business-primary,#1296ff);font:inherit;font-size:13px;line-height:20px}

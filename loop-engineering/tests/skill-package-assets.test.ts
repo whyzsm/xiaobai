@@ -29,6 +29,62 @@ test('skill package assets take precedence for declared loops and referenced har
   assert.equal(await findSkillPackageLoopSpec(fixture.workspaceRoot, 'ane-standard-page'), await realpath(fixture.packageLoopPath));
 });
 
+test('the same shared Skill Package mount is resolved once across ProjectGroups', async () => {
+  const fixture = await createFixture(true);
+  const root = path.dirname(fixture.workspaceRoot);
+  const otherProjectRoot = path.join(fixture.workspaceRoot, 'projects', 'other');
+  await mkdir(path.join(otherProjectRoot, '.loop'), { recursive: true });
+  await writeFile(
+    path.join(otherProjectRoot, '.loop', 'project.yaml'),
+    JSON.stringify({
+      ...projectFixture(path.relative(otherProjectRoot, path.join(root, 'xiaoneng'))),
+      id: 'other',
+      name: 'Other'
+    }),
+    'utf8'
+  );
+
+  try {
+    const discovery = await discoverSkillPackageLoops(fixture.workspaceRoot);
+    assert.deepEqual([...discovery.declaredIds], ['ane-standard-page']);
+    assert.deepEqual(discovery.paths, [await realpath(fixture.packageLoopPath)]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('same-named Skill Package Loops from different mounts fail closed', async () => {
+  const fixture = await createFixture(true);
+  const root = path.dirname(fixture.workspaceRoot);
+  const otherProjectRoot = path.join(fixture.workspaceRoot, 'projects', 'other');
+  const otherPackageRoot = path.join(root, 'other-xiaoneng');
+  const otherLoopPath = path.join(otherPackageRoot, 'xiaobai', 'loops', 'ane-standard-page.loop.yaml');
+  const otherHarnessPath = path.join(otherPackageRoot, 'xiaobai', 'agents', 'ane-standard-page.harness.yaml');
+  await mkdir(path.join(otherProjectRoot, '.loop'), { recursive: true });
+  await mkdir(path.dirname(otherLoopPath), { recursive: true });
+  await mkdir(path.dirname(otherHarnessPath), { recursive: true });
+  await writeFile(otherLoopPath, JSON.stringify(loopFixture('other-package-harness')), 'utf8');
+  await writeFile(otherHarnessPath, JSON.stringify(harnessFixture('other-package-harness')), 'utf8');
+  await writeFile(
+    path.join(otherProjectRoot, '.loop', 'project.yaml'),
+    JSON.stringify({
+      ...projectFixture(path.relative(otherProjectRoot, otherPackageRoot)),
+      id: 'other',
+      name: 'Other'
+    }),
+    'utf8'
+  );
+
+  try {
+    await assert.rejects(
+      discoverSkillPackageLoops(fixture.workspaceRoot),
+      /Skill package loop is declared by multiple projects: ane-standard-page/
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('a declared loop is not served by the workspace copy when its package mount is unavailable', async () => {
   const fixture = await createFixture(false);
   const discovery = await discoverSkillPackageLoops(fixture.workspaceRoot);

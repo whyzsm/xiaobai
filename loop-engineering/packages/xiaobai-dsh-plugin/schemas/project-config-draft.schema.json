@@ -28,6 +28,8 @@
       "required": ["key", "displayName", "owner", "classification", "repositories", "knowledgeBindings", "agentProfiles", "skills", "memory", "artifact", "qualityCommands"],
       "properties": {
         "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "parentGroupId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "sharedContextId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
         "displayName": { "type": "string", "minLength": 1 },
         "owner": { "type": "string", "minLength": 1 },
         "classification": { "enum": ["public", "internal", "confidential", "restricted"] },

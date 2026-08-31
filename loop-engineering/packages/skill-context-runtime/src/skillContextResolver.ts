@@ -52,6 +52,8 @@ interface EvidenceBundle {
 }
 
 export class SkillContextResolver {
+  private readonly sourceCache = new Map<string, Promise<SharedSkillSource>>();
+
   constructor(private readonly workspaceRoot: string) {}
 
   async resolve(plan: BackgroundContextPlan): Promise<ResolvedBackgroundContext> {
@@ -62,11 +64,8 @@ export class SkillContextResolver {
       throw new Error('SKILL_CONTEXT_MOUNT_OUTSIDE_WORKSPACE: background mount must use the registered workspace mount');
     }
 
-    const sourceRoot = await requireDirectoryRealPath(declaredMount, 'SKILL_CONTEXT_MOUNT_UNAVAILABLE');
-    const manifestSource = await readSourceFile(sourceRoot, plan.manifestPath);
-    const contractSource = await readSourceFile(sourceRoot, plan.contractPath);
-    const manifest = parseManifest(manifestSource.content);
-    const contractSchema = parseJsonSchema(contractSource.content, plan.contractPath);
+    const source = await this.loadSharedSource(declaredMount, plan);
+    const { sourceRoot, manifestSource, contractSource, manifest, contractSchema } = source;
     const policy = manifest.skillContext;
 
     if (
@@ -178,11 +177,39 @@ export class SkillContextResolver {
       characters
     };
   }
+
+  private loadSharedSource(declaredMount: string, plan: BackgroundContextPlan): Promise<SharedSkillSource> {
+    const key = `${declaredMount}\u0000${plan.manifestPath}\u0000${plan.contractPath}`;
+    const cached = this.sourceCache.get(key);
+    if (cached) return cached;
+    const source = (async () => {
+      const sourceRoot = await requireDirectoryRealPath(declaredMount, 'SKILL_CONTEXT_MOUNT_UNAVAILABLE');
+      const manifestSource = await readSourceFile(sourceRoot, plan.manifestPath);
+      const contractSource = await readSourceFile(sourceRoot, plan.contractPath);
+      return {
+        sourceRoot,
+        manifestSource,
+        contractSource,
+        manifest: parseManifest(manifestSource.content),
+        contractSchema: parseJsonSchema(contractSource.content, plan.contractPath)
+      };
+    })();
+    this.sourceCache.set(key, source);
+    return source;
+  }
 }
 
 interface SourceFile {
   path: string;
   content: string;
+}
+
+interface SharedSkillSource {
+  sourceRoot: string;
+  manifestSource: SourceFile;
+  contractSource: SourceFile;
+  manifest: SkillManifest;
+  contractSchema: AnySchema;
 }
 
 async function readSourceFile(sourceRoot: string, relativePath: string): Promise<SourceFile> {

@@ -1,6 +1,7 @@
 import { ERROR_CODES } from './constants.js'
 import { XiaobaiError } from './errors.js'
-import { redactLoadedWorkspace } from './workspace.js'
+import { redactLoadedWorkspace, redactWorkspaceDiagnostics } from './workspace.js'
+import { resolveWorkspaceProject } from './project-target.js'
 
 export const PROJECT_COMMAND_NAMES = Object.freeze(['project-bootstrap', 'project-assess', 'project-run'])
 export const WORKSPACE_COMMAND_NAMES = Object.freeze(['project-load', 'project-list', 'loop-list', 'loop-assess', 'loop-plan', 'loop-run'])
@@ -78,6 +79,19 @@ function workspaceRoot(input, commandName) {
   return root
 }
 
+function resolveCommandProject(workspace, target, phase) {
+  // A Host adapter may expose an explicit Workspace before it can enumerate
+  // Projects. Preserve that adapter contract; a loaded project catalog still
+  // always goes through the canonical child resolver.
+  if ((workspace?.projects?.length ?? 0) === 0
+    && (workspace?.projectGroups?.length ?? 0) === 0
+    && typeof target === 'string'
+    && target.length > 0) {
+    return { projectId: target }
+  }
+  return resolveWorkspaceProject(workspace, target, { phase })
+}
+
 async function ensureWorkspace(input, commandName, workspaceService, loopService) {
   const root = workspaceRoot(input, commandName)
   const current = workspaceService.current
@@ -85,7 +99,7 @@ async function ensureWorkspace(input, commandName, workspaceService, loopService
     ? current ?? await workspaceService.load({ workspaceRoot: root, workspaceTitle: input.workspaceTitle })
     : await workspaceService.load({ workspaceRoot: root, workspaceTitle: input.workspaceTitle })
   if (loopService) {
-    if (!loopService.current || loopService.current.workspaceRoot !== loaded.workspaceRoot) await loopService.load(loaded.workspaceRoot)
+    if (!loopService.current || loopService.current.workspaceRoot !== loaded.workspaceRoot) await loopService.load(loaded.workspaceRoot, loaded)
   }
   return loaded
 }
@@ -112,7 +126,12 @@ export function registerProjectCommands(ctx, projectService, workspaceService, l
         if (workspaceService && (input.workspaceRoot || input.workspacePath)) {
           return invoke(async () => {
             await ensureWorkspace(input, 'project-assess', workspaceService, loopService)
-            return workspaceService.assessProject({ projectId: input.projectId })
+            const resolved = resolveCommandProject(workspaceService.current, input.projectId, 'project-assessment')
+            const assessment = workspaceService.assessProject({ projectId: resolved.projectId })
+            return {
+              ...assessment,
+              diagnostics: redactWorkspaceDiagnostics(assessment?.diagnostics, workspaceService.current?.workspaceRoot),
+            }
           })
         }
         return invoke(() => projectService.assessBaseline(input))
@@ -124,7 +143,14 @@ export function registerProjectCommands(ctx, projectService, workspaceService, l
       input: { hint: '{"workspacePath":"/absolute/path","projectId":"prj_..."}' },
       handler: async (invocation) => {
         const input = parseObject(invocation.rawInput, 'project-run')
-        return invoke(() => projectService.run({ ...input, agent: invocation.agent }))
+        return invoke(async () => {
+          if (workspaceService && (input.workspaceRoot || input.workspacePath)) {
+            await ensureWorkspace(input, 'project-run', workspaceService, loopService)
+            const resolved = resolveCommandProject(workspaceService.current, input.projectId ?? input.targetProject, 'project-run')
+            return projectService.run({ ...input, projectId: resolved.projectId, workspacePath: workspaceService.current.workspaceRoot, agent: invocation.agent })
+          }
+          return projectService.run({ ...input, agent: invocation.agent })
+        })
       },
     }))
     if (workspaceService) {
