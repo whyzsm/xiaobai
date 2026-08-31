@@ -179,24 +179,98 @@ function resolveMount(projectDirectory, configuredPath) {
 
 function collectProjects(warnings) {
   const projectsDirectory = path.join(WORKSPACE_ROOT, 'projects');
-  if (!fs.existsSync(projectsDirectory)) return [];
+  if (!fs.existsSync(projectsDirectory)) return { projects: [], projectGroups: [] };
+  const projects = [];
+  const projectGroups = [];
   const projectFiles = fs.readdirSync(projectsDirectory, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(projectsDirectory, entry.name, '.loop/project.yaml'))
     .filter((filePath) => fs.existsSync(filePath))
     .sort((left, right) => left.localeCompare(right));
 
-  return loadStructuredFiles(projectFiles, warnings).map(({ filePath, value }) => {
+  for (const { filePath, value } of loadStructuredFiles(projectFiles, warnings)) {
     const projectDirectory = path.dirname(path.dirname(filePath));
+    if (value?.kind === 'ProjectGroup' && value.children?.directory) {
+      const group = groupSummary(filePath, value, projectDirectory, warnings);
+      const childRoot = path.resolve(projectDirectory, value.children.directory);
+      const childFiles = fs.existsSync(childRoot)
+        ? fs.readdirSync(childRoot, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => path.join(childRoot, entry.name, '.loop/project.yaml'))
+          .filter((childPath) => fs.existsSync(childPath))
+          .sort((left, right) => left.localeCompare(right))
+        : [];
+      const children = loadStructuredFiles(childFiles, warnings);
+      group.childProjectIds = children
+        .map(({ value: child }) => child?.kind === 'Project' ? child.id : null)
+        .filter(Boolean);
+      group.childCount = group.childProjectIds.length;
+      projectGroups.push(group);
+      for (const { filePath: childPath, value: child } of children) {
+        if (child?.kind !== 'Project') {
+          warnings.push({
+            code: 'project_child_invalid',
+            source: relativeToProject(childPath),
+            message: 'The declared ProjectGroup child is not a Project configuration.',
+          });
+          continue;
+        }
+        projects.push(projectSummary(childPath, child, {
+          parentGroupId: group.groupId,
+          sharedContextId: group.sharedContextId,
+          backgroundSourceRoot: projectDirectory,
+          background: value.background,
+        }));
+      }
+      continue;
+    }
+    projects.push(projectSummary(filePath, value));
+  }
+  return { projects, projectGroups };
+}
+
+function groupSummary(filePath, value, projectDirectory, warnings) {
+  const background = value?.background;
+  const mounted = Boolean(background?.mount) && resolveMount(projectDirectory, background.mount);
+  if (background?.mount && !mounted) {
+    warnings.push({
+      code: 'shared_background_unavailable',
+      source: relativeToProject(filePath),
+      message: 'The shared ProjectGroup background mount is unavailable.',
+    });
+  }
+  const groupId = value?.id || path.basename(projectDirectory);
+  return {
+    groupId,
+    name: value?.name || groupId,
+    kind: 'ProjectGroup',
+    file: relativeToProject(filePath),
+    source: relativeToProject(filePath),
+    childrenDirectory: value?.children?.directory || null,
+    sharedContextId: typeof value?.sharedContext === 'string' ? value.sharedContext : value?.sharedContext?.id || value?.children?.sharedContext || null,
+    sharedBackgroundStatus: background?.mount ? (mounted ? 'locked' : 'unavailable') : 'missing',
+    sharedBackground: {
+      configured: Boolean(background),
+      mounted,
+      name: background?.name || null,
+    },
+    childProjectIds: [],
+    childCount: 0,
+  };
+}
+
+function projectSummary(filePath, value, metadata = {}) {
+  const projectDirectory = path.dirname(path.dirname(filePath));
     const repositories = Array.isArray(value?.repositories) ? value.repositories : [];
     const repositoryStates = repositories.map((repository) => ({
       id: repository?.id || repository?.name || 'unnamed-repository',
       name: repository?.name || repository?.id || 'Unnamed repository',
       mounted: resolveMount(projectDirectory, repository?.mount),
     }));
-    const backgroundConfigured = Boolean(value?.background);
+    const background = value?.background || metadata.background;
+    const backgroundConfigured = Boolean(background);
     const backgroundMounted = backgroundConfigured
-      ? resolveMount(projectDirectory, value.background?.mount)
+      ? resolveMount(metadata.backgroundSourceRoot || projectDirectory, background?.mount)
       : false;
     return {
       id: value?.id || path.basename(projectDirectory),
@@ -207,13 +281,18 @@ function collectProjects(warnings) {
       background: {
         configured: backgroundConfigured,
         mounted: backgroundMounted,
-        name: value?.background?.name || null,
+        name: background?.name || null,
       },
       repositories: repositoryStates,
       repositoryCount: repositoryStates.length,
       mountedRepositoryCount: repositoryStates.filter((repository) => repository.mounted).length,
+      parentGroupId: metadata.parentGroupId || null,
+      sharedContextId: metadata.sharedContextId || null,
+      repositoryBindingStatus: repositoryStates.length === 1
+        ? repositoryStates[0].mounted ? 'locked' : 'unavailable'
+        : repositoryStates.length === 0 ? 'missing' : 'invalid',
+      sharedBackgroundStatus: backgroundConfigured ? (backgroundMounted ? 'locked' : 'unavailable') : 'missing',
     };
-  });
 }
 
 function countJsonl(filePath) {
@@ -964,7 +1043,7 @@ function projectionRuns(timing, loops) {
   return [...byRun.values()];
 }
 
-function collectInventory({ loops, agents, harnesses, connectors, projects, memory, graph }) {
+function collectInventory({ loops, agents, harnesses, connectors, projects, projectGroups, memory, graph }) {
   const repositories = projects.reduce((total, project) => total + project.repositoryCount, 0);
   const mountedRepositories = projects.reduce(
     (total, project) => total + project.mountedRepositoryCount,
@@ -976,6 +1055,7 @@ function collectInventory({ loops, agents, harnesses, connectors, projects, memo
     harnesses: harnesses.length,
     connectors: connectors.length,
     projects: projects.length,
+    projectGroups: projectGroups.length,
     repositories,
     mountedRepositories,
     memoryRuns: memory.totals.runs,
@@ -988,7 +1068,9 @@ export function buildSnapshot(options = {}) {
   const git = collectGit();
   const { agents, harnesses } = collectAgents(warnings);
   const loops = collectLoops(warnings);
-  const projects = collectProjects(warnings);
+  const projectInventory = collectProjects(warnings);
+  const projects = projectInventory.projects;
+  const projectGroups = projectInventory.projectGroups;
   const connectors = collectConnectors(warnings);
   const memoryLocation = resolveMonitorMemoryRoot(warnings, options.memoryRoot);
   const memory = collectMemory(loops.map((loop) => loop.id), memoryLocation);
@@ -1020,6 +1102,7 @@ export function buildSnapshot(options = {}) {
   const monitorProjection = buildMonitorProjection({
     workspace: { id: 'ws_xiaobai_monitoring', title: 'Xiaobai Workspace', status: warnings.length > 0 ? 'attention' : 'loaded' },
     projects,
+    projectGroups,
     loops,
     runs: projectionRuns(timing, loops),
     warnings,
@@ -1031,6 +1114,7 @@ export function buildSnapshot(options = {}) {
     harnesses,
     connectors,
     projects,
+    projectGroups,
     memory,
     graph,
   });
@@ -1051,6 +1135,7 @@ export function buildSnapshot(options = {}) {
     harnesses,
     connectors,
     projects,
+    projectGroups,
     memory,
     graph,
     timing,

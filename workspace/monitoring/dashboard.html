@@ -659,6 +659,18 @@
         font-weight: 500;
       }
 
+      .project-group-row {
+        background: var(--surface-subtle);
+      }
+
+      .project-group-row .cell-title {
+        font-weight: 600;
+      }
+
+      .project-child-label {
+        padding-left: 18px;
+      }
+
       .cell-meta {
         margin-top: 2px;
         color: var(--muted);
@@ -1066,6 +1078,7 @@
                 <span class="status" id="projection-workspace-status">--</span>
               </div>
               <div class="projection-filter-row" id="projection-filters" aria-label="Projection filters">
+                <label class="projection-filter"><span>Project group</span><select id="projection-group-filter"></select></label>
                 <label class="projection-filter"><span>Project</span><select id="projection-project-filter"></select></label>
                 <label class="projection-filter"><span>Run</span><select id="projection-run-filter"></select></label>
               </div>
@@ -1283,6 +1296,7 @@
           activeLoopId: null,
           timingLoopId: null,
           projectionProjectId: '',
+          projectionGroupId: '',
           projectionRunId: null,
           toastTimer: null,
         };
@@ -1332,6 +1346,8 @@
             clean: '干净',
             available: '可用',
             mounted: '已挂载',
+            locked: '已锁定',
+            unavailable: '不可用',
             passed: '已通过',
             completed: '已完成',
             measured: '已采集',
@@ -1559,6 +1575,7 @@
           return data.monitorProjection || {
             schemaVersion: 'xiaobai.monitor/v1',
             workspace: { id: '--', title: 'Xiaobai Workspace', status: 'unmeasured', projectCount: 0 },
+            projectGroups: [],
             projects: [],
             loops: [],
             runs: [],
@@ -1577,39 +1594,59 @@
           const selectedRun = projection.runs.find((run) => run.runId === state.projectionRunId);
           const selectedProjectId = selectedRun?.projectId || state.projectionProjectId || '';
           const selectedProject = projection.projects.find((project) => projectMatchesRef(project, selectedProjectId));
-          const projectMatches = (reference) => !selectedProjectId
-            || reference === selectedProjectId
-            || selectedProject?.projectId === reference
-            || selectedProject?.sourceProjectId === reference;
+          const selectedGroupId = state.projectionGroupId || selectedProject?.parentGroupId || '';
+          const selectedGroup = projection.projectGroups.find((group) => group.groupId === selectedGroupId);
+          const groupProjectIds = new Set(selectedGroup?.childProjectIds || []);
+          const projectMatches = (reference) => (!selectedProjectId && !selectedGroupId)
+            || (selectedGroupId && (reference === selectedGroupId || groupProjectIds.has(reference)))
+            || (selectedProjectId && (reference === selectedProjectId
+              || selectedProject?.projectId === reference
+              || selectedProject?.sourceProjectId === reference));
           return {
             ...projection,
-            projects: projection.projects.filter((project) => !selectedProjectId || projectMatchesRef(project, selectedProjectId)),
+            projectGroups: projection.projectGroups.filter((group) => !selectedGroupId || group.groupId === selectedGroupId),
+            projects: projection.projects.filter((project) => (!selectedProjectId || projectMatchesRef(project, selectedProjectId))
+              && (!selectedGroupId || project.parentGroupId === selectedGroupId)),
             loops: projection.loops.filter((loop) => projectMatches(loop.targetProjectId) && (!state.projectionRunId || loop.loopId === selectedRun?.loopId)),
             runs: projection.runs.filter((run) => (!selectedProjectId || projectMatches(run.projectId)) && (!state.projectionRunId || run.runId === state.projectionRunId)),
             lineage: projection.lineage.filter((item) => !selectedProjectId || projectMatches(item.projectId)),
           };
         }
 
-        function runBelongsToProject(projection, run, projectId) {
-          if (!projectId) return true;
+        function runBelongsToProject(projection, run, projectId, groupId) {
           const project = projection.projects.find((candidate) => projectMatchesRef(candidate, run.projectId));
-          return projectMatchesRef(project, projectId);
+          return (!projectId || projectMatchesRef(project, projectId))
+            && (!groupId || project?.parentGroupId === groupId || run.projectId === groupId);
         }
 
         function renderProjectionFilters(data) {
           const projection = monitorProjection(data);
+          const groupFilter = $('#projection-group-filter');
           const projectFilter = $('#projection-project-filter');
           const runFilter = $('#projection-run-filter');
+          if (state.projectionGroupId && !projection.projectGroups.some((group) => group.groupId === state.projectionGroupId)) state.projectionGroupId = '';
+          const selectedGroup = projection.projectGroups.find((group) => group.groupId === state.projectionGroupId);
+          const availableProjects = projection.projects.filter((project) => !state.projectionGroupId || project.parentGroupId === state.projectionGroupId);
           if (state.projectionProjectId && !projection.projects.some((project) => projectMatchesRef(project, state.projectionProjectId))) state.projectionProjectId = '';
-          const availableRuns = projection.runs.filter((run) => runBelongsToProject(projection, run, state.projectionProjectId));
+          if (state.projectionProjectId && !availableProjects.some((project) => projectMatchesRef(project, state.projectionProjectId))) state.projectionProjectId = '';
+          const availableRuns = projection.runs.filter((run) => runBelongsToProject(projection, run, state.projectionProjectId, state.projectionGroupId));
           if (state.projectionRunId && !availableRuns.some((run) => run.runId === state.projectionRunId)) state.projectionRunId = null;
-          projectFilter.innerHTML = `<option value="">全部项目</option>${projection.projects.map((project) => `<option value="${escapeHtml(project.projectId)}">${escapeHtml(project.displayName)} · ${escapeHtml(project.projectId)}</option>`).join('')}`;
+          groupFilter.innerHTML = `<option value="">全部项目组</option>${projection.projectGroups.map((group) => `<option value="${escapeHtml(group.groupId)}">${escapeHtml(group.name)} · ${escapeHtml(group.groupId)}</option>`).join('')}`;
+          projectFilter.innerHTML = `<option value="">全部项目</option>${availableProjects.map((project) => `<option value="${escapeHtml(project.projectId)}">${escapeHtml(project.displayName)} · ${escapeHtml(project.projectId)}</option>`).join('')}`;
           runFilter.innerHTML = `<option value="">全部运行</option>${availableRuns.map((run) => `<option value="${escapeHtml(run.runId)}">${escapeHtml(run.runId)} · ${escapeHtml(run.loopId || '--')}</option>`).join('')}`;
+          groupFilter.value = state.projectionGroupId;
           projectFilter.value = state.projectionProjectId;
           runFilter.value = state.projectionRunId || '';
+          groupFilter.onchange = () => {
+            state.projectionGroupId = groupFilter.value;
+            state.projectionProjectId = '';
+            state.projectionRunId = null;
+            renderProjectionViews();
+          };
           projectFilter.onchange = () => {
             state.projectionProjectId = projectFilter.value;
-            if (state.projectionRunId && !projection.runs.some((run) => run.runId === state.projectionRunId && runBelongsToProject(projection, run, state.projectionProjectId))) state.projectionRunId = null;
+            if (state.projectionProjectId) state.projectionGroupId = projection.projects.find((project) => projectMatchesRef(project, state.projectionProjectId))?.parentGroupId || '';
+            if (state.projectionRunId && !projection.runs.some((run) => run.runId === state.projectionRunId && runBelongsToProject(projection, run, state.projectionProjectId, state.projectionGroupId))) state.projectionRunId = null;
             renderProjectionViews();
           };
           runFilter.onchange = () => {
@@ -1635,20 +1672,29 @@
           workspaceStatus.className = `status ${statusClass(workspace.status)}`;
           workspaceStatus.textContent = displayLabel(workspace.status);
           $('#projection-workspace-metrics').innerHTML = [
-            metric('项目', formatNumber(projection.projects.length), workspace.projectCount === projection.projects.length ? '同一 Host Workspace' : `筛选自 ${formatNumber(workspace.projectCount)} 个项目`),
+            metric('项目组 / 项目', `${formatNumber(projection.projectGroups.length)} / ${formatNumber(projection.projects.length)}`, workspace.projectCount === projection.projects.length ? '共享配置入口 / child Project' : `筛选自 ${formatNumber(workspace.projectCount)} 个项目`),
             metric('Loop', formatNumber(projection.loops.length), '只读 catalog'),
             metric('Run', formatNumber(projection.runs.length), '可追踪运行'),
             metric('告警', formatNumber(projection.warnings.length), '脱敏诊断'),
             metric('已挂载仓库', formatNumber(projection.projects.reduce((sum, project) => sum + project.mountedRepositoryCount, 0)), '项目级绑定'),
             metric('上下文链路', formatNumber(projection.lineage.length), 'Project lineage'),
           ].join('');
-          $('#projection-project-rows').innerHTML = projection.projects.length
-            ? projection.projects.map((project) => `
+          $('#projection-project-rows').innerHTML = projection.projects.length || projection.projectGroups.length
+            ? projection.projectGroups.map((group) => `
+                <tr class="project-group-row">
+                  <td><div class="cell-title">${escapeHtml(group.name)}</div><div class="cell-meta">${escapeHtml(group.groupId)} · ${escapeHtml(group.source || '--')}</div></td>
+                  <td>${status(group.sharedBackgroundStatus, '项目组')}</td>
+                  <td>${formatNumber(group.childCount)} 个子项目</td>
+                  <td>${status(group.sharedBackgroundStatus, displayLabel(group.sharedBackgroundStatus))}</td>
+                  <td>${escapeHtml(group.sharedContextId || '--')}</td>
+                  <td><code>shared-context</code></td>
+                </tr>
+              `).join('') + projection.projects.map((project) => `
                 <tr>
-                  <td><div class="cell-title">${escapeHtml(project.displayName)}</div><div class="cell-meta">${escapeHtml(project.projectId)} · ${escapeHtml(project.sourceProjectId)}</div></td>
+                  <td><div class="cell-title project-child-label">${escapeHtml(project.displayName)}</div><div class="cell-meta">${escapeHtml(project.projectId)} · ${escapeHtml(project.parentGroupId || project.sourceProjectId)}</div></td>
                   <td>${status(project.status, displayLabel(project.status))}</td>
-                  <td>${formatNumber(project.mountedRepositoryCount)} / ${formatNumber(project.repositoryCount)}</td>
-                  <td>${status(project.knowledgeStatus, displayLabel(project.knowledgeStatus))}</td>
+                  <td>${status(project.repositoryBindingStatus, `${formatNumber(project.mountedRepositoryCount)} / ${formatNumber(project.repositoryCount)}`)}</td>
+                  <td>${status(project.sharedBackgroundStatus, displayLabel(project.sharedBackgroundStatus))}</td>
                   <td>${status(project.memoryStatus, displayLabel(project.memoryStatus))}</td>
                   <td><code>${escapeHtml(project.configDigest || '--')}</code></td>
                 </tr>
@@ -1805,8 +1851,18 @@
         }
 
         function renderProjects(data) {
-          $('#project-fact').textContent = `${data.projects.length} 项目 · ${data.inventory.mountedRepositories}/${data.inventory.repositories} 仓库已挂载`;
-          $('#project-rows').innerHTML = data.projects.map((project) => {
+          $('#project-fact').textContent = `${data.projectGroups?.length || 0} 项目组 · ${data.projects.length} 项目 · ${data.inventory.mountedRepositories}/${data.inventory.repositories} 仓库已挂载`;
+          const groupRows = (data.projectGroups || []).map((group) => `
+            <tr class="project-group-row">
+              <td><div class="cell-title">${escapeHtml(group.name)}</div><div class="cell-meta">${escapeHtml(group.groupId || group.id)} · ${escapeHtml(group.file || group.source || '--')}</div></td>
+              <td>${escapeHtml(displayLabel(group.kind || 'ProjectGroup'))}</td>
+              <td><code>shared</code></td>
+              <td>${status(group.sharedBackgroundStatus, displayLabel(group.sharedBackgroundStatus))}</td>
+              <td>${formatNumber(group.childCount)} 个子项目</td>
+              <td><code>${escapeHtml(group.sharedContextId || '--')}</code></td>
+            </tr>
+          `).join('');
+          const projectRows = data.projects.map((project) => {
             const repositories = project.repositories.length
               ? project.repositories.map((repository) => `${escapeHtml(repository.name)} ${status(repository.mounted ? 'mounted' : 'missing', repository.mounted ? '已挂载' : '缺失')}`).join('<br />')
               : '<span class="cell-meta">项目自身</span>';
@@ -1818,7 +1874,7 @@
               : status(project.mountedRepositoryCount === project.repositoryCount ? 'mounted' : 'attention', `${project.mountedRepositoryCount}/${project.repositoryCount}`);
             return `
               <tr>
-                <td><div class="cell-title">${escapeHtml(project.name)}</div><div class="cell-meta">${escapeHtml(project.file)}</div></td>
+                <td><div class="cell-title project-child-label">${escapeHtml(project.name)}</div><div class="cell-meta">${escapeHtml(project.parentGroupId || project.file)}</div></td>
                 <td>${escapeHtml(displayLabel(project.kind))}</td>
                 <td><code>${escapeHtml(project.defaultBranch || '--')}</code></td>
                 <td>${background}</td>
@@ -1827,6 +1883,7 @@
               </tr>
             `;
           }).join('');
+          $('#project-rows').innerHTML = groupRows + projectRows || '<tr><td colspan="6"><div class="projection-empty">没有可展示的项目配置</div></td></tr>';
         }
 
         function formatPercent(value) {
