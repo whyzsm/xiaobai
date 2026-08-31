@@ -26,6 +26,11 @@ workspace/projects/*/.loop/local.paths.yaml
 deploy/
 .trellis/
 
+# AI tool local artifacts (agent working memory, generated screenshots — keep out of remotes)
+.playwright-cli/
+.understand-anything/
+output/
+
 # Executables
 *.swf
 *.air
