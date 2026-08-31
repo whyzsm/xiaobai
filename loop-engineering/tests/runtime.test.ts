@@ -2429,7 +2429,7 @@ test('t-max selects loop-scoped Xiaoneng evidence without changing the group fal
   const tempWorkspace = path.join(tempRoot, 'workspace');
   await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
   await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
-  for (const loopId of ['ane-standard-page', 'tmax-coding']) {
+  for (const loopId of ['ane-standard-page', 'frontend-delivery']) {
     await mkdir(path.join(tempWorkspace, 'memory', 'loops', loopId), { recursive: true });
     await writeFile(path.join(tempWorkspace, 'memory', 'loops', loopId, 'state.md'), `# ${loopId} test state\n`, 'utf8');
   }
@@ -2449,22 +2449,9 @@ test('t-max selects loop-scoped Xiaoneng evidence without changing the group fal
   const aneContext = await new SkillContextResolver(tempWorkspace).resolve(anePlan.backgroundContext!);
   assert.ok(aneContext.characters <= anePlan.backgroundContext!.maxCharacters);
 
-  const codingLoopPath = await findLoopSpec(tempWorkspace, 'tmax-coding');
-  const codingPlan = await new LoopRuntime().dryRun({
-    workspaceRoot: tempWorkspace,
-    loopPath: codingLoopPath,
-    targetRepository: 'operateBusiness',
-    now: new Date('2026-08-29T00:00:00.000Z')
-  });
-
-  assert.deepEqual(codingPlan.backgroundContext?.evidenceBundles, ['tmax-coding-rules']);
-  assert.equal(codingPlan.backgroundContext?.executionMode, 'tmax-coding');
-  const codingContext = await new SkillContextResolver(tempWorkspace).resolve(codingPlan.backgroundContext!);
-  assert.ok(codingContext.characters <= codingPlan.backgroundContext!.maxCharacters);
-
-  const frontendLoopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const frontendLoopPath = await findLoopSpec(tempWorkspace, 'frontend-delivery');
   const frontendPlan = await new LoopRuntime().dryRun({
-    workspaceRoot,
+    workspaceRoot: tempWorkspace,
     loopPath: frontendLoopPath,
     targetRepository: 'operateBusiness',
     now: new Date('2026-08-29T00:00:00.000Z')
@@ -2477,6 +2464,7 @@ test('t-max selects loop-scoped Xiaoneng evidence without changing the group fal
     'api-binding-rules',
     'reference-pages'
   ]);
+  assert.equal(frontendPlan.backgroundContext?.executionMode, 'FullWorkflow');
 });
 
 test('unknown frontend target does not fall back to t-max', async () => {
