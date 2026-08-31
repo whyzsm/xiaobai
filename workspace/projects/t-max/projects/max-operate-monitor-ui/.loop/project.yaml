@@ -1,0 +1,13 @@
+kind: Project
+id: tmax-max-operate-monitor-ui
+name: max-operate-monitor-ui
+root: .
+defaultBranch: master
+parentGroup: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: max-operate-monitor-ui
+    name: max-operate-monitor-ui
+    localPathKey: max-operate-monitor-ui
+    mount: ../../../../.local/t-max/mounts/repos/max-operate-monitor-ui
+    remote: http://10.10.103.4/T-MAX/max-operate-monitor-ui

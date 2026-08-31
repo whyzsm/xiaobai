@@ -1,0 +1,15 @@
+kind: SharedProjectContext
+version: 1
+id: t-max-xiaoneng
+parentGroup: t-max
+backgroundId: xiaoneng
+source: ../../../../.local/t-max/mounts/background/xiaoneng
+inherit:
+  - background
+  - skill
+  - discoverySkills
+  - localPaths
+loading:
+  mode: selected-project-and-loop
+  defaultAllProjects: false
+  defaultAllSkills: false

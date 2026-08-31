@@ -1,0 +1,13 @@
+kind: Project
+id: tmax-max-console-ui
+name: max-console-ui
+root: .
+defaultBranch: master
+parentGroup: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: max-console-ui
+    name: max-console-ui
+    localPathKey: max-console-ui
+    mount: ../../../../.local/t-max/mounts/repos/max-console-ui
+    remote: http://10.10.103.4/T-MAX/max-console

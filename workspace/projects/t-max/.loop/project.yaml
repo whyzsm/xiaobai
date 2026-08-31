@@ -35,6 +35,18 @@ background:
       - import-rule
     executionModes:
       frontend-delivery: FullWorkflow
+sharedContext:
+  id: t-max-xiaoneng
+  file: .loop/shared/xiaoneng.context.yaml
+  inherit:
+    - background
+    - skill
+    - discoverySkills
+    - localPaths
+children:
+  directory: projects
+  sharedContext: t-max-xiaoneng
+  requireSingleRepository: true
 repositories:
   - id: KPIUI
     name: KPIUI

@@ -1,0 +1,13 @@
+kind: Project
+id: tmax-operate-business
+name: operateBusiness
+root: .
+defaultBranch: master
+parentGroup: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: operateBusiness
+    name: operateBusiness
+    localPathKey: operateBusiness
+    mount: ../../../../.local/t-max/mounts/repos/operateBusiness
+    remote: http://10.10.103.4/T-MAX/max-operate-business-ui

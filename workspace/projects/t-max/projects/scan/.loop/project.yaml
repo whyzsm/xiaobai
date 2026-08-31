@@ -1,0 +1,13 @@
+kind: Project
+id: tmax-scan
+name: scan
+root: .
+defaultBranch: master
+parentGroup: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: scan
+    name: scan
+    localPathKey: scan
+    mount: ../../../../.local/t-max/mounts/repos/scan
+    remote: http://10.10.103.4/T-MAX/max-scan-ui
