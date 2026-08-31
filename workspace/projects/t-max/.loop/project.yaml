@@ -7,7 +7,6 @@ skill: SKILL.md
 discoverySkills:
   frontend-delivery: .loop/skills/frontend-delivery.SKILL.md
   ane-standard-page: .loop/skills/ane-standard-page.SKILL.md
-  tmax-coding: SKILL.md
 localPaths: .loop/local.paths.yaml
 background:
   id: xiaoneng
@@ -30,22 +29,12 @@ background:
       ane-standard-page:
         - standard-page-contract
         - import-rules
-      tmax-coding:
-        - tmax-coding-rules
     validators:
       - page-contract
       - page-structure
       - import-rule
     executionModes:
       frontend-delivery: FullWorkflow
-    assets:
-      loops:
-        ane-standard-page: xiaobai/loops/ane-standard-page.loop.yaml
-        tmax-coding: xiaobai/loops/tmax-coding.loop.yaml
-      agents:
-        - xiaobai/agents/ane-standard-page-evaluator.agent.yaml
-        - xiaobai/agents/ane-standard-page.harness.yaml
-        - xiaobai/agents/tmax-coding.harness.yaml
 repositories:
   - id: KPIUI
     name: KPIUI
