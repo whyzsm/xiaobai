@@ -718,6 +718,8 @@ export interface ExecutorAdapterInput {
   workspaceRoot: string;
   worktreePath?: string;
   backgroundContext?: ResolvedBackgroundContext;
+  contextPack?: JsonRecord;
+  contextEvidence?: JsonRecord;
   eventReporter?: ExecutorEventReporter;
 }
 
@@ -741,6 +743,13 @@ export interface ExecutionStageInput {
   actions?: string[];
   subject: JsonRecord;
   worktreePath?: string;
+  context?: {
+    mode: 'context-pack';
+    request: JsonRecord;
+    pack: JsonRecord;
+    lock?: JsonRecord | null;
+    current: JsonRecord;
+  };
 }
 
 export interface ExecutionAuthority {

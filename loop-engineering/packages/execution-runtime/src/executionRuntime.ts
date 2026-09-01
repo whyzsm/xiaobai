@@ -36,6 +36,16 @@ import { standardPageArtifactRoot, standardPageArtifactsForStage } from '../../s
 import { ExecutionEventStore } from './executionEvents';
 import { createStageEvent, projectStageTiming, StageEventStore, validateStageEventSequence } from './stageEvents';
 import { StageTimingMetricStore, stageTimingSourceKey } from './timingMetrics';
+import {
+  ContextLockCurrent,
+  ContextLockInput,
+  ContextPackInput,
+  NeutralContractAdapter,
+  projectContextEvidence,
+  validateContextLock,
+  validateContextPack,
+  validateContextRequest
+} from '../../context-compiler/src/contextCompiler';
 
 export interface ExecutionRuntimeOptions {
   workspaceRoot: string;
@@ -44,6 +54,7 @@ export interface ExecutionRuntimeOptions {
   plan: RuntimePlan;
   executorInstance?: string;
   now?: () => Date;
+  contextContracts?: NeutralContractAdapter;
 }
 
 export class GateGuard {
@@ -250,10 +261,90 @@ export class ExecutionRuntime {
 
     await append('first_action');
     let backgroundContext: ResolvedBackgroundContext | undefined;
-    if (this.options.loop.metadata.id === 'ane-standard-page' && !this.options.plan.backgroundContext) {
+    let contextPack: ContextPackInput | undefined;
+    let contextEvidence: JsonRecord | undefined;
+    if (input.context && this.options.plan.backgroundContext) {
+      const reasons = ['CONTEXT_MODE_CONFLICT: context-pack and legacy background cannot be injected together'];
+      await append('failed', [otherEvidence(reasons[0])]);
+      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+    }
+    if (this.options.loop.metadata.id === 'ane-standard-page' && !this.options.plan.backgroundContext && !input.context) {
       const reasons = ['XIAONENG_CONTEXT_REQUIRED: StandardPage execution has no background context plan'];
       await append('failed', [otherEvidence(reasons[0])]);
       return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+    }
+    if (input.context) {
+      try {
+        const contracts = this.options.contextContracts;
+        if (!contracts) throw new Error('CONTEXT_CONTRACT_ADAPTER_REQUIRED: neutral contract adapter is unavailable');
+        if (input.context.mode !== 'context-pack') throw new Error('CONTEXT_MODE_UNSUPPORTED: execution context mode is not supported');
+        validateContextRequest(input.context.request, contracts);
+        validateContextPack(input.context.pack, contracts);
+        contextPack = input.context.pack as unknown as ContextPackInput;
+        const current = contextLockCurrent(input.context.current, input.taskId);
+        if (current.stage !== 'execute') throw new Error('CONTEXT_STAGE_MISMATCH: writable execution requires an execute lock');
+        if (current.projectId !== this.options.plan.projectContext.projectId) {
+          throw new Error('CONTEXT_PROJECT_MISMATCH: context does not belong to the runtime project');
+        }
+        const expectedRepositoryId = this.options.plan.projectRoute.resolution.matchedRepositoryId;
+        if (expectedRepositoryId && current.repositoryId !== expectedRepositoryId) {
+          throw new Error('CONTEXT_REPOSITORY_MISMATCH: context does not belong to the resolved repository');
+        }
+        if (
+          contextPack.projectId !== current.projectId ||
+          contextPack.repositoryId !== current.repositoryId ||
+          contextPack.repositoryCommit !== current.repositoryCommit ||
+          contextPack.contextDigest !== current.contextPackDigest
+        ) {
+          throw new Error('CONTEXT_PACK_BINDING_MISMATCH: ContextPack does not match the current repository/context tuple');
+        }
+        const request = input.context.request;
+        const requestProject = isRecord(request.project) ? request.project : undefined;
+        const requestRepository = isRecord(request.repository) ? request.repository : undefined;
+        if (
+          request.requestId !== contextPack.requestId ||
+          requestProject?.projectId !== current.projectId ||
+          requestRepository?.repositoryId !== current.repositoryId ||
+          requestRepository?.commit !== current.repositoryCommit ||
+          requestRepository?.branch !== current.branch ||
+          requestProject?.projectId !== contextPack.projectId ||
+          requestRepository?.repositoryId !== contextPack.repositoryId
+        ) {
+          throw new Error('CONTEXT_REQUEST_BINDING_MISMATCH: ContextRequest does not match the locked repository tuple');
+        }
+        if (current.policyDigest !== this.options.plan.projectContext.policyDigest) {
+          throw new Error('CONTEXT_POLICY_DRIFT: current policy digest differs from the runtime policy');
+        }
+        validateContextLock(input.context.lock as ContextLockInput | null | undefined, current, contracts);
+        const evidence = projectContextEvidence(
+          input.context.request,
+          contextPack,
+          input.context.lock as unknown as ContextLockInput,
+          'context-pack',
+          contracts
+        );
+        contextEvidence = evidence as unknown as JsonRecord;
+      } catch (error) {
+        const reasons = [
+          `ContextPack loading failed closed: ${error instanceof Error ? error.message : String(error)}`
+        ];
+        await append('failed', [otherEvidence(reasons[0])]);
+        return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
+      }
+      await appendExecution({
+        actor: 'runtime',
+        eventType: 'context/resolved',
+        data: {
+          mode: 'context-pack',
+          contextPackId: contextPack.contextPackId,
+          requestId: contextPack.requestId,
+          projectId: contextPack.projectId,
+          repositoryId: contextPack.repositoryId,
+          repositoryCommit: contextPack.repositoryCommit,
+          contextDigest: contextPack.contextDigest,
+          evidence: contextEvidence
+        }
+      });
     }
     if (this.options.plan.backgroundContext) {
       try {
@@ -337,6 +428,8 @@ export class ExecutionRuntime {
         workspaceRoot: this.options.workspaceRoot,
         worktreePath: input.worktreePath,
         ...(backgroundContext ? { backgroundContext } : {}),
+        ...(contextPack ? { contextPack: contextPack as unknown as JsonRecord } : {}),
+        ...(contextEvidence ? { contextEvidence } : {}),
         eventReporter: {
           record: async (event) => {
             await appendExecution({ actor: 'executor', ...event });
@@ -913,4 +1006,30 @@ function isErrno(error: unknown, code: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function contextLockCurrent(value: JsonRecord, taskId: string): ContextLockCurrent {
+  if (!isRecord(value)) throw new Error('CONTEXT_CURRENT_MISSING: current execution tuple is required');
+  const required = [
+    'stage',
+    'projectId',
+    'repositoryId',
+    'branch',
+    'repositoryCommit',
+    'contextPackDigest',
+    'policyDigest'
+  ];
+  if (required.some((key) => typeof value[key] !== 'string' || value[key].trim().length === 0)) {
+    throw new Error('CONTEXT_CURRENT_INVALID: current execution tuple is incomplete');
+  }
+  return {
+    taskId,
+    stage: value.stage as ContextLockCurrent['stage'],
+    projectId: value.projectId as string,
+    repositoryId: value.repositoryId as string,
+    branch: value.branch as string,
+    repositoryCommit: value.repositoryCommit as string,
+    contextPackDigest: value.contextPackDigest as string,
+    policyDigest: value.policyDigest as string
+  };
 }

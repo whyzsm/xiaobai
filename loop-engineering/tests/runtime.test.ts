@@ -37,6 +37,7 @@ import {
 } from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { standardPageArtifactRoot } from '../packages/shared/src/taskArtifacts';
+import { defaultDigestAdapter } from '../packages/context-compiler/src/contextCompiler';
 
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, 'workspace');
@@ -451,6 +452,139 @@ function standardPageContract(
     contextDigest: context.skillContext.contextDigest
   };
   return { ...contract, contractDigest: digestJsonHex(contract) };
+}
+
+function contextPackFixture(
+  fixture: Awaited<ReturnType<typeof createExecutionFixture>>,
+  runId: string,
+  taskId: string,
+  overrides: { commit?: string; approvedPaths?: string[] } = {}
+) {
+  const projectId = fixture.plan.projectContext.projectId;
+  const repositoryId = 'repo-web';
+  const commit = overrides.commit ?? '0123456789abcdef0123456789abcdef01234567';
+  const request = {
+    contractVersion: '1.0',
+    requestId: `${runId}-request`,
+    taskType: 'frontend.page',
+    userGoal: 'Implement the requested page.',
+    project: {
+      contractVersion: '1.0',
+      projectId,
+      displayName: projectId,
+      projectRevision: 'profile-1',
+      classification: 'internal'
+    },
+    repository: {
+      contractVersion: '1.0',
+      projectId,
+      repositoryId,
+      branch: 'main',
+      commit,
+      approvedPaths: overrides.approvedPaths ?? ['src'],
+      codeFactDigest: 'a'.repeat(64),
+      capturedAt: '2026-08-10T00:00:00.000Z',
+      classification: 'internal'
+    },
+    knowledgeBindings: [],
+    requiredCapabilities: ['frontend.page'],
+    authorization: {
+      subjectId: 'agent-xiaobai',
+      allowedProjects: [projectId],
+      allowedClassifications: ['public', 'internal']
+    },
+    budget: { maxCharacters: 2000, maxItems: 2 },
+    selectionPolicy: { strategy: 'ranked', maxItems: 2, includeStale: false }
+  };
+  const packWithoutDigest = {
+    contractVersion: '1.0',
+    contextPackId: `${runId}-pack`,
+    requestId: request.requestId,
+    projectId,
+    repositoryId,
+    repositoryCommit: commit,
+    knowledgeItems: [] as Array<Record<string, unknown>>,
+    sources: [] as unknown[],
+    conflicts: [] as unknown[],
+    omissions: [] as Array<{ itemId: string; reason: string }>,
+    budget: { maxCharacters: 2000, maxItems: 2, usedCharacters: 0, usedItems: 0 },
+    generatedAt: '2026-08-10T00:00:00.000Z'
+  };
+  const pack = { ...packWithoutDigest, contextDigest: digestJsonHex(packWithoutDigest) };
+  const current = {
+    stage: 'execute',
+    projectId,
+    repositoryId,
+    branch: 'main',
+    repositoryCommit: commit,
+    contextPackDigest: pack.contextDigest,
+    policyDigest: fixture.plan.projectContext.policyDigest
+  };
+  const lock = {
+    contractVersion: '1.0',
+    contextLockId: `${runId}-lock`,
+    taskId,
+    stage: 'execute',
+    projectId,
+    repositoryId,
+    branch: 'main',
+    repositoryCommit: commit,
+    contextPackDigest: pack.contextDigest,
+    policyDigest: fixture.plan.projectContext.policyDigest,
+    lockedAt: '2026-08-10T00:00:00.000Z'
+  };
+  return { request, pack, current, lock };
+}
+
+type ContextPackExecutionFixture = Omit<ReturnType<typeof contextPackFixture>, 'lock'> & {
+  lock?: ReturnType<typeof contextPackFixture>['lock'];
+};
+
+async function executeContextPackStage(
+  fixture: Awaited<ReturnType<typeof createExecutionFixture>>,
+  runId: string,
+  taskId: string,
+  context: ContextPackExecutionFixture,
+  calls: { count: number },
+  options: { adapter?: ReturnType<typeof defaultDigestAdapter> } = {}
+) {
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  return new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: `executor-${runId}`,
+    now: () => new Date('2026-08-10T00:00:00.000Z'),
+    contextContracts: options.adapter ?? defaultDigestAdapter()
+  }).execute(
+    {
+      runId,
+      taskId,
+      stageId: stage.id,
+      subject: {},
+      context: {
+        mode: 'context-pack',
+        request: context.request,
+        pack: context.pack,
+        lock: context.lock,
+        current: context.current
+      }
+    },
+    {
+      id: 'context-pack-test-adapter',
+      async execute(input) {
+        calls.count += 1;
+        assert.deepEqual(input.contextPack, context.pack);
+        return {
+          status: 'completed',
+          submission: validStageSubmission(stage, runId, taskId, 'generator', 'coding-harness'),
+          evidence: []
+        };
+      }
+    }
+  );
 }
 
 async function executeStandardPageStage(
@@ -1344,6 +1478,105 @@ test('execution runtime checks action gates before the adapter and Harness after
     'harness/verdict'
   ]);
   assert.equal(result.authority.scope, 'local_single_executor');
+});
+
+test('execution runtime validates a locked ContextPack before invoking the adapter', async () => {
+  const cases = [
+    {
+      id: 'missing-lock',
+      prepare: (context: ReturnType<typeof contextPackFixture>): ContextPackExecutionFixture => ({ ...context, lock: undefined }),
+      expected: /CONTEXT_LOCK_MISSING/
+    },
+    {
+      id: 'repository-commit-drift',
+      prepare: (context: ReturnType<typeof contextPackFixture>): ContextPackExecutionFixture => ({
+        ...context,
+        lock: { ...context.lock, repositoryCommit: 'fedcba9876543' }
+      }),
+      expected: /CONTEXT_LOCK_DRIFT/
+    },
+    {
+      id: 'pack-digest-drift',
+      prepare: (context: ReturnType<typeof contextPackFixture>): ContextPackExecutionFixture => ({
+        ...context,
+        pack: { ...context.pack, omissions: [{ itemId: 'omitted', reason: 'budget' }] }
+      }),
+      expected: /CONTEXT_PACK_DIGEST_MISMATCH/
+    },
+    {
+      id: 'pack-lock-digest-mismatch',
+      prepare: (context: ReturnType<typeof contextPackFixture>): ContextPackExecutionFixture => ({
+        ...context,
+        current: { ...context.current, contextPackDigest: 'd'.repeat(64) },
+        lock: { ...context.lock, contextPackDigest: 'd'.repeat(64) }
+      }),
+      expected: /CONTEXT_PACK_BINDING_MISMATCH/
+    },
+    {
+      id: 'policy-digest-drift',
+      prepare: (context: ReturnType<typeof contextPackFixture>): ContextPackExecutionFixture => ({
+        ...context,
+        current: { ...context.current, policyDigest: 'c'.repeat(64) },
+        lock: { ...context.lock, policyDigest: 'c'.repeat(64) }
+      }),
+      expected: /CONTEXT_POLICY_DRIFT/
+    }
+  ];
+
+  for (const item of cases) {
+    const fixture = await createExecutionFixture('morning-triage');
+    const base = contextPackFixture(fixture, `run-context-${item.id}`, `task-context-${item.id}`);
+    const calls = { count: 0 };
+    const result = await executeContextPackStage(
+      fixture,
+      `run-context-${item.id}`,
+      `task-context-${item.id}`,
+      item.prepare(base),
+      calls
+    );
+    assert.equal(result.status, 'failed', item.id);
+    assert.match(result.reasons.join('\n'), item.expected, item.id);
+    assert.equal(calls.count, 0, item.id);
+  }
+
+  const unauthorizedFixture = await createExecutionFixture('morning-triage');
+  const unauthorized = contextPackFixture(
+    unauthorizedFixture,
+    'run-context-unauthorized-path',
+    'task-context-unauthorized-path',
+    { approvedPaths: ['/private/source'] }
+  );
+  const calls = { count: 0 };
+  const adapter = defaultDigestAdapter();
+  adapter.validate = (kind, payload) => {
+    if (kind === 'ContextRequest' && JSON.stringify(payload).includes('/private/source')) {
+      return { ok: false, errors: [{ code: 'UNAUTHORIZED_PATH' }] };
+    }
+    return { ok: true };
+  };
+  const unauthorizedResult = await executeContextPackStage(
+    unauthorizedFixture,
+    'run-context-unauthorized-path',
+    'task-context-unauthorized-path',
+    unauthorized,
+    calls,
+    { adapter }
+  );
+  assert.equal(unauthorizedResult.status, 'failed');
+  assert.match(unauthorizedResult.reasons.join('\n'), /CONTRACT_VALIDATION_FAILED/);
+  assert.equal(calls.count, 0);
+});
+
+test('execution runtime passes only the validated ContextPack to the adapter', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const context = contextPackFixture(fixture, 'run-context-success', 'task-context-success');
+  const calls = { count: 0 };
+  const result = await executeContextPackStage(fixture, 'run-context-success', 'task-context-success', context, calls);
+  assert.equal(result.status, 'passed', result.reasons.join('\n'));
+  assert.equal(calls.count, 1);
+  const resolved = result.executionEvents.find((event) => event.eventType === 'context/resolved');
+  assert.equal(resolved?.data.mode, 'context-pack');
+  assert.equal(resolved?.data.contextDigest, context.pack.contextDigest);
 });
 
 test('execution runtime blocks missing dependencies and stage gates without invoking the adapter', async () => {
