@@ -197,10 +197,11 @@ async function main(argv: string[]): Promise<void> {
       targetCwd: options.targetCwd,
       targetRemote: options.targetRemote
     });
+    const publicPlan = redactCliPlan(workspaceRoot, plan);
     if (options.json) {
-      process.stdout.write(formatJson(plan));
+      process.stdout.write(formatJson(publicPlan));
     } else {
-      printPlan(plan);
+      printPlan(publicPlan);
     }
     return;
   }
@@ -742,6 +743,43 @@ function requireValue(args: string[], index: number, flag: string): string {
     throw new Error(`Missing value for ${flag}`);
   }
   return value;
+}
+
+function redactCliPlan<T>(workspaceRoot: string, plan: T): T {
+  return redactCliValue(plan, workspaceRoot);
+}
+
+function redactCliValue<T>(value: T, workspaceRoot: string, key?: string): T {
+  if (typeof value === 'string') return redactCliString(value, workspaceRoot, key) as T;
+  if (Array.isArray(value)) return value.map((item) => redactCliValue(item, workspaceRoot)) as T;
+  if (value && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [entryKey, entryValue] of Object.entries(value)) {
+      result[entryKey] = redactCliValue(entryValue, workspaceRoot, entryKey);
+    }
+    return result as T;
+  }
+  return value;
+}
+
+function redactCliString(value: string, workspaceRoot: string, key?: string): string {
+  if (key === 'remote' || key === 'matchedRemote') return '[redacted-remote]';
+  if (key && /url/i.test(key)) return '[redacted-url]';
+  if (path.isAbsolute(value)) return redactCliPath(workspaceRoot, value);
+  if (/^(?:[a-z]:[\\/]|\\\\|\/\/)/i.test(value)) return '[redacted-path]';
+  return value
+    .replaceAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s)]+/gi, '[redacted-url]')
+    .replaceAll(/((?:token|password|secret|credential|authorization|access_token))=\S+/gi, '$1=[redacted]')
+    .replaceAll(/(?:[a-z]:[\\/]|\\\\|\/(?:Users|private|tmp|var|opt|home)\/)[^\s'"(),<>]+/gi, '[redacted-path]');
+}
+
+function redactCliPath(workspaceRoot: string, value: string): string {
+  const relativePath = path.relative(workspaceRoot, value);
+  if (relativePath === '') return '.';
+  if (!relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
+    return relativePath.split(path.sep).join('/');
+  }
+  return '[redacted-path]';
 }
 
 function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {

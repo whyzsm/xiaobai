@@ -221,6 +221,78 @@ repositories:
   assert.equal(updatePreview.data.files.some((file) => file.locator === 'projects/alpha/projects/child-project/.loop/local.paths.yaml'), false)
 })
 
+test('top-level standalone creation and update write project config beside the catalog', async (t) => {
+  const value = await fixture()
+  t.after(() => rm(value.root, { recursive: true, force: true }))
+  const catalogRoot = join(value.root, 'projects', 'alpha')
+  await mkdir(join(catalogRoot, 'projects'), { recursive: true })
+  await writeFile(join(catalogRoot, '.loop', 'project.yaml'), `kind: ProjectGroup
+role: catalog
+id: alpha
+catalogId: alpha
+name: Alpha
+owner: platform
+classification: internal
+localPaths: .loop/local.paths.yaml
+sharedContext: alpha-shared
+children:
+  directory: projects
+  sharedContext: alpha-shared
+  requireSingleRepository: true
+background:
+  id: alpha-context
+  localPathKey: alphaContext
+  mount: ../../../../background/alpha
+`, 'utf8')
+  value.workspace = { ...(await loadWorkspaceConfig(value.root)), workspaceId: 'ws_config_test' }
+  value.workspaceService.current = value.workspace
+  value.workspaceService.load = async ({ workspaceRoot }) => {
+    const next = await loadWorkspaceConfig(workspaceRoot)
+    value.workspaceService.current = { ...next, workspaceId: 'ws_config_test' }
+    return value.workspaceService.current
+  }
+
+  const config = {
+    key: 'alpha-child',
+    parentGroupId: 'alpha',
+    sharedContextId: 'alpha-shared',
+    displayName: 'Alpha Child',
+    owner: 'platform',
+    classification: 'internal',
+    repositories: [{ name: 'child-repository', source: 'mount', locator: 'repositories/child-repository', readOnly: false, classification: 'internal' }],
+    knowledgeBindings: [{ knowledgeId: 'know_alpha_shared', source: 'skill-context:alpha', revision: '1.0.0', digest: `sha256:${'a'.repeat(64)}`, readOnly: true, trust: 'external' }],
+    agentProfiles: [{ role: 'operator', purpose: 'Operate the child Project', modelPolicyRef: 'policy/default', allowedSkills: [], requiredContext: [], capabilities: [], riskLevel: 'low', humanGatePolicy: 'required', outputContract: 'result/v1' }],
+    skills: [],
+    memory: { namespaceId: 'mem_alpha_child', retention: 'project', projection: 'host-storage-domain' },
+    artifact: { locator: 'artifacts/alpha-child', readOnly: false },
+    qualityCommands: { validate: 'npm run validate', test: 'npm test' },
+  }
+  const draft = await value.service.createDraft({ refresh: false, operation: 'create', config })
+  assert.equal(draft.status, 'ok', JSON.stringify(draft))
+  const preview = await value.service.preview({ refresh: false, draft: draft.data })
+  assert.equal(preview.status, 'ok', JSON.stringify(preview))
+  assert.equal(preview.data.status, 'ready')
+  assert.ok(preview.data.files.some((file) => file.locator === 'projects/alpha-child/.loop/project.yaml'))
+  assert.ok(preview.data.files.some((file) => file.locator === 'projects/alpha/.loop/local.paths.yaml'))
+  assert.equal(preview.data.files.some((file) => file.locator === 'projects/alpha-child/.loop/local.paths.yaml'), false)
+
+  const approval = await value.service.requestApproval({ refresh: false, draft: draft.data, agent: { session: { events: value.approvalEvents } } })
+  assert.equal(approval.status, 'ok', JSON.stringify(approval))
+  const applied = await value.service.apply({ refresh: false, draftId: draft.data.draftId, approvalId: approval.data.approvalId })
+  assert.equal(applied.status, 'ok', JSON.stringify(applied))
+  const child = value.workspaceService.current.projects[0]
+  assert.equal(child.source.kind, 'project-standalone')
+  assert.equal(child.catalogId, 'alpha')
+  assert.equal(child.parentGroupId, 'alpha')
+
+  const current = await value.service.get({ refresh: false, projectId: child.baseline.projectId })
+  const updateDraft = await value.service.createDraft({ refresh: false, projectId: child.baseline.projectId, operation: 'update', config: { ...current.data.config, displayName: 'Alpha Child Updated' } })
+  const updatePreview = await value.service.preview({ refresh: false, draft: updateDraft.data })
+  assert.equal(updatePreview.status, 'ok', JSON.stringify(updatePreview))
+  assert.ok(updatePreview.data.files.some((file) => file.locator === 'projects/alpha-child/.loop/project.yaml'))
+  assert.equal(updatePreview.data.files.some((file) => file.locator === 'projects/alpha-child/.loop/local.paths.yaml'), false)
+})
+
 test('list normalizes workspace diagnostics before returning the strict response envelope', async (t) => {
   const value = await fixture()
   t.after(() => rm(value.root, { recursive: true, force: true }))

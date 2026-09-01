@@ -2672,6 +2672,32 @@ test('dry-run output shows loop work count from run log', async () => {
   assert.equal(plan.loopWorkCount, 2);
 });
 
+test('dry-run JSON redacts execution paths, remote URLs, and finding source URLs', async () => {
+  const { stdout } = await execFileAsync('node', [
+    'dist/loop-engineering/cli/loop.js',
+    'dry-run',
+    '--loop',
+    'frontend-delivery',
+    '--target-repository',
+    'operateBusiness',
+    '--json'
+  ]);
+  const plan = JSON.parse(stdout) as {
+    projectContext: { repositoryRoot: string; skillPackage: string };
+    projectRoute: { background?: { mount: string }; repositories: Array<{ mount: string; remote?: string }> };
+    persistence: { plannedWrites: string[] };
+  };
+  const serialized = JSON.stringify(plan);
+
+  assert.doesNotMatch(serialized, /(?:[a-z]:[\\/]|\\\\|\/Users\/|\/private\/|\/tmp\/|https?:\/\/)/u);
+  assert.equal(plan.projectContext.repositoryRoot, '.local/t-max/mounts/repos/operateBusiness');
+  assert.equal(plan.projectContext.skillPackage, 'projects/t-max/SKILL.md');
+  assert.equal(plan.projectRoute.background?.mount, '.local/t-max/mounts/background/xiaoneng');
+  assert.equal(plan.projectRoute.repositories[0].mount, '.local/t-max/mounts/repos/operateBusiness');
+  assert.equal(plan.projectRoute.repositories[0].remote, '[redacted-remote]');
+  assert.equal(plan.persistence.plannedWrites.every((value) => !value.startsWith('/')), true);
+});
+
 test('dry-run text output shows harmony route when target repository is harmonyWardrobe', async () => {
   const { stdout } = await execFileAsync('node', [
     'dist/loop-engineering/cli/loop.js',

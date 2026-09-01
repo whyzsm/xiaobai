@@ -188,8 +188,33 @@ function collectProjects(warnings) {
     .filter((filePath) => fs.existsSync(filePath))
     .sort((left, right) => left.localeCompare(right));
 
-  for (const { filePath, value } of loadStructuredFiles(projectFiles, warnings)) {
+  const sources = loadStructuredFiles(projectFiles, warnings);
+  const standaloneIds = new Set(sources
+    .filter(({ value }) => value?.kind === 'Project' && value?.role === 'standalone')
+    .map(({ value }) => value.id));
+  const catalogs = new Map(sources
+    .filter(({ value }) => value?.role === 'catalog')
+    .map((source) => [source.value.id, source]));
+
+  for (const { filePath, value } of sources) {
     const projectDirectory = path.dirname(path.dirname(filePath));
+    if (value?.kind === 'Project' && value?.role === 'standalone') {
+      const catalog = catalogs.get(value.catalogId || value.parentGroup);
+      if (!catalog) {
+        warnings.push({
+          code: 'standalone_catalog_missing',
+          source: relativeToProject(filePath),
+          message: 'The standalone Project references a missing catalog.',
+        });
+        continue;
+      }
+      const effective = materializeMonitorProject(value, catalog.value, catalog.filePath, filePath);
+      projects.push(projectSummary(filePath, effective, {
+        parentGroupId: effective.parentGroup || catalog.value.id,
+        sharedContextId: effective.sharedContext || catalog.value.sharedContext,
+      }));
+      continue;
+    }
     if (value?.kind === 'ProjectGroup' && value.children?.directory) {
       const group = groupSummary(filePath, value, projectDirectory, warnings);
       const childRoot = path.resolve(projectDirectory, value.children.directory);
@@ -201,9 +226,18 @@ function collectProjects(warnings) {
           .sort((left, right) => left.localeCompare(right))
         : [];
       const children = loadStructuredFiles(childFiles, warnings);
-      group.childProjectIds = children
-        .map(({ value: child }) => child?.kind === 'Project' ? child.id : null)
+      const referencedStandaloneIds = sources
+        .filter(({ value: candidate }) => candidate?.kind === 'Project' && candidate?.role === 'standalone'
+          && (candidate.catalogId || candidate.parentGroup) === group.groupId)
+        .map(({ value: candidate }) => candidate.id);
+      group.childProjectIds = [...new Set([
+        ...referencedStandaloneIds,
+        ...children
+          .map(({ value: child }) => child?.kind === 'Project' && !standaloneIds.has(child.id) ? child.id : null)
+          .filter(Boolean),
+      ])]
         .filter(Boolean);
+      group.standaloneProjectIds = [...referencedStandaloneIds].sort();
       group.childCount = group.childProjectIds.length;
       projectGroups.push(group);
       for (const { filePath: childPath, value: child } of children) {
@@ -215,6 +249,7 @@ function collectProjects(warnings) {
           });
           continue;
         }
+        if (standaloneIds.has(child.id)) continue;
         projects.push(projectSummary(childPath, child, {
           parentGroupId: group.groupId,
           sharedContextId: group.sharedContextId,
@@ -244,6 +279,8 @@ function groupSummary(filePath, value, projectDirectory, warnings) {
     groupId,
     name: value?.name || groupId,
     kind: 'ProjectGroup',
+    role: value?.role || 'group',
+    catalogId: value?.catalogId || null,
     file: relativeToProject(filePath),
     source: relativeToProject(filePath),
     childrenDirectory: value?.children?.directory || null,
@@ -255,7 +292,31 @@ function groupSummary(filePath, value, projectDirectory, warnings) {
       name: background?.name || null,
     },
     childProjectIds: [],
+    standaloneProjectIds: [],
     childCount: 0,
+  };
+}
+
+function materializeMonitorProject(project, catalog, catalogFilePath, projectFilePath) {
+  const catalogDirectory = path.dirname(path.dirname(catalogFilePath));
+  const projectDirectory = path.dirname(path.dirname(projectFilePath));
+  const background = catalog?.background
+    ? { ...catalog.background, mount: path.relative(projectDirectory, path.resolve(catalogDirectory, catalog.background.mount)).split(path.sep).join('/') }
+    : undefined;
+  const discoverySkills = catalog?.discoverySkills
+    ? Object.fromEntries(Object.entries(catalog.discoverySkills).map(([id, value]) => [id, path.relative(projectDirectory, path.resolve(catalogDirectory, value)).split(path.sep).join('/')]))
+    : undefined;
+  const skill = catalog?.skill ? path.relative(projectDirectory, path.resolve(catalogDirectory, catalog.skill)).split(path.sep).join('/') : undefined;
+  return {
+    ...catalog,
+    ...project,
+    role: 'standalone',
+    catalogId: project.catalogId || catalog?.id,
+    parentGroup: project.parentGroup || catalog?.id,
+    ...(project.background ? {} : background ? { background } : {}),
+    ...(project.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {}),
+    ...(project.skill ? {} : skill ? { skill } : {}),
+    ...(project.sharedContext ? {} : catalog?.sharedContext ? { sharedContext: catalog.sharedContext } : {}),
   };
 }
 
@@ -276,6 +337,8 @@ function projectSummary(filePath, value, metadata = {}) {
       id: value?.id || path.basename(projectDirectory),
       name: value?.name || value?.id || path.basename(projectDirectory),
       kind: value?.kind || 'Project',
+      role: value?.role || null,
+      catalogId: metadata.catalogId || value?.catalogId || null,
       file: relativeToProject(filePath),
       defaultBranch: value?.defaultBranch || null,
       background: {

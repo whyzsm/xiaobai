@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { realpath } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import {
@@ -158,6 +159,89 @@ defaultBranch: main
     assert.equal(loaded.diagnostics[0].message, 'Legacy Loop Project configuration is not a dsh ProjectGroup and was ignored.')
   } finally {
     await rm(fixtureValue.root, { recursive: true, force: true })
+  }
+})
+
+test('Workspace loader prefers top-level standalone Projects over legacy nested copies', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'xiaobai-hybrid-workspace-'))
+  const backgroundRoot = join(root, 'mounts', 'alpha-background')
+  const repositoryRoot = join(root, 'mounts', 'alpha-repository')
+  const catalogRoot = join(root, 'projects', 'alpha')
+  const standaloneRoot = join(root, 'projects', 'alpha-child')
+  const legacyRoot = join(catalogRoot, 'projects', 'alpha-child')
+  await mkdir(backgroundRoot, { recursive: true })
+  await mkdir(repositoryRoot, { recursive: true })
+  await mkdir(join(catalogRoot, '.loop', 'shared'), { recursive: true })
+  await mkdir(join(legacyRoot, '.loop'), { recursive: true })
+  await mkdir(join(standaloneRoot, '.loop'), { recursive: true })
+  await writeFile(join(catalogRoot, '.loop', 'project.yaml'), `kind: ProjectGroup
+role: catalog
+id: alpha
+name: Alpha
+root: ../../mounts
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+sharedContext: alpha-shared
+background:
+  id: alpha-context
+  localPathKey: alphaContext
+  mount: ../../mounts/alpha-background
+children:
+  directory: projects
+  sharedContext: alpha-shared
+repositories:
+  - id: alpha-repository
+    name: alpha-repository
+    localPathKey: alphaRepository
+    mount: ../../mounts/alpha-repository
+`, 'utf8')
+  await writeFile(join(catalogRoot, '.loop', 'local.paths.yaml'), `background:
+  alphaContext: ${backgroundRoot}
+repositories:
+  alphaRepository: ${repositoryRoot}
+`, 'utf8')
+  await writeFile(join(legacyRoot, '.loop', 'project.yaml'), `kind: Project
+id: alpha-child
+name: Legacy Child
+root: .
+defaultBranch: main
+parentGroup: alpha
+sharedContext: alpha-shared
+repositories:
+  - id: child-repository
+    name: child-repository
+    localPathKey: alphaRepository
+    mount: ../../../../mounts/alpha-repository
+`, 'utf8')
+  await writeFile(join(standaloneRoot, '.loop', 'project.yaml'), `kind: Project
+role: standalone
+id: alpha-child
+catalogId: alpha
+name: Standalone Child
+root: .
+defaultBranch: main
+parentGroup: alpha
+localPathsRef: alpha
+sharedContext: alpha-shared
+repositories:
+  - id: child-repository
+    name: child-repository
+    localPathKey: alphaRepository
+    mount: ../../mounts/alpha-repository
+`, 'utf8')
+  try {
+    const loaded = await loadWorkspaceConfig(root)
+    assert.equal(loaded.status, 'loaded')
+    assert.equal(loaded.projects.length, 1)
+    assert.equal(loaded.projects[0].sourceProjectId, 'alpha-child')
+    assert.equal(loaded.projects[0].source.kind, 'project-standalone')
+    assert.equal(loaded.projects[0].projectRoot, await realpath(standaloneRoot))
+    assert.equal(loaded.projects[0].catalogId, 'alpha')
+    assert.equal(loaded.projects[0].knowledgeStatus, 'locked')
+    assert.deepEqual(loaded.projectGroups[0].childProjectIds, ['alpha-child'])
+    assert.equal(JSON.stringify(redactLoadedWorkspace(loaded)).includes(root), false)
+  } finally {
+    await rm(root, { recursive: true, force: true })
   }
 })
 

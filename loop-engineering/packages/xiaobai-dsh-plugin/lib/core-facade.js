@@ -143,18 +143,68 @@ async function packageEntries(workspaceRoot) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort()
-  const entries = []
+  const records = []
   for (const directory of directories) {
     const projectRoot = resolve(projectsRoot, directory)
     const configPath = resolve(projectRoot, '.loop/project.yaml')
     if (!(await exists(configPath))) continue
     try {
-      entries.push({ projectId: directory, projectRoot, config: YAML.parse(await readFile(configPath, 'utf8')) })
+      records.push({ projectId: directory, projectRoot, config: YAML.parse(await readFile(configPath, 'utf8')) })
     } catch (error) {
-      entries.push({ projectId: directory, projectRoot, configError: error })
+      records.push({ projectId: directory, projectRoot, configError: error })
     }
   }
+  const catalogs = new Map(records
+    .filter((entry) => entry.config?.role === 'catalog')
+    .map((entry) => [entry.config.id ?? entry.projectId, entry]))
+  const entries = []
+  for (const record of records) {
+    if (record.configError) {
+      entries.push(record)
+      continue
+    }
+    let config = record.config
+    if (config?.kind === 'Project' && config?.role === 'standalone' && config.catalogId) {
+      const catalog = catalogs.get(config.catalogId)
+      if (!catalog) {
+        entries.push({ ...record, configError: new Error(`Standalone Project '${config.id}' references a missing catalog '${config.catalogId}'`) })
+        continue
+      }
+      config = materializeStandaloneProject(config, catalog.config, catalog.projectRoot, record.projectRoot)
+    }
+    if (config?.role === 'catalog' && records.some((candidate) => candidate.config?.role === 'standalone' && catalogReference(candidate.config) === config.id)) continue
+    entries.push({ ...record, config })
+  }
   return entries
+}
+
+function catalogReference(project) {
+  return project?.catalogId ?? project?.parentGroup
+}
+
+function materializeStandaloneProject(project, catalog, catalogRoot, projectRoot) {
+  const background = catalog?.background
+    ? { ...catalog.background, mount: rebasePath(catalogRoot, projectRoot, catalog.background.mount), integration: catalog.background.integration }
+    : undefined
+  const discoverySkills = catalog?.discoverySkills
+    ? Object.fromEntries(Object.entries(catalog.discoverySkills).map(([id, value]) => [id, rebasePath(catalogRoot, projectRoot, value)]))
+    : undefined
+  const skill = catalog?.skill ? rebasePath(catalogRoot, projectRoot, catalog.skill) : undefined
+  return {
+    ...catalog,
+    ...project,
+    kind: 'Project',
+    role: 'standalone',
+    parentGroup: project.parentGroup ?? catalog?.id,
+    skill: project.skill ?? skill ?? 'SKILL.md',
+    ...(project.background ? {} : background ? { background } : {}),
+    ...(project.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {}),
+    ...(project.sharedContext ? {} : catalog?.sharedContext ? { sharedContext: catalog.sharedContext } : {}),
+  }
+}
+
+function rebasePath(fromRoot, toRoot, relativePath) {
+  return relative(toRoot, resolve(fromRoot, relativePath)) || '.'
 }
 
 async function packageLoopFiles(workspaceRoot) {
@@ -196,7 +246,11 @@ async function packageLoopFiles(workspaceRoot) {
         const canonical = await realpath(filePath)
         const canonicalRelative = relative(packageRoot, canonical)
         if (canonicalRelative === '..' || canonicalRelative.startsWith(`..${sep}`) || canonicalRelative.startsWith('/')) throw new Error('Declared Skill Package Loop escapes its mount root.')
-        if (declared.has(loopId)) throw new Error(`Skill Package Loop '${loopId}' is declared by multiple Projects.`)
+        const existing = declared.get(loopId)
+        if (existing) {
+          if (existing.filePath === canonical) continue
+          throw new Error(`Skill Package Loop '${loopId}' is declared by multiple Projects.`)
+        }
         declared.set(loopId, { filePath: canonical, source: `skill-package:${entry.projectId}/${String(relativePath).replaceAll('\\', '/')}`, projectId: entry.config.id ?? entry.projectId })
       } catch (error) {
         diagnostics.push({ code: error.code ?? ERROR_CODES.CONFIG_INVALID, severity: 'error', source: `skill-package:${entry.projectId}/${relativePath}`, message: error.message })

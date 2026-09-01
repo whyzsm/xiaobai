@@ -316,6 +316,9 @@ function sourceProjectConfig(config, metadata = {}) {
   const sourceConfig = metadata.sourceConfig
   const parentGroupId = metadata.parentGroupId ?? config.parentGroupId
   const sharedContextId = metadata.sharedContextId ?? config.sharedContextId
+  const role = metadata.role ?? sourceConfig?.role
+  const catalogId = metadata.catalogId ?? sourceConfig?.catalogId
+  const localPathsRef = metadata.localPathsRef ?? sourceConfig?.localPathsRef
   const repositories = config.repositories.map((repository, index) => ({
     ...repository,
     repoId: repository.repoId ?? shortResource('repo', { key: config.key, name: repository.name, index }),
@@ -323,6 +326,7 @@ function sourceProjectConfig(config, metadata = {}) {
   }))
   const source = {
     kind: parentGroupId ? 'Project' : sourceConfig?.kind ?? 'ProjectGroup',
+    ...(role ? { role } : {}),
     id: config.key,
     name: config.displayName,
     root: sourceConfig?.root ?? '.',
@@ -332,6 +336,8 @@ function sourceProjectConfig(config, metadata = {}) {
     owner: config.owner,
     classification: config.classification,
     ...(parentGroupId ? { parentGroup: parentGroupId } : {}),
+    ...(catalogId ? { catalogId } : {}),
+    ...(localPathsRef ? { localPathsRef } : {}),
     ...(sharedContextId ? { sharedContext: sharedContextId } : sourceConfig?.sharedContext ? { sharedContext: sourceConfig.sharedContext } : {}),
     repositories: repositories.map((repository, index) => ({
       id: repository.repoId,
@@ -660,10 +666,11 @@ export class WorkspaceConfigService {
     const projectId = draft.projectId ?? projectIdFor(workspace.workspaceId, draft.config)
     const parentGroupId = state?.entry?.parentGroupId ?? draft.config.parentGroupId
     const group = parentGroupId ? this.projectGroup(workspace, parentGroupId) : undefined
+    const standalone = Boolean(state?.entry?.catalogId || group?.role === 'catalog')
     const projectRoot = assertWorkspacePath(
       workspace.workspaceRoot,
       state?.entry?.projectRoot
-        ?? (group ? resolve(group.projectRoot, group.sourceConfig.children.directory, safeKey(draft.config.key)) : resolve(workspace.workspaceRoot, CONFIG_ROOT, safeKey(draft.config.key)))
+        ?? (group && !standalone ? resolve(group.projectRoot, group.sourceConfig.children.directory, safeKey(draft.config.key)) : resolve(workspace.workspaceRoot, CONFIG_ROOT, safeKey(draft.config.key)))
     )
     const loopRoot = resolve(projectRoot, '.loop')
     const sharedPath = assertWorkspacePath(workspace.workspaceRoot, state?.entry?.configPath ?? resolve(loopRoot, 'project.yaml'))
@@ -675,6 +682,7 @@ export class WorkspaceConfigService {
       parentGroupId,
       sharedContextId: state?.entry?.sharedContextId ?? group?.sharedContextId,
       sourceConfig: state?.entry?.sourceConfig,
+      ...(standalone ? { catalogId: state?.entry?.catalogId ?? group?.id, localPathsRef: group?.id, role: 'standalone' } : {}),
     })
     const local = writesInheritedLocalPaths
       ? cloneCanonical(group?.localPaths ?? {})

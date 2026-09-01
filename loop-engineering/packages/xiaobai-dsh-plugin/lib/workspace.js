@@ -239,6 +239,52 @@ function sharedContextId(group) {
     : group.sharedContext?.id
 }
 
+function isCatalogProject(project) {
+  return project?.role === 'catalog'
+}
+
+function isStandaloneProject(project) {
+  return project?.kind === 'Project' && project?.role === 'standalone'
+}
+
+function catalogReference(project) {
+  return project?.catalogId ?? project?.parentGroup
+}
+
+function materializeStandaloneProject(project, catalog, catalogRoot, projectRoot) {
+  const inheritedBackground = catalog?.background
+    ? { ...catalog.background, mount: rebasePath(catalogRoot, projectRoot, catalog.background.mount), integration: catalog.background.integration }
+    : undefined
+  const inheritedDiscoverySkills = catalog?.discoverySkills
+    ? Object.fromEntries(Object.entries(catalog.discoverySkills).map(([id, value]) => [id, rebasePath(catalogRoot, projectRoot, value)]))
+    : undefined
+  const inheritedSkill = catalog?.skill ? rebasePath(catalogRoot, projectRoot, catalog.skill) : undefined
+  return {
+    ...catalog,
+    ...project,
+    kind: 'Project',
+    role: 'standalone',
+    catalogId: project.catalogId ?? catalog?.id,
+    parentGroup: project.parentGroup ?? catalog?.id,
+    skill: project.skill ?? inheritedSkill ?? 'SKILL.md',
+    ...(project.discoverySkills ? {} : inheritedDiscoverySkills ? { discoverySkills: inheritedDiscoverySkills } : {}),
+    ...(project.background ? {} : inheritedBackground ? { background: inheritedBackground } : {}),
+    ...(project.sharedContext ? {} : catalog?.sharedContext ? { sharedContext: catalog.sharedContext } : {}),
+  }
+}
+
+function localPathsPathFor(project, projectRoot, catalogRecord) {
+  if (project.localPathsRef) {
+    if (!catalogRecord || (catalogRecord.project.id ?? catalogRecord.directory) !== project.localPathsRef) {
+      throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Project '${project.id}' references missing local paths catalog '${project.localPathsRef}'`, { phase: 'workspace-config', resourceId: project.id })
+    }
+    const catalogPath = catalogRecord.project.localPaths ?? '.loop/local.paths.yaml'
+    return sourcePath(catalogRecord.projectRoot, catalogPath)
+  }
+  if (typeof project.localPaths === 'string') return sourcePath(projectRoot, project.localPaths)
+  return resolve(projectRoot, '.loop/local.paths.yaml')
+}
+
 function redactDiagnosticLocator(value, workspaceRoot) {
   if (typeof value !== 'string' || value.length === 0) return undefined
   if (/^[a-z]:[\\/]/i.test(value) || /^\\\\|^\/\//.test(value)) return undefined
@@ -370,32 +416,76 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
   const directories = (await readdir(projectsRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
   const projects = []
   const projectGroups = []
+  const sourceRecords = []
   for (const directory of directories) {
     const projectRoot = resolve(projectsRoot, directory)
     const configPath = resolve(projectRoot, '.loop/project.yaml')
     if (!(await exists(configPath))) continue
     try {
-      const project = await readYaml(configPath)
+      sourceRecords.push({ directory, projectRoot, configPath, project: await readYaml(configPath) })
+    } catch (error) {
+      diagnostics.push({ code: error.code ?? ERROR_CODES.CONFIG_INVALID, severity: 'error', sourceProjectId: directory, field: configPath, message: error.message })
+    }
+  }
+  const catalogRecords = new Map(
+    sourceRecords
+      .filter(({ project }) => isCatalogProject(project))
+      .map((record) => [record.project.id ?? record.directory, record]),
+  )
+  const standaloneIds = new Set(
+    sourceRecords
+      .filter(({ project }) => isStandaloneProject(project))
+      .map(({ project }) => project.id),
+  )
+
+  for (const record of sourceRecords) {
+    const { directory, projectRoot, configPath } = record
+    try {
+      let project = record.project
+      const standalone = isStandaloneProject(project)
+      const catalogRecord = standalone ? catalogRecords.get(catalogReference(project)) : undefined
       if (project?.kind === 'Project') {
-        diagnostics.push({
-          code: 'XIAOBAI_LEGACY_PROJECT_IGNORED',
-          severity: 'warning',
-          sourceProjectId: directory,
-          field: configPath,
-          message: 'Legacy Loop Project configuration is not a dsh ProjectGroup and was ignored.',
-        })
-        continue
+        if (!standalone) {
+          diagnostics.push({
+            code: 'XIAOBAI_LEGACY_PROJECT_IGNORED',
+            severity: 'warning',
+            sourceProjectId: directory,
+            field: configPath,
+            message: 'Legacy Loop Project configuration is not a dsh ProjectGroup and was ignored.',
+          })
+          continue
+        }
+        if (!catalogRecord) {
+          throw new XiaobaiError(ERROR_CODES.CONFIG_INVALID, `Standalone Project '${project.id ?? directory}' references a missing catalog`, { phase: 'workspace-config', resourceId: project.id ?? directory })
+        }
+        project = materializeStandaloneProject(project, catalogRecord.project, catalogRecord.projectRoot, projectRoot)
       }
-      const localPathsPath = typeof project?.localPaths === 'string' ? sourcePath(projectRoot, project.localPaths) : resolve(projectRoot, '.loop/local.paths.yaml')
+      const localPathsPath = localPathsPathFor(project, projectRoot, catalogRecord)
       const localPaths = await exists(localPathsPath) ? await readYaml(localPathsPath) : undefined
       const isChildProjectGroup = project?.kind === 'ProjectGroup' && Boolean(project.children)
+      const isCatalog = isCatalogProject(project)
       const children = await loadChildProjects(project, projectRoot, canonicalRoot, localPaths)
+      const fallbackChildren = isCatalog
+        ? children.filter((child) => !standaloneIds.has(child.project.id))
+        : children
+      const referencedStandaloneRecords = isCatalog
+        ? sourceRecords
+          .filter(({ project: candidate }) => isStandaloneProject(candidate) && catalogReference(candidate) === project.id)
+          .sort((left, right) => left.project.id.localeCompare(right.project.id))
+        : []
       if (isChildProjectGroup) {
+        const childProjectIds = [
+          ...referencedStandaloneRecords.map(({ project: candidate }) => candidate.id),
+          ...fallbackChildren.map(({ project: child }) => child.id),
+        ]
         projectGroups.push({
           id: project.id ?? directory,
           name: project.name ?? project.id ?? directory,
-          childCount: children.length,
-          childProjectIds: children.map((child) => child.project.id).sort(),
+          role: project.role ?? 'group',
+          catalogId: project.catalogId ?? null,
+          childCount: childProjectIds.length,
+          childProjectIds: [...new Set(childProjectIds)].sort(),
+          standaloneProjectIds: referencedStandaloneRecords.map(({ project: candidate }) => candidate.id).sort(),
           childrenDirectory: project.children.directory,
           sharedContextId: sharedContextId(project) ?? null,
           source: `projects/${directory}/.loop/project.yaml`,
@@ -403,19 +493,30 @@ export async function loadWorkspaceConfig(workspaceRoot, options = {}) {
           configPath,
           sourceConfig: project,
           localPaths,
-          localPathsPath: localPathsPath,
+          localPathsPath,
         })
       }
-      const candidates = isChildProjectGroup
-        ? children
-        : [{ project, projectRoot, localPaths, parentGroupId: undefined, sharedContextId: undefined, sourceConfig: project }]
+      const candidates = isCatalog
+        ? fallbackChildren
+        : isChildProjectGroup
+          ? children
+          : [{
+              project,
+              projectRoot,
+              localPaths,
+              parentGroupId: standalone ? project.parentGroup : undefined,
+              sharedContextId: standalone ? sharedContextId(project) : undefined,
+              sourceConfig: record.project,
+              catalogId: standalone ? project.catalogId : undefined,
+            }]
       for (const candidate of candidates) {
         const entry = baselineForProject(candidate.project, candidate.projectRoot, canonicalRoot, candidate.localPaths, {
-          kind: candidate.parentGroupId ? 'project-child' : 'project-group',
+          kind: candidate.parentGroupId ? (candidate.catalogId ? 'project-standalone' : 'project-child') : 'project-group',
           parentProjectId: candidate.parentGroupId,
           sourceConfig: candidate.sourceConfig,
         })
         entry.parentGroupId = candidate.parentGroupId
+        entry.catalogId = candidate.catalogId ?? candidate.project.catalogId
         entry.sharedContextId = candidate.sharedContextId
         entry.knowledgeStatus = await inspectBackground(entry, diagnostics)
         entry.repositoryStatuses = await Promise.all(entry.baseline.repositories.map((repository) => inspectRepository(entry, repository, diagnostics)))
@@ -462,6 +563,9 @@ export function redactLoadedWorkspace(workspace) {
       name: group.name,
       childCount: group.childCount,
       childProjectIds: group.childProjectIds,
+      role: group.role,
+      catalogId: group.catalogId,
+      standaloneProjectIds: group.standaloneProjectIds,
       childrenDirectory: group.childrenDirectory,
       sharedContextId: group.sharedContextId,
       source: group.source,
@@ -475,6 +579,7 @@ export function redactLoadedWorkspace(workspace) {
         displayName: entry.baseline.displayName,
         owner: entry.baseline.owner,
         classification: entry.baseline.classification,
+        role: entry.source?.kind === 'project-standalone' ? 'standalone' : entry.sourceConfig?.role,
         repositoryCount: entry.baseline.repositories.length,
         knowledgeStatus: entry.knowledgeStatus,
         repositoryStatuses,
@@ -483,6 +588,7 @@ export function redactLoadedWorkspace(workspace) {
         baseline: entry.baseline,
         source: entry.source,
         ...(entry.parentGroupId ? { parentGroupId: entry.parentGroupId } : {}),
+        ...(entry.catalogId ? { catalogId: entry.catalogId } : {}),
         ...(entry.sharedContextId ? { sharedContextId: entry.sharedContextId } : {}),
         configDigest: entry.configDigest,
         pathBindingDigest: entry.pathBindingDigest,

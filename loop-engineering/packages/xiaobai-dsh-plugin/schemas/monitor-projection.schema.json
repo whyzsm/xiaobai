@@ -11,14 +11,16 @@
     "workspace": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "title", "status", "projectCount"],
+      "required": ["id", "title", "status", "projectCount", "projectGroupCount"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
         "status": { "type": "string", "minLength": 1 },
-        "projectCount": { "type": "integer", "minimum": 0 }
+        "projectCount": { "type": "integer", "minimum": 0 },
+        "projectGroupCount": { "type": "integer", "minimum": 0 }
       }
     },
+    "projectGroups": { "type": "array", "items": { "type": "object" } },
     "projects": { "type": "array", "items": { "type": "object" } },
     "loops": { "type": "array", "items": { "type": "object" } },
     "runs": {
