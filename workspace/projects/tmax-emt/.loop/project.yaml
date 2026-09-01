@@ -1,0 +1,16 @@
+kind: Project
+role: standalone
+id: tmax-emt
+catalogId: t-max
+name: emt
+root: .
+defaultBranch: master
+parentGroup: t-max
+localPathsRef: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: emt
+    name: emt
+    localPathKey: emt
+    mount: ../../.local/t-max/mounts/repos/emt
+    remote: http://git.ane56-ins.com/customer/emt-ui

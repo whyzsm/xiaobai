@@ -125,6 +125,8 @@ export interface AgentSpec {
 
 export interface ProjectSpec {
   kind: 'Project' | 'ProjectGroup';
+  /** A catalog is display-only; a standalone Project is directly routable. */
+  role?: 'catalog' | 'standalone';
   id: string;
   name: string;
   root: string;
@@ -137,6 +139,10 @@ export interface ProjectSpec {
   children?: ProjectGroupChildren;
   /** ProjectGroup id for a child Project declaration. */
   parentGroup?: string;
+  /** Catalog id used by a top-level standalone Project. */
+  catalogId?: string;
+  /** Catalog id whose ignored local path file is the single binding source. */
+  localPathsRef?: string;
   /** Shared context id for a child, or the group-level shared declaration. */
   sharedContext?: string | SharedProjectContext;
 }

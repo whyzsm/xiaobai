@@ -138,6 +138,11 @@ interface ProjectEntry {
   projectRoot: string;
 }
 
+interface ProjectSourceRecord {
+  project: ProjectSpec;
+  projectRoot: string;
+}
+
 async function loadProjectEntries(workspaceRoot: string): Promise<ProjectEntry[]> {
   const projectsRoot = path.join(workspaceRoot, 'projects');
   let projectDirs;
@@ -151,12 +156,34 @@ async function loadProjectEntries(workspaceRoot: string): Promise<ProjectEntry[]
     throw error;
   }
 
-  const entries: ProjectEntry[] = [];
+  const records: ProjectSourceRecord[] = [];
   for (const projectDir of projectDirs) {
     const projectRoot = path.join(projectsRoot, projectDir);
     const projectPath = path.join(projectRoot, '.loop', 'project.yaml');
     if (!(await fileExists(projectPath))) continue;
     const project = YAML.parse(await readFile(projectPath, 'utf8')) as ProjectSpec;
+    records.push({ projectRoot, project });
+  }
+
+  const catalogs = new Map(
+    records
+      .filter(({ project }) => project.role === 'catalog')
+      .map((record) => [record.project.id, record]),
+  );
+  const standaloneIds = new Set(
+    records.filter(({ project }) => isStandaloneProject(project)).map(({ project }) => project.id),
+  );
+  const entries: ProjectEntry[] = [];
+  for (const record of records) {
+    const { projectRoot } = record;
+    let project = record.project;
+    if (isStandaloneProject(project) && project.catalogId) {
+      const catalog = catalogs.get(project.catalogId);
+      if (!catalog) throw new Error(`Standalone Project '${project.id}' references a missing catalog '${project.catalogId}'`);
+      project = materializeStandaloneProject(project, catalog.project, catalog.projectRoot, projectRoot);
+      entries.push({ projectRoot, project });
+      continue;
+    }
     if (project.kind !== 'ProjectGroup' || !project.children) {
       entries.push({ projectRoot, project });
       continue;
@@ -175,6 +202,7 @@ async function loadProjectEntries(workspaceRoot: string): Promise<ProjectEntry[]
       const childConfigPath = await resolveExistingWithin(childRoot, childPath, 'ProjectGroup child configuration');
       const child = YAML.parse(await readFile(childConfigPath, 'utf8')) as ProjectSpec;
       if (child.kind !== 'Project' || child.parentGroup !== project.id) continue;
+      if (standaloneIds.has(child.id)) continue;
       entries.push({
         projectRoot: childRoot,
         project: materializeChildProject(project, child, projectRoot, childRoot)
@@ -182,6 +210,37 @@ async function loadProjectEntries(workspaceRoot: string): Promise<ProjectEntry[]
     }
   }
   return entries;
+}
+
+function isStandaloneProject(project: ProjectSpec): boolean {
+  return project.kind === 'Project' && project.role === 'standalone';
+}
+
+function materializeStandaloneProject(
+  project: ProjectSpec,
+  catalog: ProjectSpec,
+  catalogRoot: string,
+  projectRoot: string,
+): ProjectSpec {
+  const background = catalog.background
+    ? { ...catalog.background, mount: rebasePath(catalogRoot, projectRoot, catalog.background.mount), integration: catalog.background.integration }
+    : undefined;
+  const discoverySkills = catalog.discoverySkills
+    ? Object.fromEntries(Object.entries(catalog.discoverySkills).map(([id, value]) => [id, rebasePath(catalogRoot, projectRoot, value)]))
+    : undefined;
+  const skill = catalog.skill ? rebasePath(catalogRoot, projectRoot, catalog.skill) : undefined;
+  return {
+    ...catalog,
+    ...project,
+    kind: 'Project',
+    role: 'standalone',
+    catalogId: project.catalogId ?? catalog.id,
+    parentGroup: project.parentGroup ?? catalog.id,
+    skill: project.skill ?? skill ?? 'SKILL.md',
+    ...(project.background ? {} : background ? { background } : {}),
+    ...(project.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {}),
+    ...(project.sharedContext ? {} : catalog.sharedContext ? { sharedContext: catalog.sharedContext } : {}),
+  };
 }
 
 function materializeChildProject(
@@ -200,6 +259,9 @@ function materializeChildProject(
     ...group,
     ...child,
     kind: 'Project',
+    role: 'standalone',
+    catalogId: child.catalogId ?? group.id,
+    parentGroup: child.parentGroup ?? group.id,
     skill: child.skill ?? rebasePath(groupRoot, childRoot, group.skill),
     ...(child.background ? {} : background ? { background } : {}),
     ...(child.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {})

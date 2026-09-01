@@ -9,6 +9,7 @@ import {
   findSkillPackageLoopSpec,
   resolveSkillPackageAgentPath,
   resolveSkillPackageAssets,
+  resolveSkillPackageAssetsForLoop,
   SkillPackageAssetPlan
 } from '../packages/shared/src/skillPackageAssets';
 import { LoopSpec, ProjectSpec } from '../packages/shared/src/types';
@@ -27,6 +28,47 @@ test('skill package assets take precedence for declared loops and referenced har
   assert.equal(discovery.pathsById.get('ane-standard-page'), await realpath(fixture.packageLoopPath));
   assert.equal(resolveSkillPackageAgentPath(fixture.assets, 'ane-standard-page.harness.yaml'), await realpath(fixture.harnessPath));
   assert.equal(await findSkillPackageLoopSpec(fixture.workspaceRoot, 'ane-standard-page'), await realpath(fixture.packageLoopPath));
+});
+
+test('top-level standalone Projects resolve shared catalog Skill Package assets without duplication', async (t) => {
+  const fixture = await createFixture(true);
+  const catalogPath = path.join(fixture.projectRoot, '.loop', 'project.yaml');
+  const catalog = await readYamlFile<ProjectSpec>(catalogPath);
+  await writeFile(catalogPath, JSON.stringify({ ...catalog, role: 'catalog' }), 'utf8');
+
+  const standaloneRoot = path.join(fixture.workspaceRoot, 'projects', 't-max-child');
+  await mkdir(path.join(standaloneRoot, '.loop'), { recursive: true });
+  await writeFile(
+    path.join(standaloneRoot, '.loop', 'project.yaml'),
+    JSON.stringify({
+      kind: 'Project',
+      role: 'standalone',
+      id: 't-max-child',
+      name: 'T-MAX Child',
+      root: '.',
+      defaultBranch: 'master',
+      parentGroup: 't-max',
+      catalogId: 't-max',
+      repositories: []
+    }),
+    'utf8'
+  );
+
+  t.after(() => rm(path.dirname(fixture.workspaceRoot), { recursive: true, force: true }));
+  const standalone = await readYamlFile<ProjectSpec>(path.join(standaloneRoot, '.loop', 'project.yaml'));
+  assert.equal(standalone.role, 'standalone');
+  const loop = await readYamlFile<LoopSpec>(fixture.packageLoopPath);
+  loop.handoff.project = 't-max-child';
+  await writeFile(fixture.packageLoopPath, JSON.stringify(loop), 'utf8');
+  const plan = await resolveSkillPackageAssetsForLoop(fixture.workspaceRoot, loop);
+  assert.equal(plan?.projectId, 't-max-child');
+  assert.equal(plan?.available, true);
+  assert.equal(plan?.root, await realpath(path.dirname(path.dirname(path.dirname(fixture.packageLoopPath)))));
+  assert.equal(plan?.loops.get('ane-standard-page'), await realpath(fixture.packageLoopPath));
+
+  const discovery = await discoverSkillPackageLoops(fixture.workspaceRoot);
+  assert.deepEqual([...discovery.declaredIds], ['ane-standard-page']);
+  assert.deepEqual(discovery.paths, [await realpath(fixture.packageLoopPath)]);
 });
 
 test('the same shared Skill Package mount is resolved once across ProjectGroups', async () => {

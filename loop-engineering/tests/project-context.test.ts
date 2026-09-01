@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
-import { findLoopSpec } from '../packages/shared/src/fs';
+import { findLoopSpec, readYamlFile } from '../packages/shared/src/fs';
+import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
+import { LoopSpec } from '../packages/shared/src/types';
 
 const workspaceRoot = path.resolve('workspace');
 
@@ -35,4 +37,22 @@ test('LoopRuntime rejects an unscoped run instead of using loop default project'
     }),
     /requires a target project or repository/
   );
+});
+
+test('Project registry routes a top-level standalone Project and ignores its legacy nested copy', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const route = await resolveProjectRoute(workspaceRoot, loop, { targetProject: 'tmax-operate-business' });
+
+  assert.equal(route.project.id, 'tmax-operate-business');
+  assert.equal(route.project.role, 'standalone');
+  assert.equal(route.project.catalogId, 't-max');
+  assert.equal(route.project.parentGroup, 't-max');
+  assert.equal(route.project.background?.id, 'xiaoneng');
+  assert.equal(path.basename(route.projectRoot), 'tmax-operate-business');
+
+  const repositoryRoute = await resolveProjectRoute(workspaceRoot, loop, { targetRepository: 'operateBusiness' });
+  assert.equal(repositoryRoute.project.id, 'tmax-operate-business');
+  assert.equal(repositoryRoute.repository?.id, 'operateBusiness');
+  assert.equal(path.basename(repositoryRoute.projectRoot), 'tmax-operate-business');
 });

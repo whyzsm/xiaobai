@@ -1,0 +1,16 @@
+kind: Project
+role: standalone
+id: tmax-dcm
+catalogId: t-max
+name: dcm
+root: .
+defaultBranch: master
+parentGroup: t-max
+localPathsRef: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: dcm
+    name: dcm
+    localPathKey: dcm
+    mount: ../../.local/t-max/mounts/repos/dcm
+    remote: http://10.10.103.4/T-MAX/max-dcm-ui

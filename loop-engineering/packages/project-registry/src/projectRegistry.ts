@@ -21,6 +21,14 @@ interface ProjectRegistryEntry {
   childProjectIds?: string[];
 }
 
+interface ProjectSourceRecord {
+  directory: string;
+  projectRoot: string;
+  projectPath: string;
+  project: ProjectSpec;
+  localPaths?: ProjectLocalPaths;
+}
+
 interface ProjectMatch {
   entry: ProjectRegistryEntry;
   repository?: ProjectRepository;
@@ -95,7 +103,7 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
     .map((entry) => entry.name)
     .sort();
 
-  const entries: ProjectRegistryEntry[] = [];
+  const records: ProjectSourceRecord[] = [];
   for (const projectDir of projectDirs) {
     const projectRoot = path.join(projectsRoot, projectDir);
     const projectPath = path.join(projectRoot, '.loop', 'project.yaml');
@@ -104,21 +112,94 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
     }
 
     const project = await readYamlFile<ProjectSpec>(projectPath);
-    const localPathsPath = project.localPaths ? path.join(projectRoot, project.localPaths) : undefined;
+    records.push({ directory: projectDir, projectRoot, projectPath, project });
+  }
+
+  const catalogs = new Map(
+    records
+      .filter(({ project }) => project.role === 'catalog')
+      .map((record) => [record.project.id ?? record.directory, record]),
+  );
+  const standaloneIds = new Set(
+    records.filter(({ project }) => isStandaloneProject(project)).map(({ project }) => project.id),
+  );
+  const entries: ProjectRegistryEntry[] = [];
+  for (const record of records) {
+    let project = record.project;
+    const standalone = isStandaloneProject(project);
+    const catalog = standalone ? catalogs.get(catalogReference(project) ?? '') : undefined;
+    if (standalone && project.catalogId) {
+      if (!catalog) {
+        throw new Error(`Standalone Project '${project.id}' references a missing catalog '${project.catalogId}'`);
+      }
+      project = materializeStandaloneProject(project, catalog.project, catalog.projectRoot, record.projectRoot);
+    }
+    const localPathsPath = standalone && record.project.localPathsRef
+      ? resolveCatalogLocalPathsPath(record.project, catalog)
+      : project.localPaths
+        ? path.resolve(record.projectRoot, project.localPaths)
+        : undefined;
     const localPaths = localPathsPath && (await pathExists(localPathsPath))
       ? await readYamlFile<ProjectLocalPaths>(localPathsPath)
       : undefined;
-    const children = await loadChildProjectEntries(project, projectRoot, workspaceRoot, localPaths);
+    const children = await loadChildProjectEntries(project, record.projectRoot, workspaceRoot, localPaths);
+    const isCatalog = project.role === 'catalog';
+    const fallbackChildren = isCatalog
+      ? children.filter(({ project: child }) => !standaloneIds.has(child.id))
+      : children;
+    const standaloneChildIds = isCatalog
+      ? records
+        .filter(({ project: candidate }) => isStandaloneProject(candidate) && catalogReference(candidate) === project.id)
+        .map(({ project: candidate }) => candidate.id)
+      : [];
+    const childProjectIds = [...new Set([...standaloneChildIds, ...fallbackChildren.map(({ project: child }) => child.id)])].sort();
     entries.push({
       project,
-      projectRoot,
+      projectRoot: record.projectRoot,
       localPaths,
-      ...(children.length > 0 ? { childProjectIds: children.map(({ project: child }) => child.id) } : {})
+      ...(childProjectIds.length > 0 ? { childProjectIds } : {})
     });
-    entries.push(...children);
+    entries.push(...fallbackChildren);
   }
 
   return entries;
+}
+
+function isStandaloneProject(project: ProjectSpec): boolean {
+  return project.kind === 'Project' && project.role === 'standalone';
+}
+
+function catalogReference(project: ProjectSpec): string | undefined {
+  return project.catalogId ?? project.parentGroup;
+}
+
+function materializeStandaloneProject(project: ProjectSpec, catalog: ProjectSpec, catalogRoot: string, projectRoot: string): ProjectSpec {
+  const inheritedBackground = catalog.background
+    ? { ...catalog.background, mount: rebasePath(catalogRoot, projectRoot, catalog.background.mount), integration: catalog.background.integration }
+    : undefined;
+  const inheritedDiscoverySkills = catalog.discoverySkills
+    ? Object.fromEntries(Object.entries(catalog.discoverySkills).map(([id, value]) => [id, rebasePath(catalogRoot, projectRoot, value)]))
+    : undefined;
+  const inheritedSkill = catalog.skill ? rebasePath(catalogRoot, projectRoot, catalog.skill) : undefined;
+  return {
+    ...catalog,
+    ...project,
+    kind: 'Project',
+    role: 'standalone',
+    catalogId: project.catalogId ?? catalog.id,
+    parentGroup: project.parentGroup ?? catalog.id,
+    skill: project.skill ?? inheritedSkill ?? 'SKILL.md',
+    ...(project.background ? {} : inheritedBackground ? { background: inheritedBackground } : {}),
+    ...(project.discoverySkills ? {} : inheritedDiscoverySkills ? { discoverySkills: inheritedDiscoverySkills } : {}),
+    ...(project.sharedContext ? {} : catalog.sharedContext ? { sharedContext: catalog.sharedContext } : {}),
+  };
+}
+
+function resolveCatalogLocalPathsPath(project: ProjectSpec, catalog: ProjectSourceRecord | undefined): string {
+  if (!catalog || (catalog.project.id ?? catalog.directory) !== project.localPathsRef) {
+    throw new Error(`Project '${project.id}' references missing local paths catalog '${project.localPathsRef}'`);
+  }
+  return path.resolve(catalog.projectRoot, catalog.project.localPaths ?? '.loop/local.paths.yaml');
 }
 
 async function loadChildProjectEntries(

@@ -1,0 +1,16 @@
+kind: Project
+role: standalone
+id: tmax-operate-support
+catalogId: t-max
+name: operateSupport
+root: .
+defaultBranch: master
+parentGroup: t-max
+localPathsRef: t-max
+sharedContext: t-max-xiaoneng
+repositories:
+  - id: operateSupport
+    name: operateSupport
+    localPathKey: operateSupport
+    mount: ../../.local/t-max/mounts/repos/operateSupport
+    remote: http://10.10.103.4/T-MAX/max-operate-support-ui

@@ -1,5 +1,7 @@
 kind: ProjectGroup
+role: catalog
 id: t-max
+catalogId: t-max
 name: T-MAX
 root: ../../.local/t-max/mounts
 defaultBranch: master
