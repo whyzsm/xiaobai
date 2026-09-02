@@ -1,0 +1,24 @@
+kind: Connector
+id: ima
+capabilities:
+  - read_knowledge
+  - read_note
+permissions:
+  write:
+    allow: []
+    deny:
+      - write_note
+      - append_note
+      - upload_file
+      - delete_note
+rateLimit:
+  maxCallsPerRun: 40
+config:
+  ima:
+    server: ima
+    searchTool: ima_search_knowledge
+    getTool: ima_get_note_content
+    timeoutMs: 5000
+    maxLimit: 20
+    maxCharacters: 12000
+    scope: tmax-dcm

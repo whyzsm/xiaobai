@@ -133,12 +133,28 @@ export interface ProjectSpec {
   discoverySkills?: Record<string, string>;
   localPaths?: string;
   background?: ProjectBackground;
+  /** Explicit project-scoped context bindings. Legacy background is only a compatibility source. */
+  knowledgeBindings?: ProjectContextBinding[];
+  /** Alias accepted during migration; normalized to knowledgeBindings by loaders. */
+  contextBindings?: ProjectContextBinding[];
   repositories?: ProjectRepository[];
   children?: ProjectGroupChildren;
   /** ProjectGroup id for a child Project declaration. */
   parentGroup?: string;
   /** Shared context id for a child, or the group-level shared declaration. */
   sharedContext?: string | SharedProjectContext;
+}
+
+export interface ProjectContextBinding {
+  knowledgeId?: string;
+  source: string;
+  locator?: string;
+  scope?: string;
+  revision: string;
+  digest: string;
+  readOnly?: boolean;
+  trust?: 'bundled' | 'project' | 'external' | 'derived';
+  requiredCapabilities?: string[];
 }
 
 export interface ProjectGroupChildren {
@@ -218,6 +234,16 @@ export interface ConnectorSpec {
   };
   config?: {
     baseUrl?: string;
+    server?: string;
+    tool?: string;
+    searchTool?: string;
+    getTool?: string;
+    timeoutMs?: number;
+    limit?: number;
+    maxLimit?: number;
+    maxCharacters?: number;
+    scope?: string;
+    ima?: ImaConnectorConfig;
     [key: string]: unknown;
   };
   auth?: {
@@ -225,6 +251,19 @@ export interface ConnectorSpec {
     tokenEnv?: string;
   };
   mock?: JsonRecord;
+}
+
+/** Non-sensitive runtime knobs for the read-only IMA MCP adapter. */
+export interface ImaConnectorConfig {
+  server?: string;
+  tool?: string;
+  searchTool?: string;
+  getTool?: string;
+  timeoutMs?: number;
+  limit?: number;
+  maxLimit?: number;
+  maxCharacters?: number;
+  scope?: string;
 }
 
 export interface BudgetSpec {
@@ -712,6 +751,8 @@ export interface ExecutorAdapterInput {
   workspaceRoot: string;
   worktreePath?: string;
   backgroundContext?: ResolvedBackgroundContext;
+  /** Project-scoped bindings selected by the runtime; adapters must treat as read-only evidence. */
+  contextBindings?: ProjectContextBinding[];
   eventReporter?: ExecutorEventReporter;
 }
 
@@ -765,6 +806,8 @@ export interface ProjectRoutePlan {
   projectSkillPath: string;
   root: string;
   defaultBranch: string;
+  /** Normalized explicit context declarations selected for this Project. */
+  contextBindings?: ProjectContextBinding[];
   background?: {
     id: string;
     name: string;
@@ -856,6 +899,8 @@ export interface RuntimePlan {
     plannedWrites: string[];
   };
   humanGate: HumanGatePlan;
+  /** Context bindings are carried into run planning as immutable evidence inputs. */
+  contextBindings?: ProjectContextBinding[];
   workflow?: WorkflowPlan;
   backgroundContext?: BackgroundContextPlan;
   memoryContext?: {

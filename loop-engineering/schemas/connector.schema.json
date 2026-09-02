@@ -40,7 +40,45 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "baseUrl": { "type": "string", "minLength": 1 }
+        "baseUrl": { "type": "string", "minLength": 1 },
+        "server": { "type": "string", "minLength": 1 },
+        "tool": { "type": "string", "minLength": 1 },
+        "searchTool": { "type": "string", "minLength": 1 },
+        "getTool": { "type": "string", "minLength": 1 },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "maxLimit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "maxCharacters": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "scope": { "type": "string", "minLength": 1 },
+        "ima": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "server": { "type": "string", "minLength": 1 },
+            "tool": { "type": "string", "minLength": 1 },
+            "searchTool": { "type": "string", "minLength": 1 },
+            "getTool": { "type": "string", "minLength": 1 },
+            "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 120000 },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "maxLimit": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "maxCharacters": { "type": "integer", "minimum": 1, "maximum": 100000 },
+            "scope": { "type": "string", "minLength": 1 }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["credentials"] },
+              { "required": ["token"] },
+              { "required": ["password"] }
+            ]
+          }
+        }
+      },
+      "not": {
+        "anyOf": [
+          { "required": ["credentials"] },
+          { "required": ["token"] },
+          { "required": ["password"] }
+        ]
       }
     },
     "auth": {
