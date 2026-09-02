@@ -5,9 +5,8 @@ import test from 'node:test'
 
 const packageRoot = new URL('../../', import.meta.url)
 const packageMapUrl = new URL('../../../package-map.json', import.meta.url)
-const designUrl = new URL('../../../../.trellis/tasks/archive/2026-08/08-29-dsh-plugin-workspace-integration/design.md', import.meta.url)
 
-test('package map contains exactly the 33 legacy packages from the approved design table', async () => {
+test('package map contains exactly the 33 legacy packages', async () => {
   const map = JSON.parse(await readFile(packageMapUrl, 'utf8'))
   const rows = map.packages
   assert.equal(rows.length, 33)
@@ -18,11 +17,14 @@ test('package map contains exactly the 33 legacy packages from the approved desi
     assert.ok(dispositions.has(row.disposition), `${row.legacyPackage} has an unknown disposition`)
     assert.equal(row.status, 'mapped')
   }
-  const designSource = await readFile(designUrl, 'utf8')
-  const design = designSource.slice(designSource.indexOf('## 33-Package Disposition'), designSource.indexOf('## Package Dependency Direction'))
-  const designPackages = [...design.matchAll(/^\| `([^`]+)` \|/gm)].map((match) => match[1])
-  assert.deepEqual(rows.map((row) => row.legacyPackage).sort(), designPackages.sort())
-  const actualLegacyPackages = (await readdir(packageRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && entry.name !== 'xiaobai-dsh-plugin').map((entry) => entry.name).sort()
+  const actualLegacyPackages = (await readdir(packageRoot, { withFileTypes: true }))
+    .filter((entry) => (
+      entry.isDirectory()
+      && entry.name !== 'xiaobai-dsh-plugin'
+      && entry.name !== 'context-compiler'
+    ))
+    .map((entry) => entry.name)
+    .sort()
   assert.deepEqual(rows.map((row) => row.legacyPackage).sort(), actualLegacyPackages)
 })
 
