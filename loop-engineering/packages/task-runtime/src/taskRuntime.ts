@@ -24,6 +24,7 @@ import {
   validateTaskRequest
 } from '../../shared/src/portableExecutionContracts';
 import { SkillContextResolver } from '../../skill-context-runtime/src/skillContextResolver';
+import { digestJsonHex } from '../../shared/src/canonicalDigest';
 
 export interface TaskRuntimeOptions {
   workspaceRoot: string;
@@ -98,6 +99,7 @@ export class TaskRuntime {
     const taskId = input.taskId ?? randomUUID();
     if (await this.find(taskId)) throw new Error(`Task already exists: ${taskId}`);
     const backgroundContextLock = await this.lockBackgroundContext(taskId);
+    await this.writeContextBindingsEvidence(taskId);
     const now = this.clock().toISOString();
     await this.appendEvent({
       kind: 'TaskEvent',
@@ -134,6 +136,8 @@ export class TaskRuntime {
           ? backgroundPlanDigestInput(this.options.plan.backgroundContext)
           : null,
         backgroundContextLock: backgroundContextLock ?? null,
+        contextBindings: this.options.plan.contextBindings ?? [],
+        contextBindingsDigest: digestJsonHex(this.options.plan.contextBindings ?? []),
         gateRequirements: this.options.plan.humanGate.gates.map((gate) => gate.id)
       },
       evidence: []
@@ -238,6 +242,13 @@ export class TaskRuntime {
     );
   }
 
+  contextBindingsPath(taskId: string): string {
+    return resolveMemoryPath(
+      this.options.memoryRoot,
+      `memory/tasks/${encodeURIComponent(this.options.loop.metadata.id)}/${encodeURIComponent(taskId)}/context-bindings.json`
+    );
+  }
+
   memoryRoot(): string {
     return this.options.memoryRoot;
   }
@@ -247,9 +258,9 @@ export class TaskRuntime {
     if (!plan) return undefined;
     const mountPath = path.resolve(this.options.workspaceRoot, plan.sourceMount);
     if (!(await pathExists(mountPath))) {
-      if (this.options.loop.metadata.id === 'ane-standard-page') {
-        throw new Error(`XIAONENG_CONTEXT_REQUIRED: background mount is unavailable: ${mountPath}`);
-      }
+      // The project-context migration permits planning and task creation when
+      // the optional legacy background mount is absent. IMA-dependent stages
+      // perform their own fail-closed context check at execution time.
       return undefined;
     }
 
@@ -277,7 +288,7 @@ export class TaskRuntime {
       await writeFile(
         path.join(artifactRoot, 'evidence-selection.json'),
         `${JSON.stringify({
-          kind: 'XiaonengEvidenceSelection',
+          kind: 'ProjectContextEvidenceSelection',
           version: 1,
           taskId,
           projectId: plan.projectId,
@@ -291,6 +302,23 @@ export class TaskRuntime {
       );
     }
     return lock;
+  }
+
+  private async writeContextBindingsEvidence(taskId: string): Promise<void> {
+    const bindings = this.options.plan?.contextBindings ?? [];
+    if (bindings.length === 0 || !this.options.plan) return;
+    const evidence = {
+      kind: 'ProjectContextBindings',
+      version: 1,
+      taskId,
+      projectId: this.options.plan.projectContext.projectId,
+      bindings,
+      digest: digestJsonHex(bindings),
+      recordedAt: this.clock().toISOString(),
+    };
+    const filePath = this.contextBindingsPath(taskId);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
   }
 
   private async appendEvent(event: TaskEvent): Promise<void> {

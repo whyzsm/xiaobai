@@ -55,6 +55,12 @@ export function buildProjectContext(input: ProjectContextBuildInput): ProjectCon
     handoff: input.loop.handoff,
     verification: input.loop.verification,
     humanGate: input.loop.humanGate,
+    // Include explicit bindings in the immutable policy digest. The legacy
+    // background declaration is retained only as a compatibility input.
+    contextBindings: [
+      ...(project.knowledgeBindings ?? []),
+      ...(project.contextBindings ?? [])
+    ],
     background: project.background ?? null
   });
 

@@ -19,6 +19,7 @@ import {
   ProjectRoutePlan,
   ProjectSpec,
   RuntimePlan,
+  ProjectContextBinding,
   WorkflowPlan
 } from '../../shared/src/types';
 import { SkillRuntime } from '../../skill-runtime/src/skillRuntime';
@@ -136,6 +137,7 @@ export class LoopRuntime {
         plannedWrites: memoryStore.plannedWrites()
       },
       humanGate: humanGate.plan(),
+      ...(projectRoutePlan.contextBindings ? { contextBindings: projectRoutePlan.contextBindings } : {}),
       workflow: buildWorkflowPlan(loop),
       ...(backgroundContext ? { backgroundContext } : {}),
       memoryContext
@@ -274,6 +276,7 @@ function buildProjectRoutePlan(
 ): ProjectRoutePlan {
   const project = projectRoute.project;
   const projectRoot = projectRoute.projectRoot;
+  const contextBindings = projectContextBindings(project);
   return {
     projectContext,
     projectId: project.id,
@@ -283,6 +286,7 @@ function buildProjectRoutePlan(
     projectSkillPath: displayPath(workspaceRoot, path.join(projectRoot, project.skill)),
     root: displayPath(projectRoot, path.resolve(projectRoot, project.root)),
     defaultBranch: project.defaultBranch,
+    ...(contextBindings.length > 0 ? { contextBindings } : {}),
     background: project.background
       ? {
           id: project.background.id,
@@ -297,6 +301,19 @@ function buildProjectRoutePlan(
       remote: repository.remote
     }))
   };
+}
+
+function projectContextBindings(project: ProjectSpec): ProjectContextBinding[] {
+  const declared = [
+    ...(project.knowledgeBindings ?? []),
+    ...(project.contextBindings ?? []),
+  ];
+  const unique = new Map<string, ProjectContextBinding>();
+  for (const binding of declared) {
+    const key = binding.knowledgeId ?? `${binding.source}:${binding.scope ?? ''}`;
+    if (!unique.has(key)) unique.set(key, binding);
+  }
+  return [...unique.values()].sort((left, right) => String(left.knowledgeId ?? left.source).localeCompare(String(right.knowledgeId ?? right.source)));
 }
 
 function relativeLearningRoot(paths: ReturnType<typeof resolveMemoryProtocolPaths>): string {

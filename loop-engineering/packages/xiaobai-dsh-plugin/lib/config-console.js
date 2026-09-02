@@ -212,10 +212,12 @@ function baselineToConfig(entry) {
       source: binding.source,
       ...(entry.background?.bindingRef ? { bindingRef: entry.background.bindingRef } : {}),
       locator: safeLocator(binding.source),
+      scope: binding.scope,
       revision: binding.revision,
       digest: binding.digest,
       readOnly: binding.readOnly,
       trust: binding.trust,
+      requiredCapabilities: [...(binding.requiredCapabilities ?? [])],
     })),
     agentProfiles: baseline.agentProfiles.map((profile) => ({ ...profile })),
     skills: baseline.skills.map((skill) => ({
@@ -255,12 +257,12 @@ function configToBaseline(config, workspaceId, projectId) {
   const knowledgeBindings = config.knowledgeBindings.map((binding, index) => ({
     knowledgeId: resourceFor('know', binding.knowledgeId, { effectiveProjectId, source: binding.source, index }),
     source: binding.source,
-    scope: effectiveProjectId,
+    scope: binding.scope ?? effectiveProjectId,
     revision: binding.revision,
     digest: binding.digest,
     readOnly: binding.readOnly,
     trust: binding.trust,
-    requiredCapabilities: [],
+    requiredCapabilities: [...(binding.requiredCapabilities ?? [])],
   }))
   const skills = config.skills.map((skill, index) => ({
     skillId: resourceFor('skill', skill.skillId, { effectiveProjectId, name: skill.name, index }),
@@ -343,12 +345,29 @@ function sourceProjectConfig(config, metadata = {}) {
     })),
     qualityCommands: { ...config.qualityCommands },
   }
-  if (!parentGroupId && config.knowledgeBindings[0]) {
+  // Persist every explicit context binding so a reload does not collapse the
+  // Project back to the legacy first-background-only representation.
+  if (Array.isArray(config.knowledgeBindings) && config.knowledgeBindings.length > 0) {
+    source.knowledgeBindings = config.knowledgeBindings.map((binding) => ({
+      ...(binding.knowledgeId ? { knowledgeId: binding.knowledgeId } : {}),
+      source: binding.source,
+      revision: binding.revision,
+      digest: binding.digest,
+      readOnly: binding.readOnly,
+      trust: binding.trust,
+      requiredCapabilities: [...(binding.requiredCapabilities ?? [])],
+      ...(binding.scope ? { scope: binding.scope } : {}),
+    }))
+  }
+  const firstBinding = config.knowledgeBindings[0]
+  const legacyBackgroundBinding = firstBinding &&
+    (firstBinding.source.startsWith('skill-context:') || firstBinding.source.startsWith('background:'))
+  if (!parentGroupId && legacyBackgroundBinding) {
     source.background = {
-      id: config.knowledgeBindings[0].knowledgeId ?? safeKey(config.knowledgeBindings[0].source, 'project-background'),
-      ...(config.knowledgeBindings[0].locator ? { mount: safeLocator(config.knowledgeBindings[0].locator, undefined) } : {}),
-      ...(config.knowledgeBindings[0].bindingRef ? { localPathKey: config.knowledgeBindings[0].bindingRef } : {}),
-      integration: { contractVersion: config.knowledgeBindings[0].revision },
+      id: firstBinding.knowledgeId ?? safeKey(firstBinding.source, 'project-background'),
+      ...(firstBinding.locator ? { mount: safeLocator(firstBinding.locator, undefined) } : {}),
+      ...(firstBinding.bindingRef ? { localPathKey: firstBinding.bindingRef } : {}),
+      integration: { contractVersion: firstBinding.revision },
     }
   }
   if (sourceConfig?.localPaths) source.localPaths = sourceConfig.localPaths

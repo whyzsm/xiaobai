@@ -55,6 +55,71 @@ function resourceDigest(value) {
   return sha256Digest(value).slice(7, 19)
 }
 
+function bindingDigest(value) {
+  return typeof value === 'string' && /^sha256:[a-f0-9]{64}$/u.test(value)
+    ? value
+    : undefined
+}
+
+/**
+ * Normalize the explicit project context declarations into the persisted
+ * KnowledgeBinding contract. `background` remains a migration-only fallback;
+ * explicit declarations always win for the same source/identity.
+ */
+function declaredKnowledgeBindings(project, projectId, sourceProjectId, background, fallback, parentScope) {
+  const declarations = [
+    ...(Array.isArray(project?.knowledgeBindings) ? project.knowledgeBindings : []),
+    ...(Array.isArray(project?.contextBindings) ? project.contextBindings : []),
+  ]
+  const bindings = []
+  for (const [index, declaration] of declarations.entries()) {
+    if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) {
+      throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${sourceProjectId}' contains an invalid context binding`, { phase: 'workspace-config', resourceId: sourceProjectId })
+    }
+    if (['credentials', 'token', 'password', 'secret'].some((field) => Object.prototype.hasOwnProperty.call(declaration, field))) {
+      throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${sourceProjectId}' context bindings cannot contain credentials`, { phase: 'workspace-context-security', resourceId: sourceProjectId })
+    }
+    const source = typeof declaration.source === 'string' && declaration.source.trim().length > 0
+      ? declaration.source.trim()
+      : typeof declaration.locator === 'string' && declaration.locator.trim().length > 0
+        ? declaration.locator.trim()
+        : undefined
+    const revision = typeof declaration.revision === 'string' && declaration.revision.trim().length > 0 ? declaration.revision.trim() : undefined
+    const digest = bindingDigest(declaration.digest)
+    if (!source || !revision || !digest) {
+      throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${sourceProjectId}' context binding ${index + 1} requires source, revision, and sha256 digest`, { phase: 'workspace-config', resourceId: sourceProjectId })
+    }
+    const scope = typeof declaration.scope === 'string' && declaration.scope.trim().length > 0 ? declaration.scope.trim() : projectId
+    const sharedScope = typeof project?.sharedContext === 'string'
+      ? project.sharedContext
+      : project?.sharedContext?.id
+    const allowedScopes = new Set([projectId, sourceProjectId, project?.id, project?.name, parentScope, sharedScope].filter((value) => typeof value === 'string' && value.length > 0))
+    if (!allowedScopes.has(scope)) {
+      throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${sourceProjectId}' context binding scope '${scope}' is outside the Project scope`, { phase: 'workspace-context-scope', resourceId: sourceProjectId })
+    }
+    const knowledgeId = typeof declaration.knowledgeId === 'string' && /^know_[a-z0-9][a-z0-9_-]{2,63}$/u.test(declaration.knowledgeId)
+      ? declaration.knowledgeId
+      : `know_${resourceDigest({ sourceProjectId, source, revision, index })}`
+    bindings.push({
+      knowledgeId,
+      source,
+      scope,
+      revision,
+      digest,
+      readOnly: declaration.readOnly !== false,
+      trust: ['bundled', 'project', 'external', 'derived'].includes(declaration.trust) ? declaration.trust : 'external',
+      requiredCapabilities: Array.isArray(declaration.requiredCapabilities) ? declaration.requiredCapabilities.filter((item) => typeof item === 'string') : [],
+    })
+  }
+  if (background || declarations.length === 0) bindings.push(fallback)
+  const unique = new Map()
+  for (const binding of bindings) {
+    const key = binding.knowledgeId ?? `${binding.source}:${binding.scope}`
+    if (!unique.has(key)) unique.set(key, binding)
+  }
+  return [...unique.values()].sort((left, right) => `${left.knowledgeId}:${left.source}`.localeCompare(`${right.knowledgeId}:${right.source}`))
+}
+
 function sourcePath(projectRoot, relativePath) {
   const candidate = resolve(projectRoot, relativePath)
   const relation = relative(projectRoot, candidate)
@@ -156,19 +221,21 @@ function baselineForProject(project, projectRoot, workspaceRoot, localPaths, met
     artifactRoot: `artifacts/${key}`,
     qualityCommands: project.qualityCommands,
   })
+  const compatibilityBinding = {
+    knowledgeId,
+    source: knowledgeSource,
+    scope: `prj_${digest}`,
+    revision: background?.integration?.contractVersion ?? 'declared',
+    digest: knowledgeDigest,
+    readOnly: background ? true : false,
+    trust: background ? 'external' : 'project',
+    requiredCapabilities: background ? ['knowledge.read'] : [],
+  }
+  const knowledgeBindings = declaredKnowledgeBindings(project, `prj_${digest}`, sourceProjectId, background, compatibilityBinding, metadata.parentProjectId)
   const normalized = validateProjectBaseline({
     ...baseline,
     repositories: repositoryBindings,
-    knowledgeBindings: [{
-      knowledgeId,
-      source: knowledgeSource,
-      scope: `prj_${digest}`,
-      revision: background?.integration?.contractVersion ?? 'declared',
-      digest: knowledgeDigest,
-      readOnly: background ? true : false,
-      trust: background ? 'external' : 'project',
-      requiredCapabilities: background ? ['knowledge.read'] : [],
-    }],
+    knowledgeBindings,
     agentProfiles: [{
       ...baseline.agentProfiles[0],
       agentId: profileId,
@@ -208,11 +275,38 @@ function baselineForProject(project, projectRoot, workspaceRoot, localPaths, met
     } : undefined,
     configDigest: sha256Digest({ project, sourceProjectId, projectPath: relative(workspaceRoot, projectRoot) }),
     pathBindingDigest: sha256Digest({ repositories: localBindings, background: backgroundLocal?.path }),
+    hasExplicitContextBindings: declarationsExist(project),
   }
+}
+
+function declarationsExist(project) {
+  return (Array.isArray(project?.knowledgeBindings) && project.knowledgeBindings.length > 0) ||
+    (Array.isArray(project?.contextBindings) && project.contextBindings.length > 0)
 }
 
 function rebasePath(fromRoot, toRoot, relativePath) {
   return relative(toRoot, resolve(fromRoot, relativePath)) || '.'
+}
+
+function mergeContextDeclarations(group, child) {
+  const groupBindings = [
+    ...(Array.isArray(group?.knowledgeBindings) ? group.knowledgeBindings : []),
+    ...(Array.isArray(group?.contextBindings) ? group.contextBindings : []),
+  ]
+  const childBindings = [
+    ...(Array.isArray(child?.knowledgeBindings) ? child.knowledgeBindings : []),
+    ...(Array.isArray(child?.contextBindings) ? child.contextBindings : []),
+  ]
+  if (groupBindings.length === 0 && childBindings.length === 0) return undefined
+  const merged = new Map()
+  for (const binding of [...groupBindings, ...childBindings]) {
+    if (!binding || typeof binding !== 'object' || Array.isArray(binding)) continue
+    const key = typeof binding.knowledgeId === 'string'
+      ? binding.knowledgeId
+      : `${binding.source ?? binding.locator ?? ''}:${binding.scope ?? ''}`
+    merged.set(key, binding)
+  }
+  return [...merged.values()].sort((left, right) => String(left.knowledgeId ?? left.source ?? left.locator ?? '').localeCompare(String(right.knowledgeId ?? right.source ?? right.locator ?? '')))
 }
 
 function materializeChildProject(group, child, groupRoot, childRoot) {
@@ -222,6 +316,7 @@ function materializeChildProject(group, child, groupRoot, childRoot) {
   const discoverySkills = group.discoverySkills
     ? Object.fromEntries(Object.entries(group.discoverySkills).map(([id, value]) => [id, rebasePath(groupRoot, childRoot, value)]))
     : undefined
+  const mergedBindings = mergeContextDeclarations(group, child)
   return {
     ...group,
     ...child,
@@ -229,6 +324,7 @@ function materializeChildProject(group, child, groupRoot, childRoot) {
     skill: child.skill ?? rebasePath(groupRoot, childRoot, group.skill),
     ...(child.background ? {} : background ? { background } : {}),
     ...(child.discoverySkills ? {} : discoverySkills ? { discoverySkills } : {}),
+    ...(mergedBindings ? { knowledgeBindings: mergedBindings } : {}),
     ...(child.sharedContext ? {} : group.sharedContext ? { sharedContext: group.sharedContext } : {}),
   }
 }
@@ -315,7 +411,11 @@ async function loadChildProjects(group, groupRoot, workspaceRoot, localPaths) {
 }
 
 async function inspectBackground(entry, diagnostics) {
-  if (!entry.background) return 'missing'
+  // Explicit KnowledgeBindings (for example an IMA source) do not require a
+  // local background mount. They are already digest-locked by the contract.
+  if (!entry.background) {
+    return entry.hasExplicitContextBindings ? 'locked' : 'missing'
+  }
   const candidate = entry.background.localPath ?? entry.background.declaredMount
   if (!candidate || !(await exists(candidate))) {
     diagnostics.push({ code: 'XIAOBAI_BACKGROUND_UNAVAILABLE', severity: 'warning', projectId: entry.baseline.projectId, sourceProjectId: entry.sourceProjectId, field: 'background', message: 'Background Knowledge mount is unavailable.' })

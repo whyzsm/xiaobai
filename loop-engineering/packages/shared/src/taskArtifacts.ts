@@ -52,9 +52,9 @@ export function standardPageArtifactRoot(
     // A missing workspace remains governed by the lexical check below.
   }
   if (!lexicalInside && !canonicalAliasInside) {
-    throw new Error(`XIAONENG_TASK_ARTIFACT_REPOSITORY_OUTSIDE_WORKSPACE: ${repository.id}`);
+    throw new Error(`PROJECT_CONTEXT_TASK_ARTIFACT_REPOSITORY_OUTSIDE_WORKSPACE: ${repository.id}`);
   }
-  return path.join(root, '.xiaoneng', 'runtime', 'tasks', encodeURIComponent(taskId));
+  return path.join(root, '.xiaobai', 'runtime', 'tasks', encodeURIComponent(taskId));
 }
 
 export function standardPageArtifactsForStage(stageId: string): StandardPageArtifactName[] {

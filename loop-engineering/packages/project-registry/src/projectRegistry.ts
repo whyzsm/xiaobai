@@ -5,6 +5,7 @@ import {
   ProjectRepository,
   ProjectRouteResolution,
   ProjectRouteSource,
+  ProjectContextBinding,
   ProjectSpec
 } from '../../shared/src/types';
 import { pathExists, readYamlFile } from '../../shared/src/fs';
@@ -104,6 +105,7 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
     }
 
     const project = await readYamlFile<ProjectSpec>(projectPath);
+    validateContextBindings(project, project.id, project.id);
     const localPathsPath = project.localPaths ? path.join(projectRoot, project.localPaths) : undefined;
     const localPaths = localPathsPath && (await pathExists(localPathsPath))
       ? await readYamlFile<ProjectLocalPaths>(localPathsPath)
@@ -165,8 +167,10 @@ async function loadChildProjectEntries(
     const localPaths = localPathsPath && (await pathExists(localPathsPath))
       ? await readYamlFile<ProjectLocalPaths>(localPathsPath)
       : groupLocalPaths;
+    const materialized = materializeChildProject(group, child, groupRoot, childRoot);
+    validateContextBindings(materialized, child.id, group.id);
     entries.push({
-      project: materializeChildProject(group, child, groupRoot, childRoot),
+      project: materialized,
       projectRoot: childRoot,
       localPaths
     });
@@ -179,6 +183,28 @@ async function loadChildProjectEntries(
     }
   }
   return entries;
+}
+
+function validateContextBindings(project: ProjectSpec, projectId: string, parentScope?: string): void {
+  const bindings = [
+    ...(project.knowledgeBindings ?? []),
+    ...(project.contextBindings ?? []),
+  ];
+  if (bindings.length === 0) return;
+  const sharedScope = typeof project.sharedContext === 'string' ? project.sharedContext : project.sharedContext?.id;
+  const allowedScopes = new Set([projectId, project.name, parentScope, sharedScope].filter((value): value is string => Boolean(value)));
+  for (const [index, binding] of bindings.entries()) {
+    const candidate = binding as ProjectContextBinding & Record<string, unknown>;
+    if (['credentials', 'token', 'password', 'secret'].some((field) => Object.prototype.hasOwnProperty.call(candidate, field))) {
+      throw new Error(`Project '${projectId}' context binding ${index + 1} contains credentials`);
+    }
+    if (typeof candidate.source !== 'string' || candidate.source.trim().length === 0 || typeof candidate.revision !== 'string' || candidate.revision.trim().length === 0 || typeof candidate.digest !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(candidate.digest)) {
+      throw new Error(`Project '${projectId}' context binding ${index + 1} requires source, revision, and sha256 digest`);
+    }
+    if (typeof candidate.scope !== 'string' || candidate.scope.trim().length === 0 || !allowedScopes.has(candidate.scope)) {
+      throw new Error(`Project '${projectId}' context binding ${index + 1} has an out-of-scope binding`);
+    }
+  }
 }
 
 function materializeChildProject(
@@ -200,6 +226,7 @@ function materializeChildProject(
       )
     : undefined;
   const inheritedSkill = group.skill ? rebasePath(groupRoot, childRoot, group.skill) : child.skill;
+  const mergedBindings = mergeContextBindings(group, child);
   return {
     ...group,
     ...child,
@@ -208,8 +235,31 @@ function materializeChildProject(
     skill: child.skill ?? inheritedSkill ?? 'SKILL.md',
     ...(child.discoverySkills ? {} : inheritedDiscoverySkills ? { discoverySkills: inheritedDiscoverySkills } : {}),
     ...(child.background ? {} : inheritedBackground ? { background: inheritedBackground } : {}),
+    ...(mergedBindings ? { knowledgeBindings: mergedBindings } : {}),
     ...(child.sharedContext ? {} : group.sharedContext ? { sharedContext: group.sharedContext } : {})
   };
+}
+
+function mergeContextBindings(group: ProjectSpec, child: ProjectSpec): ProjectContextBinding[] | undefined {
+  const groupBindings = [
+    ...(group.knowledgeBindings ?? []),
+    ...(group.contextBindings ?? []),
+  ];
+  const childBindings = [
+    ...(child.knowledgeBindings ?? []),
+    ...(child.contextBindings ?? []),
+  ];
+  if (groupBindings.length === 0 && childBindings.length === 0) return undefined;
+  const merged = new Map<string, ProjectContextBinding>();
+  for (const binding of [...groupBindings, ...childBindings]) {
+    const key = typeof binding.knowledgeId === 'string'
+      ? binding.knowledgeId
+      : `${binding.source ?? binding.locator ?? ''}:${binding.scope ?? ''}`;
+    merged.set(key, binding);
+  }
+  return [...merged.values()].sort((left, right) => {
+    return String(left.knowledgeId ?? left.source ?? left.locator ?? '').localeCompare(String(right.knowledgeId ?? right.source ?? right.locator ?? ''));
+  });
 }
 
 function resolveWithin(root: string, relativePath: string, label: string): string {

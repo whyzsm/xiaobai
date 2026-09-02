@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, unlink } from 'node:fs/promises';
+import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AnySchema } from 'ajv';
 import Ajv2020 from 'ajv/dist/2020';
@@ -23,6 +23,7 @@ import {
   HarnessEvidenceType,
   JsonRecord,
   LoopSpec,
+  ProjectContextBinding,
   RuntimePlan,
   ResolvedBackgroundContext,
   StageEvent,
@@ -36,6 +37,8 @@ import { standardPageArtifactRoot, standardPageArtifactsForStage } from '../../s
 import { ExecutionEventStore } from './executionEvents';
 import { createStageEvent, projectStageTiming, StageEventStore, validateStageEventSequence } from './stageEvents';
 import { StageTimingMetricStore, stageTimingSourceKey } from './timingMetrics';
+import { ConnectorRuntime } from '../../connector-runtime/src/connectorRuntime';
+import { ImaAdapterError, ImaTransport } from '../../connector-runtime/src/imaAdapter';
 
 export interface ExecutionRuntimeOptions {
   workspaceRoot: string;
@@ -44,6 +47,9 @@ export interface ExecutionRuntimeOptions {
   plan: RuntimePlan;
   executorInstance?: string;
   now?: () => Date;
+  /** Optional runtime-owned IMA MCP transport; absent transport fails closed. */
+  imaTransport?: ImaTransport;
+  connectorRuntime?: ConnectorRuntime;
 }
 
 export class GateGuard {
@@ -64,6 +70,7 @@ export class ExecutionRuntime {
   private readonly timingMetricStore: StageTimingMetricStore;
   private readonly executorInstance: string;
   private readonly clock: () => Date;
+  private readonly connectorRuntime: ConnectorRuntime;
 
   constructor(private readonly options: ExecutionRuntimeOptions) {
     if (options.loop.metadata.id !== options.plan.loopId) {
@@ -77,6 +84,7 @@ export class ExecutionRuntime {
     );
     this.executorInstance = options.executorInstance ?? randomUUID();
     this.clock = options.now ?? (() => new Date());
+    this.connectorRuntime = options.connectorRuntime ?? new ConnectorRuntime(options.workspaceRoot);
   }
 
   async execute(input: ExecutionStageInput, adapter: ExecutorAdapter): Promise<ExecutionStageResult> {
@@ -250,11 +258,9 @@ export class ExecutionRuntime {
 
     await append('first_action');
     let backgroundContext: ResolvedBackgroundContext | undefined;
-    if (this.options.loop.metadata.id === 'ane-standard-page' && !this.options.plan.backgroundContext) {
-      const reasons = ['XIAONENG_CONTEXT_REQUIRED: StandardPage execution has no background context plan'];
-      await append('failed', [otherEvidence(reasons[0])]);
-      return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
-    }
+    // A project-context plan can run without the legacy background binding.
+    // The legacy lock checks below remain only for compatibility plans that
+    // still declare a skill-context mount during the migration window.
     if (this.options.plan.backgroundContext) {
       try {
         backgroundContext = await new SkillContextResolver(this.options.workspaceRoot).resolve(
@@ -268,7 +274,7 @@ export class ExecutionRuntime {
           scope.taskId
         );
         if (this.options.loop.metadata.id === 'ane-standard-page' && !lock) {
-          throw new Error('XIAONENG_CONTEXT_LOCK_REQUIRED: StandardPage task context lock is missing');
+          throw new Error('PROJECT_CONTEXT_LOCK_REQUIRED: StandardPage task context lock is missing');
         }
         if (
           lock &&
@@ -278,11 +284,11 @@ export class ExecutionRuntime {
             JSON.stringify(lock.selectedEvidenceBundles) !==
               JSON.stringify(this.options.plan.backgroundContext.evidenceBundles ?? []))
         ) {
-          throw new Error('XIAONENG_CONTEXT_LOCK_MISMATCH: lock identity or selected evidence differs from the plan');
+          throw new Error('PROJECT_CONTEXT_LOCK_MISMATCH: lock identity or selected evidence differs from the plan');
         }
         if (lock && lock.contextDigest !== backgroundContext.skillContext.contextDigest) {
           throw new Error(
-            `XIAONENG_CONTEXT_DIGEST_MISMATCH: locked ${lock.contextDigest}, resolved ${backgroundContext.skillContext.contextDigest}`
+            `PROJECT_CONTEXT_DIGEST_MISMATCH: locked ${lock.contextDigest}, resolved ${backgroundContext.skillContext.contextDigest}`
           );
         }
       } catch (error) {
@@ -297,6 +303,22 @@ export class ExecutionRuntime {
         eventType: 'context/resolved',
         data: backgroundContextEventData(backgroundContext)
       });
+    } else if ((this.options.plan.contextBindings ?? []).length > 0) {
+      const contextBindings = this.options.plan.contextBindings ?? [];
+      await appendExecution({
+        actor: 'runtime',
+        eventType: 'context/resolved',
+        data: projectContextBindingEventData(contextBindings),
+        evidence: projectContextBindingEvidence(contextBindings)
+      });
+    }
+    let imaContext: ImaContextResolution | undefined;
+    try {
+      imaContext = await this.resolveImaContext(input, scope, appendExecution);
+    } catch (error) {
+      const reason = `IMA context loading failed closed: ${error instanceof Error ? error.message : String(error)}`;
+      await append('failed', [otherEvidence(reason)]);
+      return executionResult('failed', adapter.id, authority, [reason], gateDecision, null, recorded, executionEvents);
     }
     let standardPageArtifacts: JsonRecord | undefined;
     try {
@@ -312,9 +334,11 @@ export class ExecutionRuntime {
       await append('failed', [otherEvidence(reasons[0])]);
       return executionResult('failed', adapter.id, authority, reasons, gateDecision, null, recorded, executionEvents);
     }
-    const executorSubject = standardPageArtifacts
-      ? { ...input.subject, xiaobaiStandardPageArtifacts: standardPageArtifacts }
-      : input.subject;
+    const executorSubject = {
+      ...input.subject,
+      ...(standardPageArtifacts ? { xiaobaiStandardPageArtifacts: standardPageArtifacts } : {}),
+      ...(imaContext ? { projectContextIma: imaContext } : {})
+    };
     if (standardPageArtifacts) {
       await appendExecution({
         actor: 'runtime',
@@ -337,6 +361,7 @@ export class ExecutionRuntime {
         workspaceRoot: this.options.workspaceRoot,
         worktreePath: input.worktreePath,
         ...(backgroundContext ? { backgroundContext } : {}),
+        ...((this.options.plan.contextBindings ?? []).length > 0 ? { contextBindings: this.options.plan.contextBindings } : {}),
         eventReporter: {
           record: async (event) => {
             await appendExecution({ actor: 'executor', ...event });
@@ -477,6 +502,83 @@ export class ExecutionRuntime {
       evaluationVerdict
     );
   }
+
+  private async resolveImaContext(
+    input: ExecutionStageInput,
+    scope: StageEventKey,
+    appendExecution: (event: Omit<Parameters<ExecutionEventStore['append']>[0], keyof StageEventKey | 'projectId'>) => Promise<ExecutionEvent>
+  ): Promise<ImaContextResolution | undefined> {
+    const bindings = this.options.plan.contextBindings ?? [];
+    const imaBinding = bindings.find((binding) =>
+      binding.requiredCapabilities?.some((capability) => capability.toLowerCase() === 'read_knowledge') ||
+      binding.source.toLowerCase() === 'ima' ||
+      binding.locator?.toLowerCase().startsWith('ima:')
+    );
+    if (!imaBinding) return undefined;
+
+    const query = typeof input.subject.imaQuery === 'string' ? input.subject.imaQuery.trim() : '';
+    if (!query) throw new ImaAdapterError('invalid-response', 'IMA context requires explicit subject.imaQuery');
+    const projectScope = imaBinding.scope ?? this.options.plan.projectContext.projectId;
+    const result = await this.connectorRuntime.searchIma(
+      {
+        query,
+        projectScope,
+        expectedRevision: imaBinding.revision,
+        expectedDigest: imaBinding.digest
+      },
+      'ima',
+      this.options.imaTransport
+    );
+    const context: ImaContextResolution = {
+      evidence: result.evidence as unknown as JsonRecord,
+      documents: result.documents.map((document) => ({
+        id: document.id,
+        noteId: document.noteId,
+        title: document.title,
+        content: document.content,
+        ...(document.category ? { category: document.category } : {}),
+        source: document.source,
+        revision: document.revision,
+        digest: document.digest,
+        scope: document.scope,
+        ...(document.updatedAt ? { updatedAt: document.updatedAt } : {})
+      }))
+    };
+    await appendExecution({
+      actor: 'runtime',
+      eventType: 'context/resolved',
+      data: {
+        imaRetrieval: context.evidence as unknown as JsonRecord,
+        selectedDocuments: context.documents.map(({ content: _content, ...metadata }) => metadata)
+      },
+      evidence: context.documents.map((document) => ({
+        type: 'other',
+        value: `ima-retrieval:${document.id}:${document.revision}:${document.digest}`
+      }))
+    });
+    const artifactPath = resolveMemoryPath(
+      this.options.memoryRoot,
+      `memory/loops/${encodeURIComponent(scope.loopId)}/runs/${encodeURIComponent(scope.runId)}/ima-retrieval.json`
+    );
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(artifactPath, `${JSON.stringify({
+      kind: 'ImaRetrievalArtifact',
+      version: 1,
+      projectId: this.options.plan.projectContext.projectId,
+      loopId: scope.loopId,
+      runId: scope.runId,
+      taskId: scope.taskId,
+      stageId: scope.stageId,
+      evidence: context.evidence,
+      documents: context.documents
+    }, null, 2)}\n`, 'utf8');
+    return context;
+  }
+}
+
+interface ImaContextResolution {
+  evidence: JsonRecord;
+  documents: JsonRecord[];
 }
 
 async function readBackgroundContextLock(
@@ -487,8 +589,11 @@ async function readBackgroundContextLock(
   taskId: string
 ): Promise<BackgroundContextLock | undefined> {
   const artifactRoot = standardPageArtifactRoot(workspaceRoot, plan, taskId);
+  const artifactRoots = artifactRoot
+    ? [artifactRoot, artifactRoot.replace(`${path.sep}.xiaobai${path.sep}`, `${path.sep}.xiaoneng${path.sep}`)]
+    : [];
   const candidates = [
-    ...(artifactRoot ? [path.join(artifactRoot, 'background-context.json')] : []),
+    ...artifactRoots.map((root) => path.join(root, 'background-context.json')),
     resolveMemoryPath(
       memoryRoot,
       `memory/tasks/${encodeURIComponent(loopId)}/${encodeURIComponent(taskId)}/background-context.json`
@@ -513,7 +618,7 @@ async function readBackgroundContextLock(
       }
       return value as BackgroundContextLock;
     } catch (error) {
-      throw new Error(`XIAONENG_CONTEXT_LOCK_INVALID: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`PROJECT_CONTEXT_LOCK_INVALID: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   return undefined;
@@ -526,22 +631,30 @@ async function readStandardPageArtifacts(
   stageId: string,
   backgroundContext?: ResolvedBackgroundContext
 ): Promise<JsonRecord | undefined> {
-  const required = standardPageArtifactsForStage(stageId);
+  const required = standardPageArtifactsForStage(stageId).filter(
+    (name) => name !== 'background-context.json' || Boolean(backgroundContext)
+  );
   if (required.length === 0) return undefined;
   const root = standardPageArtifactRoot(workspaceRoot, plan, taskId);
-  if (!root) throw new Error(`XIAONENG_TASK_ARTIFACT_ROOT_UNAVAILABLE: ${taskId}`);
+  if (!root) throw new Error(`PROJECT_CONTEXT_TASK_ARTIFACT_ROOT_UNAVAILABLE: ${taskId}`);
+  const legacyRoot = root.replace(`${path.sep}.xiaobai${path.sep}`, `${path.sep}.xiaoneng${path.sep}`);
+  const roots = [root, legacyRoot];
+  const selectedRoot = (await Promise.all(roots.map(async (candidate) => ({
+    candidate,
+    complete: (await Promise.all(required.map((name) => pathExists(path.join(candidate, name)))).then((values) => values.every(Boolean)))
+  })))).find((candidate) => candidate.complete)?.candidate ?? root;
   const files: JsonRecord = {};
   const summary: JsonRecord = { taskId, stageId, files: [] };
   const evidence: GatePassEvidence[] = [];
   for (const name of required) {
-    const filePath = path.join(root, name);
-    if (!(await pathExists(filePath))) throw new Error(`XIAONENG_TASK_ARTIFACT_REQUIRED: ${name}`);
+    const filePath = path.join(selectedRoot, name);
+    if (!(await pathExists(filePath))) throw new Error(`PROJECT_CONTEXT_TASK_ARTIFACT_REQUIRED: ${name}`);
     const raw = await readFile(filePath, 'utf8');
     let value: unknown;
     try {
       value = JSON.parse(raw) as unknown;
     } catch (error) {
-      throw new Error(`XIAONENG_TASK_ARTIFACT_INVALID: ${name}: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`PROJECT_CONTEXT_TASK_ARTIFACT_INVALID: ${name}: ${error instanceof Error ? error.message : String(error)}`);
     }
     const digest = digestJsonHex(value);
     files[name] = { path: filePath, digest, value };
@@ -565,32 +678,32 @@ function validateStandardPageArtifacts(
     const schemaDocument = backgroundContext.documents.find((document) =>
       document.path.endsWith('standard-page-contract.schema.json')
     );
-    if (!schemaDocument) throw new Error('XIAONENG_PAGE_CONTRACT_SCHEMA_REQUIRED: evidence schema is missing');
+    if (!schemaDocument) throw new Error('PROJECT_PAGE_CONTRACT_SCHEMA_REQUIRED: evidence schema is missing');
     let schema: unknown;
     try {
       schema = JSON.parse(schemaDocument.content) as unknown;
     } catch (error) {
-      throw new Error(`XIAONENG_PAGE_CONTRACT_SCHEMA_INVALID: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`PROJECT_PAGE_CONTRACT_SCHEMA_INVALID: ${error instanceof Error ? error.message : String(error)}`);
     }
     const ajv = new Ajv2020({ allErrors: true, strict: false });
     const validate = ajv.compile(schema as AnySchema);
     if (!validate(pageContract)) {
-      throw new Error(`XIAONENG_PAGE_CONTRACT_SCHEMA_FAILED: ${JSON.stringify(validate.errors ?? [])}`);
+      throw new Error(`PROJECT_PAGE_CONTRACT_SCHEMA_FAILED: ${JSON.stringify(validate.errors ?? [])}`);
     }
     const contract = pageContract as JsonRecord;
     const project = plan.projectRoute;
     const repositoryId = project?.resolution.matchedRepositoryId;
-    if (contract.taskId !== taskId) throw new Error('XIAONENG_PAGE_CONTRACT_TASK_MISMATCH');
-    if (contract.projectId !== backgroundContext.projectId) throw new Error('XIAONENG_PAGE_CONTRACT_PROJECT_MISMATCH');
+    if (contract.taskId !== taskId) throw new Error('PROJECT_PAGE_CONTRACT_TASK_MISMATCH');
+    if (contract.projectId !== backgroundContext.projectId) throw new Error('PROJECT_PAGE_CONTRACT_PROJECT_MISMATCH');
     if (repositoryId && contract.repositoryId !== repositoryId) {
-      throw new Error('XIAONENG_PAGE_CONTRACT_REPOSITORY_MISMATCH');
+      throw new Error('PROJECT_PAGE_CONTRACT_REPOSITORY_MISMATCH');
     }
     if (contract.contextDigest !== backgroundContext.skillContext.contextDigest) {
-      throw new Error('XIAONENG_CONTEXT_DIGEST_MISMATCH: page contract contextDigest differs from locked context');
+      throw new Error('PROJECT_CONTEXT_DIGEST_MISMATCH: page contract contextDigest differs from locked context');
     }
     const { contractDigest, ...contractWithoutDigest } = contract;
     if (contractDigest !== digestJsonHex(contractWithoutDigest)) {
-      throw new Error('XIAONENG_CONTRACT_DIGEST_MISMATCH: page contract digest does not match canonical content');
+      throw new Error('PROJECT_CONTRACT_DIGEST_MISMATCH: page contract digest does not match canonical content');
     }
   }
 
@@ -608,14 +721,14 @@ function validateStandardPageArtifacts(
       digestJsonHex(backgroundLock.selectedEvidenceBundles) !==
         digestJsonHex(backgroundContext.skillContext.evidenceBundles ?? [])
     ) {
-      throw new Error('XIAONENG_CONTEXT_LOCK_MISMATCH: background-context artifact differs from locked context');
+      throw new Error('PROJECT_CONTEXT_LOCK_MISMATCH: background-context artifact differs from locked context');
     }
   }
 
   const evidenceSelection = requiredArtifactRecord(files, 'evidence-selection.json');
   if (evidenceSelection) {
     if (
-      evidenceSelection.kind !== 'XiaonengEvidenceSelection' ||
+      !['ProjectContextEvidenceSelection', 'XiaonengEvidenceSelection'].includes(String(evidenceSelection.kind)) ||
       evidenceSelection.version !== 1 ||
       evidenceSelection.taskId !== taskId ||
       evidenceSelection.projectId !== backgroundContext.projectId ||
@@ -625,13 +738,13 @@ function validateStandardPageArtifacts(
       !Array.isArray(evidenceSelection.bundles) ||
       digestJsonHex(evidenceSelection.bundles) !== digestJsonHex(backgroundContext.skillContext.evidenceBundles ?? [])
     ) {
-      throw new Error('XIAONENG_EVIDENCE_SELECTION_MISMATCH');
+      throw new Error('PROJECT_EVIDENCE_SELECTION_MISMATCH');
     }
   }
 
   const importRuleArtifact = requiredArtifactRecord(files, 'import-rule.json');
   if (importRuleArtifact) {
-    if (!pageContract) throw new Error('XIAONENG_PAGE_CONTRACT_REQUIRED: import-rule requires page-contract');
+    if (!pageContract) throw new Error('PROJECT_PAGE_CONTRACT_REQUIRED: import-rule requires page-contract');
     validateImportRule(pageContract, importRuleArtifact, backgroundContext);
   }
 }
@@ -640,7 +753,7 @@ function requiredArtifactRecord(files: JsonRecord, name: string): JsonRecord | u
   const artifact = files[name];
   if (artifact === undefined) return undefined;
   if (!isRecord(artifact) || !isRecord(artifact.value)) {
-    throw new Error(`XIAONENG_TASK_ARTIFACT_INVALID: ${name} must contain a JSON object`);
+    throw new Error(`PROJECT_CONTEXT_TASK_ARTIFACT_INVALID: ${name} must contain a JSON object`);
   }
   return artifact.value;
 }
@@ -651,11 +764,11 @@ function validateImportRule(
   backgroundContext: ResolvedBackgroundContext
 ): void {
   const importContract = isRecord(contract.import) ? contract.import : undefined;
-  if (!importContract) throw new Error('XIAONENG_PAGE_CONTRACT_IMPORT_INVALID: import must be an object');
+  if (!importContract) throw new Error('PROJECT_PAGE_CONTRACT_IMPORT_INVALID: import must be an object');
   const importRule = backgroundContext.documents.find((document) =>
     document.path.endsWith('tmax-standard-import.yaml')
   );
-  if (!importRule) throw new Error('IMPORT_RULE_NOT_FROM_XIAONENG: source rule is missing');
+  if (!importRule) throw new Error('IMPORT_RULE_SOURCE_INVALID: source rule is missing');
 
   let source: unknown;
   try {
@@ -676,7 +789,7 @@ function validateImportRule(
     return;
   }
   if (importContract.ruleRef !== source.ruleId || importContract.ruleRef !== 'tmax-standard-import') {
-    throw new Error('IMPORT_RULE_NOT_FROM_XIAONENG: unexpected ruleRef');
+    throw new Error('IMPORT_RULE_SOURCE_INVALID: unexpected ruleRef');
   }
   if (importContract.ruleVersion !== source.version) throw new Error('IMPORT_RULE_VERSION_MISMATCH');
   if (importContract.ruleSource !== source.source) throw new Error('IMPORT_RULE_SOURCE_MISMATCH');
@@ -834,6 +947,29 @@ function backgroundContextEventData(context: ResolvedBackgroundContext): JsonRec
       selection: document.selection
     }))
   };
+}
+
+function projectContextBindingEventData(bindings: ProjectContextBinding[]): JsonRecord {
+  return {
+    kind: 'ProjectContextBindings',
+    bindingsDigest: digestJsonHex(bindings),
+    bindings: bindings.map((binding) => ({
+      knowledgeId: binding.knowledgeId ?? null,
+      source: binding.source,
+      scope: binding.scope ?? null,
+      revision: binding.revision,
+      digest: binding.digest,
+      readOnly: binding.readOnly !== false,
+      trust: binding.trust ?? 'external'
+    }))
+  };
+}
+
+function projectContextBindingEvidence(bindings: ProjectContextBinding[]): GatePassEvidence[] {
+  return bindings.map((binding) => ({
+    type: 'other',
+    value: `project-context-binding:${binding.knowledgeId ?? binding.source}:${binding.revision}:${binding.digest}`
+  }));
 }
 
 function harnessVerdictEventData(result: NonNullable<ExecutionStageResult['harnessResult']>): JsonRecord {

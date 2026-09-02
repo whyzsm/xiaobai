@@ -198,10 +198,12 @@ const ConfigKnowledgeSchema = z.object({
   source: z.string().min(1),
   bindingRef: BindingRefSchema.optional(),
   locator: SafeLocatorSchema.optional(),
+  scope: z.string().min(1),
   revision: z.string().min(1),
   digest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
   readOnly: z.boolean(),
   trust: z.enum(['bundled', 'project', 'external', 'derived']),
+  requiredCapabilities: z.array(z.string()).optional(),
 }).strict()
 const ConfigAgentSchema = z.object({
   agentId: z.string().regex(/^agent_[a-z0-9][a-z0-9_-]{2,63}$/u).optional(),

@@ -125,7 +125,7 @@ test('config contracts reject NUL, absolute, URI, traversal, and invalid binding
     },
   }
   for (const locator of ['/tmp/repository', 'C:\\repository', '\\\\server\\share', 'file:///tmp/repository', 'repositories/../secret', `repositories/bad\0path`]) {
-    const result = ProjectConfigDraftSchema.safeParse({ ...base, config: { ...base.config, repositories: [{ name: 'repo', source: 'local', locator, readOnly: false, classification: 'internal' }], knowledgeBindings: [{ source: 'context', revision: '1', digest: `sha256:${'b'.repeat(64)}`, readOnly: true, trust: 'project' }], agentProfiles: [{ role: 'operator', purpose: 'operate', modelPolicyRef: 'policy/default', allowedSkills: [], requiredContext: [], capabilities: [], riskLevel: 'low', humanGatePolicy: 'required', outputContract: 'result/v1' }] } })
+    const result = ProjectConfigDraftSchema.safeParse({ ...base, config: { ...base.config, repositories: [{ name: 'repo', source: 'local', locator, readOnly: false, classification: 'internal' }], knowledgeBindings: [{ source: 'context', scope: 'alpha', revision: '1', digest: `sha256:${'b'.repeat(64)}`, readOnly: true, trust: 'project' }], agentProfiles: [{ role: 'operator', purpose: 'operate', modelPolicyRef: 'policy/default', allowedSkills: [], requiredContext: [], capabilities: [], riskLevel: 'low', humanGatePolicy: 'required', outputContract: 'result/v1' }] } })
     assert.equal(result.success, false, locator)
   }
 })
@@ -187,7 +187,7 @@ repositories:
     owner: 'platform',
     classification: 'internal',
     repositories: [{ name: 'child-repository', source: 'mount', locator: 'repositories/child-repository', readOnly: false, classification: 'internal' }],
-    knowledgeBindings: [{ knowledgeId: 'know_alpha_shared', source: 'skill-context:alpha', revision: '1.0.0', digest: `sha256:${'a'.repeat(64)}`, readOnly: true, trust: 'external' }],
+    knowledgeBindings: [{ knowledgeId: 'know_alpha_shared', source: 'skill-context:alpha', scope: 'alpha-shared', revision: '1.0.0', digest: `sha256:${'a'.repeat(64)}`, readOnly: true, trust: 'external' }],
     agentProfiles: [{ role: 'operator', purpose: 'Operate the child Project', modelPolicyRef: 'policy/default', allowedSkills: [], requiredContext: [], capabilities: [], riskLevel: 'low', humanGatePolicy: 'required', outputContract: 'result/v1' }],
     skills: [],
     memory: { namespaceId: 'mem_child_project', retention: 'project', projection: 'host-storage-domain' },

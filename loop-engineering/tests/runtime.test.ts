@@ -56,7 +56,7 @@ const triageMergeSubject = {
   pullRequestPlan: { branch: 'loop/example', target: 'main' }
 };
 
-async function createExecutionFixture(loopId: string) {
+async function createExecutionFixture(loopId: string, options: { includeLegacyBackground?: boolean } = {}) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-execution-'));
   const tempWorkspace = path.join(tempRoot, 'workspace');
   await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
@@ -74,6 +74,16 @@ async function createExecutionFixture(loopId: string) {
     targetProject: loopId === 'morning-triage' ? 'app-a' : undefined,
     targetRepository: loopId === 'frontend-delivery' || loopId === 'ane-standard-page' ? 'operateBusiness' : undefined
   });
+  if (options.includeLegacyBackground) {
+    const legacyFixture = await createSkillContextFixture({ includeStandardPageEvidence: true });
+    const legacyMount = path.join(tempWorkspace, '.test-skill-context');
+    await symlink(legacyFixture.sourceRoot, legacyMount, 'dir');
+    plan.backgroundContext = {
+      ...legacyFixture.plan,
+      projectId: plan.projectContext.projectId,
+      sourceMount: path.relative(tempWorkspace, legacyMount)
+    };
+  }
   return {
     tempRoot,
     workspaceRoot: tempWorkspace,
@@ -83,7 +93,7 @@ async function createExecutionFixture(loopId: string) {
   };
 }
 
-async function createSkillContextFixture() {
+async function createSkillContextFixture(options: { includeStandardPageEvidence?: boolean } = {}) {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-skill-context-'));
   const tempWorkspace = path.join(tempRoot, 'workspace');
   const sourceRoot = path.join(tempRoot, 'xiaoneng');
@@ -152,6 +162,12 @@ evidenceBundles:
   reference-pages:
     templates:
       - templates/reference
+${options.includeStandardPageEvidence ? `  standard-page:
+    schemas:
+      - harness/contracts/runtime/standard-page-contract.schema.json
+    references:
+      - harness/runtime/import-rules/tmax-standard-import.yaml
+` : ''}
 `,
     'utf8'
   );
@@ -171,6 +187,45 @@ evidenceBundles:
     `${JSON.stringify(skillContextTestSchema(), null, 2)}\n`,
     'utf8'
   );
+  if (options.includeStandardPageEvidence) {
+    await writeFile(
+      path.join(sourceRoot, 'harness', 'contracts', 'runtime', 'standard-page-contract.schema.json'),
+      `${JSON.stringify({
+        type: 'object',
+        required: [
+          'contractVersion', 'taskId', 'projectId', 'repositoryId', 'pageType',
+          'standardPageProfile', 'routes', 'menus', 'fields', 'apis', 'import',
+          'references', 'rules', 'sourceEvidence', 'contextDigest', 'contractDigest'
+        ],
+        additionalProperties: false,
+        properties: {
+          contractVersion: { const: '2.0.0' },
+          taskId: { type: 'string' },
+          projectId: { type: 'string' },
+          repositoryId: { type: 'string' },
+          pageType: { const: 'StandardPage' },
+          standardPageProfile: { type: 'string' },
+          routes: { type: 'array' },
+          menus: { type: 'array' },
+          fields: { type: 'array' },
+          apis: { type: 'array' },
+          import: { type: 'object' },
+          references: { type: 'array' },
+          rules: { type: 'array' },
+          sourceEvidence: { type: 'array' },
+          contextDigest: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+          contractDigest: { type: 'string', pattern: '^[a-f0-9]{64}$' }
+        }
+      }, null, 2)}\n`,
+      'utf8'
+    );
+    await mkdir(path.join(sourceRoot, 'harness', 'runtime', 'import-rules'), { recursive: true });
+    await writeFile(
+      path.join(sourceRoot, 'harness', 'runtime', 'import-rules', 'tmax-standard-import.yaml'),
+      'ruleId: tmax-standard-import\nversion: 1.0.0\npageType: StandardPage\nsource: xiaoneng-reference\nadapter: tmax-import-adapter\n',
+      'utf8'
+    );
+  }
   const outsideFile = path.join(tempRoot, 'outside-background.md');
   await writeFile(outsideFile, 'MUST_NOT_BE_LOADED\n', 'utf8');
   await symlink(outsideFile, path.join(sourceRoot, 'unregistered-link.md'));
@@ -192,6 +247,7 @@ evidenceBundles:
     manifestPath: 'harness/runtime/manifest.yaml',
     contractPath: 'harness/contracts/runtime/skill-context.schema.json',
     executionMode: 'FullWorkflow',
+    ...(options.includeStandardPageEvidence ? { evidenceBundles: ['standard-page'] } : {}),
     maxCharacters: 18_000
   };
   return { tempRoot, workspaceRoot: tempWorkspace, sourceRoot, plan };
@@ -1346,6 +1402,81 @@ test('execution runtime checks action gates before the adapter and Harness after
   assert.equal(result.authority.scope, 'local_single_executor');
 });
 
+test('execution runtime retrieves scoped IMA context and persists replayable evidence', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  const digest = `sha256:${'c'.repeat(64)}`;
+  fixture.plan.contextBindings = [{
+    source: 'ima',
+    locator: 'ima-test-scope',
+    scope: fixture.plan.projectContext.projectId,
+    revision: 'r1',
+    digest,
+    readOnly: true,
+    trust: 'external',
+    requiredCapabilities: ['read_knowledge']
+  }];
+  let receivedSubject: Record<string, unknown> | undefined;
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-ima-context',
+    imaTransport: {
+      async call(tool, input) {
+        assert.equal(tool, 'ima_search_knowledge');
+        assert.deepEqual(input, { query: 'release gate', scope: fixture.plan.projectContext.projectId, limit: 20 });
+        return {
+          items: [{
+            id: 'note-ima-1',
+            title: 'Release gate',
+            content: 'Use the release gate before cutover.',
+            source: 'ima://test/release-gate',
+            revision: 'r1',
+            digest,
+            scope: fixture.plan.projectContext.projectId
+          }]
+        };
+      }
+    }
+  }).execute(
+    {
+      runId: 'run-ima-context',
+      taskId: 'task-ima-context',
+      stageId: stage.id,
+      subject: { imaQuery: 'release gate' }
+    },
+    {
+      id: 'ima-aware-executor',
+      async execute(input) {
+        receivedSubject = input.subject;
+        return {
+          status: 'completed',
+          submission: validStageSubmission(stage, input.runId, input.taskId, 'generator', 'coding-harness'),
+          evidence: []
+        };
+      }
+    }
+  );
+
+  assert.equal(result.status, 'passed', result.reasons.join('\n'));
+  const imaSubject = receivedSubject?.projectContextIma as { evidence: { query: string; selectedItemIds: string[] }; documents: Array<{ id: string }> };
+  assert.equal(imaSubject.evidence.query, 'release gate');
+  assert.deepEqual(imaSubject.evidence.selectedItemIds, ['note-ima-1']);
+  assert.equal(imaSubject.documents[0]?.id, 'note-ima-1');
+  assert.equal(result.executionEvents.some((event) => event.data.imaRetrieval !== undefined), true);
+  const artifact = JSON.parse(await readText(path.join(
+    fixture.memoryRoot,
+    'loops', fixture.loop.metadata.id, 'runs', 'run-ima-context', 'ima-retrieval.json'
+  ))) as { evidence: { queryHash: string; retrievedAt: string; scope: string }; documents: Array<{ digest: string }> };
+  assert.match(artifact.evidence.queryHash, /^sha256:/);
+  assert.match(artifact.evidence.retrievedAt, /^2026|^20/);
+  assert.equal(artifact.evidence.scope, fixture.plan.projectContext.projectId);
+  assert.equal(artifact.documents[0]?.digest, digest);
+});
+
 test('execution runtime blocks missing dependencies and stage gates without invoking the adapter', async () => {
   const fixture = await createExecutionFixture('frontend-delivery');
   const dependencyStore = new StageEventStore(fixture.memoryRoot, fixture.loop.metadata.id);
@@ -1433,10 +1564,7 @@ test('execution runtime blocks missing dependencies and stage gates without invo
 });
 
 test('execution runtime fails only the opted-in run when skill context cannot be loaded', async () => {
-  const fixture = await createExecutionFixture('frontend-delivery');
-  const skillFixture = await createSkillContextFixture();
-  const fixtureMount = path.join(fixture.workspaceRoot, '.test-skill-context');
-  await symlink(skillFixture.sourceRoot, fixtureMount, 'dir');
+  const fixture = await createExecutionFixture('frontend-delivery', { includeLegacyBackground: true });
   assert(fixture.plan.backgroundContext);
   fixture.plan.backgroundContext.sourceMount = '.test-skill-context';
   fixture.plan.backgroundContext.contractPath = 'harness/contracts/runtime/missing.schema.json';
@@ -1471,7 +1599,7 @@ test('execution runtime fails only the opted-in run when skill context cannot be
 });
 
 test('StandardPage requires a task-scoped context lock before invoking the adapter', async () => {
-  const fixture = await createExecutionFixture('ane-standard-page');
+  const fixture = await createExecutionFixture('ane-standard-page', { includeLegacyBackground: true });
   let calls = 0;
   const result = await new ExecutionRuntime({
     workspaceRoot: fixture.workspaceRoot,
@@ -1496,13 +1624,13 @@ test('StandardPage requires a task-scoped context lock before invoking the adapt
   );
 
   assert.equal(result.status, 'failed');
-  assert.match(result.reasons.join('\n'), /XIAONENG_CONTEXT_LOCK_REQUIRED/);
+  assert.match(result.reasons.join('\n'), /PROJECT_CONTEXT_LOCK_REQUIRED/);
   assert.equal(result.stageTiming?.status, 'failed');
   assert.equal(calls, 0);
 });
 
 test('StandardPage managed Codex smoke consumes Xiaoneng context and writes a timing metric', async () => {
-  const fixture = await createExecutionFixture('ane-standard-page');
+  const fixture = await createExecutionFixture('ane-standard-page', { includeLegacyBackground: true });
   const prepared = await prepareStandardPageTask(fixture, 'task-standard-managed-smoke');
   const executable = path.join(fixture.tempRoot, 'fake-standard-codex.mjs');
   const auditPath = path.join(fixture.tempRoot, 'standard-codex-audit.json');
@@ -1512,10 +1640,10 @@ test('StandardPage managed Codex smoke consumes Xiaoneng context and writes a ti
       'project-skill',
       'requirement-brief',
       'dynamic-mounted-repositories',
-      'xiaoneng-skill-context',
-      'xiaoneng-evidence-selection',
-      'xiaoneng-page-contract',
-      'xiaoneng-import-rule',
+      'project-context',
+      'context-evidence-selection',
+      'project-page-contract',
+      'project-import-rule',
       'previous-memory'
     ],
     contextCharactersUsed: 100,
@@ -1561,7 +1689,7 @@ test('StandardPage managed Codex smoke consumes Xiaoneng context and writes a ti
 });
 
 test('StandardPage rejects context-lock drift before invoking the adapter', async () => {
-  const fixture = await createExecutionFixture('ane-standard-page');
+  const fixture = await createExecutionFixture('ane-standard-page', { includeLegacyBackground: true });
   const prepared = await prepareStandardPageTask(fixture, 'task-standard-lock-drift');
   await writeFile(
     path.join(prepared.root, 'background-context.json'),
@@ -1587,12 +1715,12 @@ test('StandardPage rejects context-lock drift before invoking the adapter', asyn
   });
 
   assert.equal(result.status, 'failed');
-  assert.match(result.reasons.join('\n'), /XIAONENG_CONTEXT_DIGEST_MISMATCH/);
+  assert.match(result.reasons.join('\n'), /PROJECT_CONTEXT_DIGEST_MISMATCH/);
   assert.equal(calls, 0);
 });
 
 test('StandardPage rejects schema and canonical contract digest errors before invoking the adapter', async () => {
-  const schemaFixture = await createExecutionFixture('ane-standard-page');
+  const schemaFixture = await createExecutionFixture('ane-standard-page', { includeLegacyBackground: true });
   const schemaPrepared = await prepareStandardPageTask(schemaFixture, 'task-standard-schema');
   await writeFile(path.join(schemaPrepared.root, 'page-contract.json'), '[]\n', 'utf8');
   await markDependencyPassed(schemaFixture, 'run-standard-schema', 'task-standard-schema', 'page-contract-generation');
@@ -1604,10 +1732,10 @@ test('StandardPage rejects schema and canonical contract digest errors before in
     calls: () => { schemaCalls += 1; }
   });
   assert.equal(schemaResult.status, 'failed');
-  assert.match(schemaResult.reasons.join('\n'), /XIAONENG_TASK_ARTIFACT_INVALID/);
+  assert.match(schemaResult.reasons.join('\n'), /PROJECT_CONTEXT_TASK_ARTIFACT_INVALID/);
   assert.equal(schemaCalls, 0);
 
-  const digestFixture = await createExecutionFixture('ane-standard-page');
+  const digestFixture = await createExecutionFixture('ane-standard-page', { includeLegacyBackground: true });
   const digestPrepared = await prepareStandardPageTask(digestFixture, 'task-standard-digest');
   const validContract = standardPageContract(digestFixture, digestPrepared.context, 'task-standard-digest');
   await writeFile(
@@ -1624,12 +1752,12 @@ test('StandardPage rejects schema and canonical contract digest errors before in
     calls: () => { digestCalls += 1; }
   });
   assert.equal(digestResult.status, 'failed');
-  assert.match(digestResult.reasons.join('\n'), /XIAONENG_CONTRACT_DIGEST_MISMATCH/);
+  assert.match(digestResult.reasons.join('\n'), /PROJECT_CONTRACT_DIGEST_MISMATCH/);
   assert.equal(digestCalls, 0);
 });
 
 test('StandardPage rejects an import artifact whose source digest is not Xiaoneng evidence', async () => {
-  const fixture = await createExecutionFixture('ane-standard-page');
+  const fixture = await createExecutionFixture('ane-standard-page', { includeLegacyBackground: true });
   const prepared = await prepareStandardPageTask(fixture, 'task-standard-import');
   const sourceDocument = prepared.context.documents.find((document) =>
     document.path.endsWith('tmax-standard-import.yaml')
@@ -2231,27 +2359,17 @@ test('frontend delivery loop gates design approval before implementation', async
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 'tmax-operate-business');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
-  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
-  assert.deepEqual(plan.backgroundContext, {
-    status: 'planned',
-    kind: 'skill-context',
-    contractVersion: '1.0.0',
-    projectId: 'tmax-operate-business',
-    backgroundId: 'xiaoneng',
-    sourceMount: '.local/t-max/mounts/background/xiaoneng',
-    manifestPath: 'harness/runtime/manifest.yaml',
-    contractPath: 'harness/contracts/runtime/skill-context.schema.json',
-    executionMode: 'FullWorkflow',
-    evidenceBundles: [
-      'ane-page-rules',
-      'standard-page-contract',
-      'import-rules',
-      'api-binding-rules',
-      'reference-pages'
-    ],
-    validators: ['page-contract', 'page-structure', 'import-rule'],
-    maxCharacters: 18000
-  });
+  assert.equal(plan.orchestrator?.routesTo.project.background, undefined);
+  assert.equal(plan.backgroundContext, undefined);
+  assert.equal(
+    plan.contextBindings?.some((binding) =>
+      binding.knowledgeId === 'know_tmax_engineering' &&
+      binding.source === 'workspace-project-context' &&
+      binding.scope === 't-max' &&
+      binding.readOnly === true
+    ),
+    true
+  );
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
     true
@@ -2438,7 +2556,7 @@ test('frontend delivery routes target remote to harmony background', async () =>
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
 });
 
-test('t-max selects loop-scoped Xiaoneng evidence without changing the group fallback', async () => {
+test('t-max selects the project context binding without a legacy background fallback', async () => {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-scoped-evidence-'));
   const tempWorkspace = path.join(tempRoot, 'workspace');
   await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
@@ -2456,12 +2574,8 @@ test('t-max selects loop-scoped Xiaoneng evidence without changing the group fal
     now: new Date('2026-08-29T00:00:00.000Z')
   });
 
-  assert.deepEqual(anePlan.backgroundContext?.evidenceBundles, [
-    'standard-page-contract',
-    'import-rules'
-  ]);
-  const aneContext = await new SkillContextResolver(tempWorkspace).resolve(anePlan.backgroundContext!);
-  assert.ok(aneContext.characters <= anePlan.backgroundContext!.maxCharacters);
+  assert.equal(anePlan.backgroundContext, undefined);
+  assert.equal(anePlan.contextBindings?.some((binding) => binding.source === 'workspace-project-context'), true);
 
   const frontendLoopPath = await findLoopSpec(tempWorkspace, 'frontend-delivery');
   const frontendPlan = await new LoopRuntime().dryRun({
@@ -2471,14 +2585,8 @@ test('t-max selects loop-scoped Xiaoneng evidence without changing the group fal
     now: new Date('2026-08-29T00:00:00.000Z')
   });
 
-  assert.deepEqual(frontendPlan.backgroundContext?.evidenceBundles, [
-    'ane-page-rules',
-    'standard-page-contract',
-    'import-rules',
-    'api-binding-rules',
-    'reference-pages'
-  ]);
-  assert.equal(frontendPlan.backgroundContext?.executionMode, 'FullWorkflow');
+  assert.equal(frontendPlan.backgroundContext, undefined);
+  assert.equal(frontendPlan.contextBindings?.some((binding) => binding.source === 'workspace-project-context'), true);
 });
 
 test('unknown frontend target does not fall back to t-max', async () => {
@@ -2628,9 +2736,9 @@ test('dry-run text output prints workflow stages', async () => {
 
   assert.match(stdout, /Workflow stages: 10/);
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
-  assert.match(stdout, /Resolved target: operateBusiness -> tmax-operate-business -> xiaoneng/);
+  assert.match(stdout, /Resolved target: operateBusiness -> tmax-operate-business/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: tmax-operate-business -> xiaoneng, repositories: 1/);
+  assert.match(stdout, /Project route: tmax-operate-business, repositories: 1/);
   assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
   assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
 });

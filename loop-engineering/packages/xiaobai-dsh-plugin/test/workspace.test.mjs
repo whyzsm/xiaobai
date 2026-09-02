@@ -161,6 +161,66 @@ defaultBranch: main
   }
 })
 
+test('Workspace loader merges explicit project context bindings deterministically without a background mount', async () => {
+  const value = await fixture()
+  const groupRoot = join(value.root, 'projects', 'alpha')
+  const childrenRoot = join(groupRoot, 'projects')
+  const childRoot = join(childrenRoot, 'dcm')
+  await mkdir(join(childRoot, '.loop'), { recursive: true })
+  await writeFile(join(groupRoot, '.loop', 'project.yaml'), `kind: ProjectGroup
+id: alpha
+name: Alpha
+owner: platform
+classification: internal
+skill: SKILL.md
+children:
+  directory: projects
+  requireSingleRepository: true
+knowledgeBindings:
+  - knowledgeId: know_engineering_rules
+    source: bundled:tmax-engineering
+    revision: r1
+    digest: sha256:${'1'.repeat(64)}
+    scope: alpha
+    readOnly: true
+    trust: bundled
+repositories:
+  - id: alpha-repository
+    name: alpha-repository
+    localPathKey: alphaRepository
+    mount: mounts/alpha-repository
+`, 'utf8')
+  await writeFile(join(childRoot, '.loop', 'project.yaml'), `kind: Project
+id: tmax-dcm
+name: dcm
+root: .
+defaultBranch: master
+parentGroup: alpha
+knowledgeBindings:
+  - knowledgeId: know_ima_dcm
+    source: ima:tmax-dcm
+    revision: ima-r1
+    digest: sha256:${'2'.repeat(64)}
+    scope: tmax-dcm
+    readOnly: true
+    trust: external
+repositories:
+  - id: dcm
+    name: dcm
+    mount: ../../../../mounts/alpha-repository
+`, 'utf8')
+  try {
+    const loaded = await loadWorkspaceConfig(value.root)
+    assert.equal(loaded.status, 'loaded')
+    assert.equal(loaded.projects.length, 1)
+    const bindings = loaded.projects[0].baseline.knowledgeBindings
+    assert.deepEqual(bindings.map((binding) => binding.knowledgeId), ['know_engineering_rules', 'know_ima_dcm'])
+    assert.equal(loaded.projects[0].knowledgeStatus, 'locked')
+  } finally {
+    await rm(value.root, { recursive: true, force: true })
+  }
+})
+
 test('Workspace loader fails closed on an approved-root escape', async () => {
   const fixtureValue = await fixture()
   const outside = await mkdtemp(join(tmpdir(), 'xiaobai-outside-'))
