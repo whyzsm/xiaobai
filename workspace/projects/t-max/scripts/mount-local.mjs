@@ -13,11 +13,11 @@ const projectConfig = readYaml(projectConfigPath);
 const localPaths = readYaml(localPathsPath);
 
 const desiredMounts = [
-  {
+  ...(projectConfig.background ? [{
     label: `background:${projectConfig.background.id}`,
     target: readConfiguredPath(localPaths.background, projectConfig.background.localPathKey),
     mount: path.resolve(projectDir, projectConfig.background.mount)
-  },
+  }] : []),
   ...projectConfig.repositories.map((repo) => ({
     label: `repository:${repo.id}`,
     target: readConfiguredPath(localPaths.repositories, repo.localPathKey),
@@ -47,7 +47,9 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-removeStaleBackgroundSymlinks(desiredMounts[0].mount);
+if (projectConfig.background) {
+  removeStaleBackgroundSymlinks(path.resolve(projectDir, projectConfig.background.mount));
+}
 
 for (const desired of desiredMounts) {
   refreshSymlink(desired.target, desired.mount);

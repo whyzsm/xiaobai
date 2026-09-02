@@ -4,7 +4,6 @@ name: operateBusiness
 root: .
 defaultBranch: master
 parentGroup: t-max
-sharedContext: t-max-xiaoneng
 repositories:
   - id: operateBusiness
     name: operateBusiness

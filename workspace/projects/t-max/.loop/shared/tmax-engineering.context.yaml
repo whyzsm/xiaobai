@@ -1,0 +1,19 @@
+kind: ProjectContext
+version: 1
+id: tmax-engineering-rules
+scope: t-max
+source: workspace/projects/t-max/.loop/skills
+revision: xiaobai-dsh-9829liu
+readOnly: true
+rules:
+  - project-routing
+  - repository-boundary
+  - page-contract
+  - import-rule
+  - independent-evaluation
+  - human-gates
+  - stage-timing
+
+# Project-owned execution rules / 项目自有执行规则
+# Business knowledge is retrieved from IMA through the read-only connector.
+# 业务知识通过只读 IMA connector 按 scope 检索。

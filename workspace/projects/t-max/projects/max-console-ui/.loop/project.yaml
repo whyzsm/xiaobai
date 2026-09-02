@@ -4,7 +4,6 @@ name: max-console-ui
 root: .
 defaultBranch: master
 parentGroup: t-max
-sharedContext: t-max-xiaoneng
 repositories:
   - id: max-console-ui
     name: max-console-ui

@@ -8,44 +8,19 @@ discoverySkills:
   frontend-delivery: .loop/skills/frontend-delivery.SKILL.md
   ane-standard-page: .loop/skills/ane-standard-page.SKILL.md
 localPaths: .loop/local.paths.yaml
-background:
-  id: xiaoneng
-  name: xiaoneng
-  localPathKey: xiaoneng
-  mount: ../../.local/t-max/mounts/background/xiaoneng
-  integration:
-    kind: skill-context
-    version: 2.0.0
-    contractVersion: 1.0.0
-    manifest: harness/runtime/manifest.yaml
-    contract: harness/contracts/runtime/skill-context.schema.json
-    evidenceBundles:
-      - ane-page-rules
-      - standard-page-contract
-      - import-rules
-      - api-binding-rules
-      - reference-pages
-    evidenceBundlesByLoop:
-      ane-standard-page:
-        - standard-page-contract
-        - import-rules
-    validators:
-      - page-contract
-      - page-structure
-      - import-rule
-    executionModes:
-      frontend-delivery: FullWorkflow
-sharedContext:
-  id: t-max-xiaoneng
-  file: .loop/shared/xiaoneng.context.yaml
-  inherit:
-    - background
-    - skill
-    - discoverySkills
-    - localPaths
+knowledgeBindings:
+  - knowledgeId: know_tmax_engineering
+    source: workspace-project-context
+    locator: .loop/shared/tmax-engineering.context.yaml
+    scope: t-max
+    revision: xiaobai-dsh-9829liu
+    digest: sha256:6b214680a3ed4f91f27fc69a238ae3101a32cbf53f0ca5a1f65c9b34529baafa
+    readOnly: true
+    trust: bundled
+    requiredCapabilities:
+      - project_rules
 children:
   directory: projects
-  sharedContext: t-max-xiaoneng
   requireSingleRepository: true
 repositories:
   - id: KPIUI

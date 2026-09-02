@@ -29,10 +29,10 @@ context:
     - frontend-master-design
     - repository-design-supplements
     - previous-memory
-    - xiaoneng-skill-context
-    - xiaoneng-evidence-selection
-    - xiaoneng-page-contract
-    - xiaoneng-import-rule
+    - project-context
+    - context-evidence-selection
+    - project-page-contract
+    - project-import-rule
   maxCharacters: 24000
 completion:
   type: staged-objective
@@ -44,12 +44,12 @@ completion:
     - frontend_design_review_passed
     - human_design_approval_recorded
     - code_changed_after_design_approval
-    - xiaoneng_context_resolved
-    - xiaoneng_context_locked
+    - project_context_resolved
+    - project_context_locked
     - page_contract_generated
     - page_contract_schema_passed
     - page_contract_digest_locked
-    - generator_consumed_xiaoneng_evidence
+    - generator_consumed_context_evidence
     - import_rule_verified
     - page_structure_verified
     - evaluator_reused_same_contract
@@ -65,13 +65,13 @@ failure:
   onTestFailure: return-to-loop
   onBudgetExceeded: stop-and-persist
   errorCodes:
-    - XIAONENG_CONTEXT_REQUIRED
-    - XIAONENG_CONTEXT_DIGEST_MISMATCH
+    - PROJECT_CONTEXT_REQUIRED
+    - PROJECT_CONTEXT_DIGEST_MISMATCH
     - PAGE_CONTRACT_REQUIRED
     - PAGE_CONTRACT_SCHEMA_FAILED
     - PAGE_CONTRACT_DIGEST_MISMATCH
-    - XIAONENG_RULE_NOT_CONSUMED
-    - IMPORT_RULE_NOT_FROM_XIAONENG
+    - PROJECT_CONTEXT_RULE_NOT_CONSUMED
+    - IMPORT_RULE_SOURCE_INVALID
     - MOCK_AUTH_SOURCE_FORBIDDEN
     - PAGE_STRUCTURE_NOT_STANDARD
 output:

@@ -3,10 +3,11 @@ id: ane-standard-page-evaluator
 role: checker
 stance: skeptical
 instructions:
-  - Review the requirement source, locked background context, evidence-selection.json, page-contract.json, import-rule.json, implementation diff, and stage timing directly.
+  - Review the requirement source, locked project context, evidence-selection.json, page-contract.json, import-rule.json, implementation diff, and stage timing directly.
   - Reject the run when the contract is missing, the schema digest changed, or the implementation consumed a different contextDigest or contractDigest.
   - Verify the target is a mounted T-MAX repository and that business artifacts are not written to the engineering repository.
-  - Verify both standard pages are covered by the same contract and that import behavior comes from the Xiaoneng tmax-standard-import evidence.
+  - Verify both standard pages are covered by the same contract and that import behavior comes from the project-scoped import-rule evidence and repository contract.
+  - When an IMA binding is selected, verify retrieval evidence contains query, selected item IDs, retrievedAt, source, revision, digest, scope, and a fail-closed status on errors.
   - Reject any use of mock/User/auth.json, local mock data, or hardcoded upload results.
   - Reuse the same contractDigest for page structure, import-rule verification, and independent evaluation.
   - Report enteredAt, firstActionAt, exitedAt, durationMs, activeMs, waitingMs, waitingReason, status, and evidence for every stage; mark missing measurements as unmeasured.

@@ -32,13 +32,13 @@ verification:
   requiredChecks:
     - requirement-source-traceable
     - target-repository-ready
-    - xiaoneng-context-resolved
-    - xiaoneng-evidence-selected
+    - project-context-resolved
+    - context-evidence-selected
     - page-contract-generated
     - page-contract-schema-passed
     - page-contract-digest-locked
     - human-contract-approval
-    - generator-consumed-xiaoneng-evidence
+    - generator-consumed-context-evidence
     - import-rule-verified
     - page-structure-verified
     - evaluator-reused-contract
@@ -95,7 +95,7 @@ humanGate:
         - review
         - human-approval
       maxAgeMinutes: 1440
-    # ===== 小能 gate-spec 投影门（详见 xiaoneng: harness/runtime/gate-spec.yaml#xiaobaiProjection）=====
+    # ===== Project-context gate projection; approvals and delivery controls are Xiaobai-owned. =====
     - id: release-approval
       requiredBefore: release
       reviewers:
@@ -152,7 +152,7 @@ workflow:
         - target-repository-ready
       outputs:
         - targetRepository
-    - id: xiaoneng-background-resolution
+    - id: project-context-resolution
       kind: context
       gate: automatic
       agent: frontend-generator.agent.yaml
@@ -160,9 +160,9 @@ workflow:
       dependsOn:
         - target-repository-resolution
       requiredChecks:
-        - xiaoneng-context-resolved
+        - project-context-resolved
       outputs:
-        - backgroundContext
+        - projectContext
         - contextDigest
     - id: evidence-selection
       kind: context
@@ -170,9 +170,9 @@ workflow:
       agent: frontend-generator.agent.yaml
       harness: ane-standard-page.harness.yaml
       dependsOn:
-        - xiaoneng-background-resolution
+        - project-context-resolution
       requiredChecks:
-        - xiaoneng-evidence-selected
+        - context-evidence-selected
       outputs:
         - evidenceSelection
     - id: page-contract-generation
@@ -224,7 +224,7 @@ workflow:
       requiredBefore:
         - human-contract-approval
       requiredChecks:
-        - generator-consumed-xiaoneng-evidence
+        - generator-consumed-context-evidence
       outputs:
         - changedFiles
         - generatorEvidence

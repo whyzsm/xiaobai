@@ -4,7 +4,6 @@ name: emt
 root: .
 defaultBranch: master
 parentGroup: t-max
-sharedContext: t-max-xiaoneng
 repositories:
   - id: emt
     name: emt

@@ -152,7 +152,7 @@ humanGate:
         - review
         - human-approval
       maxAgeMinutes: 240
-    # ===== 小能 gate-spec 投影门（详见 xiaoneng: harness/runtime/gate-spec.yaml#xiaobaiProjection）=====
+    # ===== Project context commit gate; legacy gate-spec snapshots remain audit-only. =====
     - id: commit-approval
       requiredBefore: merge
       reviewers:
