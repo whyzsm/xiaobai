@@ -45,6 +45,42 @@ verification:
     - stage-timing-recorded
     - promotion-approval
   allowSelfReview: false
+executionModes:
+  - id: new-page
+    contract: PageExecutionContract
+    requiredInputs:
+      - taskId
+      - projectId
+      - repositoryId
+      - targetPageRoot
+      - contextDigest
+      - authorization
+      - baseline
+    outputs:
+      - changedFiles
+      - pageContract
+      - structureEvidence
+    blockers:
+      - missing-project-context
+      - missing-human-contract-approval
+      - baseline-drift
+  - id: existing-page
+    contract: PageExecutionContract
+    requiredInputs:
+      - taskId
+      - projectId
+      - repositoryId
+      - targetPageRoot
+      - contextDigest
+      - authorization
+      - baseline
+    outputs:
+      - changedFiles
+      - scopedVerification
+    blockers:
+      - baseline-drift
+      - unauthorized-file-change
+      - scope-expansion
 persistence:
   memory:
     stateFile: memory/loops/ane-standard-page/state.md

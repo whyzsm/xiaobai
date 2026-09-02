@@ -1402,6 +1402,88 @@ test('execution runtime checks action gates before the adapter and Harness after
   assert.equal(result.authority.scope, 'local_single_executor');
 });
 
+test('execution runtime rejects an expired execution authorization before invoking the adapter', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  fixture.loop.executionModes = [{
+    id: 'existing-page',
+    contract: 'PageExecutionContract',
+    requiredInputs: ['taskId'],
+    outputs: ['changedFiles'],
+    blockers: ['expired-authorization']
+  }];
+  let calls = 0;
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-expired-contract',
+    now: () => new Date('2026-08-15T00:00:00.000Z')
+  }).execute(
+    {
+      runId: 'run-expired-contract',
+      taskId: 'task-expired-contract',
+      stageId: stage.id,
+      subject: {
+        executionMode: 'existing-page',
+        executionContract: {
+          kind: 'PageExecutionContract',
+          version: 1,
+          mode: 'existing-page',
+          taskId: 'task-expired-contract',
+          projectId: fixture.plan.projectContext.projectId,
+          repositoryId: 'app-a',
+          targetPageRoot: 'src/pages/orders',
+          contextDigest: 'a'.repeat(64),
+          contractDigest: 'b'.repeat(64),
+          authorization: {
+            kind: 'AuthorizationLock',
+            version: 1,
+            taskId: 'task-expired-contract',
+            projectId: fixture.plan.projectContext.projectId,
+            repositoryId: 'app-a',
+            actions: ['write'],
+            scope: 'src/pages/orders',
+            grantedBy: 'owner',
+            grantedAt: '2026-08-10T00:00:00.000Z',
+            expiresAt: '2026-08-11T00:00:00.000Z',
+            digest: `sha256:${'c'.repeat(64)}`
+          },
+          baseline: {
+            kind: 'RepositoryBaselineLock',
+            version: 1,
+            taskId: 'task-expired-contract',
+            projectId: fixture.plan.projectContext.projectId,
+            repositoryId: 'app-a',
+            repositoryRoot: '/mounted/app-a',
+            worktreePath: '/mounted/app-a',
+            branch: 'main',
+            baseRef: 'main',
+            headSha: 'd'.repeat(40),
+            dirtyFiles: [],
+            capturedAt: '2026-08-10T00:00:00.000Z',
+            digest: `sha256:${'e'.repeat(64)}`
+          },
+          evidence: []
+        }
+      }
+    },
+    {
+      id: 'expired-contract-adapter',
+      async execute() {
+        calls += 1;
+        return { status: 'blocked' as const, reason: 'must not run', evidence: [] };
+      }
+    }
+  );
+
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /expiresAt must be later than the current time/);
+  assert.equal(calls, 0);
+});
+
 test('execution runtime retrieves scoped IMA context and persists replayable evidence', async () => {
   const fixture = await createExecutionFixture('morning-triage');
   const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
@@ -1475,6 +1557,59 @@ test('execution runtime retrieves scoped IMA context and persists replayable evi
   assert.match(artifact.evidence.retrievedAt, /^2026|^20/);
   assert.equal(artifact.evidence.scope, fixture.plan.projectContext.projectId);
   assert.equal(artifact.documents[0]?.digest, digest);
+});
+
+test('execution runtime skips IMA retrieval when no explicit query is provided', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  fixture.plan.contextBindings = [{
+    source: 'ima',
+    locator: 'ima-test-scope',
+    scope: fixture.plan.projectContext.projectId,
+    revision: 'pending-live-resolution',
+    digest: `sha256:${'c'.repeat(64)}`,
+    readOnly: true,
+    trust: 'external',
+    requiredCapabilities: ['read_knowledge']
+  }];
+  let transportCalls = 0;
+  let receivedSubject: Record<string, unknown> | undefined;
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-ima-optional',
+    imaTransport: {
+      async call() {
+        transportCalls += 1;
+        return { items: [] };
+      }
+    }
+  }).execute(
+    {
+      runId: 'run-ima-optional',
+      taskId: 'task-ima-optional',
+      stageId: stage.id,
+      subject: {}
+    },
+    {
+      id: 'ima-optional-executor',
+      async execute(input) {
+        receivedSubject = input.subject;
+        return {
+          status: 'completed',
+          submission: validStageSubmission(stage, input.runId, input.taskId, 'generator', 'coding-harness'),
+          evidence: []
+        };
+      }
+    }
+  );
+
+  assert.equal(result.status, 'passed', result.reasons.join('\n'));
+  assert.equal(transportCalls, 0);
+  assert.equal(Object.prototype.hasOwnProperty.call(receivedSubject ?? {}, 'projectContextIma'), false);
 });
 
 test('execution runtime blocks missing dependencies and stage gates without invoking the adapter', async () => {

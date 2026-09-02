@@ -97,6 +97,13 @@ function declaredKnowledgeBindings(project, projectId, sourceProjectId, backgrou
     if (!allowedScopes.has(scope)) {
       throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${sourceProjectId}' context binding scope '${scope}' is outside the Project scope`, { phase: 'workspace-context-scope', resourceId: sourceProjectId })
     }
+    const scopeKind = declaration.scopeKind === undefined
+      ? (parentScope && scope === parentScope ? 'shared' : 'project')
+      : declaration.scopeKind
+    const expectedScope = scopeKind === 'shared' ? parentScope ?? projectId : projectId
+    if ((scopeKind !== 'shared' && scopeKind !== 'project') || scope !== expectedScope) {
+      throw new XiaobaiError(ERROR_CODES.CONTRACT_INVALID, `Project '${sourceProjectId}' context binding scope kind does not match its Project boundary`, { phase: 'workspace-context-scope', resourceId: sourceProjectId })
+    }
     const knowledgeId = typeof declaration.knowledgeId === 'string' && /^know_[a-z0-9][a-z0-9_-]{2,63}$/u.test(declaration.knowledgeId)
       ? declaration.knowledgeId
       : `know_${resourceDigest({ sourceProjectId, source, revision, index })}`
@@ -104,6 +111,7 @@ function declaredKnowledgeBindings(project, projectId, sourceProjectId, backgrou
       knowledgeId,
       source,
       scope,
+      scopeKind,
       revision,
       digest,
       readOnly: declaration.readOnly !== false,

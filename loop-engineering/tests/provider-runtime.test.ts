@@ -597,7 +597,13 @@ process.stdout.write(JSON.stringify({
     stage: codingStageFixture(),
     attempt: 1,
     actions: [],
-    subject: { title: 'make a Claude edit' },
+    subject: {
+      title: 'make a Claude edit',
+      projectContextIma: {
+        evidence: { query: 'orders page', scope: 't-max-dcm', selectedItemIds: ['note-1'] },
+        documents: [{ id: 'note-1', title: 'Orders page', content: 'Use the standard table pattern.' }]
+      }
+    },
     workspaceRoot,
     worktreePath
   });
@@ -616,6 +622,8 @@ process.stdout.write(JSON.stringify({
   assert.equal(audit.args[audit.args.indexOf('--allowedTools') + 1], 'Read,Edit');
   assert.equal(audit.args.includes('make a Claude edit'), false);
   assert.match(audit.prompt, /make a Claude edit/);
+  assert.match(audit.prompt, /<engine-ima-context-json>/);
+  assert.match(audit.prompt, /Use the standard table pattern/);
   assert.equal(await realpath(audit.cwd), await realpath(worktreePath));
 });
 

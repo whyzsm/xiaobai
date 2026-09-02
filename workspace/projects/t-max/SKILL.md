@@ -11,7 +11,7 @@ Persist T-MAX project context in the loop workspace, bind project engineering ru
 ## Context Sources / 上下文来源
 
 - 工程规则：`.loop/shared/tmax-engineering.context.yaml`
-- dcm 业务知识：只读 IMA binding，scope 为 `tmax-dcm`；知识库 ID、note ID 和凭据由 IMA 运行时提供，不写入仓库。
+- 共享业务知识：只读 IMA binding 由 `t-max` ProjectGroup 声明，scope 为 `t-max`，自动继承给下属 8 个 child Project；如存在项目专属知识，再由 child 追加自身 scope 的 binding。知识库 ID、note ID 和凭据由 IMA 运行时提供，不写入仓库。
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
 - 项目工程规则适用于 `.loop/project.yaml` 中列出的所有仓库。
 
@@ -28,9 +28,9 @@ Persist T-MAX project context in the loop workspace, bind project engineering ru
 
 ## 规则
 
-1. 小白先解析目标仓挂载路径，再加载项目工程规则；需要业务知识时必须带显式 `imaQuery`，通过只读 IMA connector 按 child Project scope 检索。旧 Xiaoneng mount 仅作迁移审计输入，不是生产执行依赖。
+1. 小白先解析目标仓挂载路径，再加载项目工程规则；需要业务知识时必须带显式 `imaQuery`，通过只读 IMA connector 按已锁定的共享 `t-max` scope 或 child Project scope 检索。旧 Xiaoneng mount 仅作迁移审计输入，不是生产执行依赖。
 2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
-3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan、emt 中一致应用项目工程规则；dcm 专属知识仅允许 `tmax-dcm` scope。
+3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan、emt 中一致应用项目工程规则；共享知识使用 `t-max` scope，项目专属知识才使用对应 child scope（例如 `tmax-dcm`）。
 4. 如果挂载缺失或失效，由小白工程运行 `npm run mount:tmax` 刷新挂载，不把挂载生命周期下放给小能。
 5. 仓库特定业务修改必须通过 `workspace/.local/t-max/mounts/repos/` 下选中的入口落到目标仓真实 worktree；允许修改目标仓源码，但不得把软链接、`local.paths.yaml` 或其它挂载基础设施当作业务交付内容修改或提交。
 6. 修改前检查目标仓库自己的 `git status` 和当前分支；不要假设所有 T-MAX 仓库使用相同默认分支，也不要混入或覆盖已有改动。
@@ -56,7 +56,7 @@ Persist T-MAX project context in this loop workspace, bind project engineering r
 ## Context Sources
 
 - Engineering rules: `.loop/shared/tmax-engineering.context.yaml`
-- dcm business knowledge: read-only IMA binding with scope `tmax-dcm`; knowledge-base IDs, note IDs, and credentials are supplied by the IMA runtime and are not stored in the repository.
+- Shared business knowledge: the read-only IMA binding is declared by the `t-max` ProjectGroup with scope `t-max` and inherited by all eight child Projects; a child may append a project-specific binding with its own scope. Knowledge-base IDs, note IDs, and credentials are supplied by the IMA runtime and are not stored in the repository.
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
 - Project engineering rules apply to every repository listed in `.loop/project.yaml`.
 
@@ -73,9 +73,9 @@ Persist T-MAX project context in this loop workspace, bind project engineering r
 
 ## Rules
 
-1. Xiaobai resolves the target repository mount and loads project engineering rules before modifying a T-MAX repository. Business knowledge requires an explicit `imaQuery` and read-only IMA retrieval within the child Project scope. The legacy Xiaoneng mount is migration-audit input only, never a production execution dependency.
+1. Xiaobai resolves the target repository mount and loads project engineering rules before modifying a T-MAX repository. Business knowledge requires an explicit `imaQuery` and read-only IMA retrieval within the locked shared `t-max` scope or the child Project scope. The legacy Xiaoneng mount is migration-audit input only, never a production execution dependency.
 2. Treat the repositories as separate git worktrees even though they share the same project background.
-3. Apply project engineering rules consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, scan, and emt; retrieve dcm-specific knowledge only for `tmax-dcm`.
+3. Apply project engineering rules consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, scan, and emt; retrieve shared knowledge at `t-max`, and use a child scope only for project-specific overlays such as `tmax-dcm`.
 4. If a mount is missing or broken, refresh it from the Xiaobai engineering repository with `npm run mount:tmax`; do not delegate mount lifecycle management to Xiaoneng.
 5. Apply repository-specific business changes through the selected entry under `workspace/.local/t-max/mounts/repos/` so they land in the target repository's real worktree. Editing target source is allowed, but symlinks, `local.paths.yaml`, and other mount infrastructure must not be changed or committed as business deliverables.
 6. Check the target repository's own `git status` and current branch before editing. Do not assume all T-MAX repositories use the same default branch, and do not mix in or overwrite existing changes.

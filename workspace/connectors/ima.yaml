@@ -21,4 +21,3 @@ config:
     timeoutMs: 5000
     maxLimit: 20
     maxCharacters: 12000
-    scope: tmax-dcm

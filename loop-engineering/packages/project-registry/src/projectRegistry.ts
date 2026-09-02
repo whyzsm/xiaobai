@@ -201,7 +201,13 @@ function validateContextBindings(project: ProjectSpec, projectId: string, parent
     if (typeof candidate.source !== 'string' || candidate.source.trim().length === 0 || typeof candidate.revision !== 'string' || candidate.revision.trim().length === 0 || typeof candidate.digest !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(candidate.digest)) {
       throw new Error(`Project '${projectId}' context binding ${index + 1} requires source, revision, and sha256 digest`);
     }
-    if (typeof candidate.scope !== 'string' || candidate.scope.trim().length === 0 || !allowedScopes.has(candidate.scope)) {
+    const scope = typeof candidate.scope === 'string' ? candidate.scope.trim() : '';
+    const scopeKind = candidate.scopeKind === undefined
+      ? (parentScope && scope === parentScope ? 'shared' : 'project')
+      : candidate.scopeKind;
+    const expectedScope = scopeKind === 'shared' ? parentScope ?? projectId : projectId;
+    if ((scopeKind !== 'shared' && scopeKind !== 'project') || scope.length === 0 ||
+      !allowedScopes.has(scope) || scope !== expectedScope) {
       throw new Error(`Project '${projectId}' context binding ${index + 1} has an out-of-scope binding`);
     }
   }

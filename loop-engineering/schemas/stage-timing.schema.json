@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage-timing.schema.json",
+  "title": "Stage Timing",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stageId", "stageKind", "owner", "status", "valid", "enteredAt", "firstActionAt", "exitedAt", "durationMs", "activeMs", "waitingMs", "waitingReason", "waitingByReason", "evidence", "errors"],
+  "properties": {
+    "stageId": { "type": "string", "minLength": 1 },
+    "stageKind": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["running", "waiting", "passed", "failed", "blocked", "skipped", "unmeasured"] },
+    "valid": { "type": "boolean" },
+    "enteredAt": { "type": ["string", "null"] },
+    "firstActionAt": { "type": ["string", "null"] },
+    "exitedAt": { "type": ["string", "null"] },
+    "durationMs": { "type": ["number", "null"], "minimum": 0 },
+    "activeMs": { "type": ["number", "null"], "minimum": 0 },
+    "waitingMs": { "type": ["number", "null"], "minimum": 0 },
+    "waitingReason": { "type": ["string", "null"] },
+    "waitingByReason": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "evidence": { "type": "array" },
+    "errors": { "type": "array", "items": { "type": "string" } }
+  }
+}

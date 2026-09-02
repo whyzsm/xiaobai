@@ -36,3 +36,31 @@ test('LoopRuntime rejects an unscoped run instead of using loop default project'
     /requires a target project or repository/
   );
 });
+
+test('T-MAX child Projects inherit the shared IMA knowledge binding', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'ane-standard-page');
+  const children = [
+    ['tmax-kpiui', 'KPIUI'],
+    ['tmax-max-console-ui', 'max-console-ui'],
+    ['tmax-max-operate-monitor-ui', 'max-operate-monitor-ui'],
+    ['tmax-operate-business', 'operateBusiness'],
+    ['tmax-operate-support', 'operateSupport'],
+    ['tmax-dcm', 'dcm'],
+    ['tmax-scan', 'scan'],
+    ['tmax-emt', 'emt']
+  ] as const;
+
+  for (const [projectId, repository] of children) {
+    const plan = await new LoopRuntime().dryRun({
+      workspaceRoot,
+      loopPath,
+      targetProject: projectId,
+      targetRepository: repository,
+      targetCwd: `.local/t-max/mounts/repos/${repository}`
+    });
+    const shared = plan.contextBindings?.find((binding) => binding.knowledgeId === 'know_tmax_shared_ima');
+    assert.equal(shared?.scope, 't-max');
+    assert.equal(shared?.scopeKind, 'shared');
+    assert.equal(shared?.readOnly, true);
+  }
+});

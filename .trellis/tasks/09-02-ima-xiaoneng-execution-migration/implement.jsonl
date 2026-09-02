@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Required for a migration that crosses connector, execution runtime, workspace loop configuration, evaluator, and tests."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Prevents duplicating existing project-context, IMA adapter, page contract, and evaluator mechanisms."}
+{"file":"loop-engineering/docs/xiaobai-evaluation-engineering-system.md","reason":"Defines independent evaluator, human-gate, evidence, and stage-timing acceptance requirements."}
+{"file":"loop-engineering/docs/provider-support-levels.md","reason":"Defines managed/client-only execution boundaries and prevents treating external knowledge or providers as release authority."}
+{"file":"workspace/projects/t-max/SKILL.md","reason":"Project-specific T-MAX routing, IMA scope, mount boundaries, page loops, and verification constraints."}

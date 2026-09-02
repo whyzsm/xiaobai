@@ -346,16 +346,20 @@ function normalizeDocument(record: JsonRecord, maxCharacters: number): ImaDocume
     metadata.source,
     metadata.sourceRef
   );
-  const revision = firstString(record.revision, record.version, record.updatedAt, metadata.revision);
+  // Revision must come from an explicit IMA revision/version field.  An
+  // updatedAt timestamp is not a server-side content revision and cannot be
+  // promoted into a version lock.
+  const revision = firstString(record.revision, record.version, metadata.revision);
   const scopeValue = record.scope ?? metadata.scope ?? frontmatter.scope;
   const scope = Array.isArray(scopeValue) ? firstString(scopeValue[0]) : firstString(scopeValue);
   const updatedAt = firstString(record.updatedAt, metadata.updatedAt);
   if (!id || !title || content === undefined || !source || !revision || !scope) {
     throw new ImaAdapterError('invalid-response', 'IMA document is missing id, title, content, source, revision, or scope');
   }
-  const digest = firstString(record.digest, record.sha256, metadata.digest, metadata.sha256)
-    ?? digestJson({ id, title, content, source, revision, scope });
-  if (!/^sha256:[a-f0-9]{64}$/.test(digest)) {
+  // Never synthesize a digest locally: the evidence must identify the
+  // server-provided IMA revision and digest, otherwise retrieval fails closed.
+  const digest = firstString(record.digest, record.sha256, metadata.digest, metadata.sha256);
+  if (!digest || !/^sha256:[a-f0-9]{64}$/.test(digest)) {
     throw new ImaAdapterError('invalid-response', `IMA document ${id} has an invalid digest`);
   }
   return {

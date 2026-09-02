@@ -24,7 +24,6 @@ workspace/projects/*/.loop/local.paths.yaml
 # Local runtime data & deploy artifacts (agent state, .env, generated output — keep out of remotes)
 .xiaobai-data/
 deploy/
-.trellis/
 
 # AI tool local artifacts (agent working memory, generated screenshots — keep out of remotes)
 .playwright-cli/

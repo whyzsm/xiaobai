@@ -132,6 +132,24 @@ test('ImaAdapter fails closed for scope, digest, empty, and transport errors', a
   );
 });
 
+test('ImaAdapter rejects documents without server revision or digest', async () => {
+  const missingDigest = new ImaAdapter({
+    transport: transport(async () => ({ items: [document({ digest: undefined })] }))
+  });
+  await assert.rejects(
+    () => missingDigest.search({ query: 'release', projectScope: scope }),
+    (error: unknown) => error instanceof ImaAdapterError && error.category === 'invalid-response'
+  );
+
+  const missingRevision = new ImaAdapter({
+    transport: transport(async () => ({ items: [document({ revision: undefined })] }))
+  });
+  await assert.rejects(
+    () => missingRevision.search({ query: 'release', projectScope: scope }),
+    (error: unknown) => error instanceof ImaAdapterError && error.category === 'invalid-response'
+  );
+});
+
 test('ImaAdapter classifies MCP not-loaded and timeout failures', async () => {
   const notLoaded = new ImaAdapter({
     transport: transport(async () => {
@@ -179,7 +197,7 @@ test('connector schema exposes non-sensitive IMA settings and rejects credential
 
   const workspaceConnector = await readYamlFile<ConnectorSpec>(path.resolve('workspace/connectors/ima.yaml'));
   assert.equal(validate(workspaceConnector), true);
-  assert.equal(workspaceConnector.config?.ima?.scope, scope);
+  assert.equal(workspaceConnector.config?.ima?.scope, undefined);
 });
 
 test('ConnectorRuntime exposes a controlled IMA entry point and fails closed without transport', async () => {

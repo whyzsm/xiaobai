@@ -101,6 +101,11 @@
         "allowSelfReview": { "type": "boolean" }
       }
     },
+    "executionModes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/executionModeDefinition" }
+    },
     "persistence": {
       "type": "object",
       "required": ["memory", "outputs"],
@@ -199,6 +204,18 @@
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         }
+      }
+    },
+    "executionModeDefinition": {
+      "type": "object",
+      "required": ["id", "contract", "requiredInputs", "outputs", "blockers"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "enum": ["new-page", "existing-page", "ApiWiring", "ApiIntegration"] },
+        "contract": { "enum": ["PageExecutionContract", "ApiExecutionContract"] },
+        "requiredInputs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "outputs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "blockers": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
       }
     },
     "humanGateDefinition": {

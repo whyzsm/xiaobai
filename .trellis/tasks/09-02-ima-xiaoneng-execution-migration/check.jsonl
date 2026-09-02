@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Quality and verification conventions for frontend-facing loop contracts."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Type/schema safety checks for changes to execution contracts and runtime payloads."}
+{"file":"loop-engineering/docs/xiaobai-evaluation-engineering-system.md","reason":"Independent evaluator and node timing checks for final review."}
+{"file":"workspace/projects/t-max/SKILL.md","reason":"Final scope, mount, IMA, and no-build/no-push constraints."}

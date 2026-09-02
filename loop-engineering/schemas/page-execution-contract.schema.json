@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "page-execution-contract.schema.json",
+  "title": "Page Execution Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "version", "mode", "taskId", "projectId", "repositoryId", "targetPageRoot", "contextDigest", "contractDigest", "authorization", "baseline", "evidence"],
+  "properties": {
+    "kind": { "const": "PageExecutionContract" },
+    "version": { "const": 1 },
+    "mode": { "enum": ["new-page", "existing-page"] },
+    "taskId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "minLength": 1 },
+    "repositoryId": { "type": "string", "minLength": 1 },
+    "targetPageRoot": { "type": "string", "minLength": 1 },
+    "contextDigest": { "$ref": "#/$defs/digest" },
+    "contractDigest": { "$ref": "#/$defs/digest" },
+    "authorization": { "$ref": "authorization-lock.schema.json" },
+    "baseline": { "$ref": "repository-baseline-lock.schema.json" },
+    "changedFiles": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "evidence": { "type": "array", "items": { "type": "object", "required": ["type", "value"], "properties": { "type": { "type": "string" }, "value": { "type": "string", "minLength": 1 } }, "additionalProperties": false } }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^(?:sha256:)?[a-f0-9]{64}$" } }
+}

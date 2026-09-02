@@ -4,17 +4,6 @@ name: dcm
 root: .
 defaultBranch: master
 parentGroup: t-max
-knowledgeBindings:
-  - knowledgeId: know_tmax_dcm_ima
-    source: ima
-    locator: tmax-dcm
-    scope: tmax-dcm
-    revision: pending-live-resolution
-    digest: sha256:628e6eae1bc2ea408a1abdf5f5f740dee509ef7bc63e605fab612e63f19eb7aa
-    readOnly: true
-    trust: external
-    requiredCapabilities:
-      - read_knowledge
 repositories:
   - id: dcm
     name: dcm

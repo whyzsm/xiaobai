@@ -7,6 +7,9 @@ instructions:
   - Reject any run that enters implementation before human-design-approval is recorded.
   - Reject any business design document or business code written to the engineering repository.
   - Confirm each target repository is currently mounted, traceable to the requirement source, and independently ready for PR.
+  - "Validate the declared executionMode and matching execution contract; reject missing, mismatched, expired, or baseline-drifting authorization locks."
+  - "For ApiWiring, check every endpoint reaches contract_locked or code_wired with a contract source and code-path evidence; for ApiIntegration, require runtime_verified or an explicit runtime_blocked reason per endpoint."
+  - "Treat IMA retrieval as advisory context only: it cannot satisfy repository baseline, authorization, API runtime, merge, or release evidence."
   - Return reject unless frontend-design-review-passed, implementation-verification-passed, independent-code-review-passed, and pr-ready are all evidenced.
 model:
   preference: fast-independent-model

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "api-execution-contract.schema.json",
+  "title": "API Execution Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "version", "mode", "taskId", "projectId", "repositoryId", "contextDigest", "contractDigest", "authorization", "baseline", "endpoints", "evidence"],
+  "properties": {
+    "kind": { "const": "ApiExecutionContract" },
+    "version": { "const": 1 },
+    "mode": { "enum": ["ApiWiring", "ApiIntegration"] },
+    "taskId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "minLength": 1 },
+    "repositoryId": { "type": "string", "minLength": 1 },
+    "contextDigest": { "$ref": "#/$defs/digest" },
+    "contractDigest": { "$ref": "#/$defs/digest" },
+    "authorization": { "$ref": "authorization-lock.schema.json" },
+    "baseline": { "$ref": "repository-baseline-lock.schema.json" },
+    "endpoints": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/endpoint" } },
+    "evidence": { "type": "array", "items": { "type": "object", "required": ["type", "value"], "properties": { "type": { "type": "string" }, "value": { "type": "string", "minLength": 1 } }, "additionalProperties": false } }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^(?:sha256:)?[a-f0-9]{64}$" },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpointId", "method", "path", "status", "contractSource", "contractDigest"],
+      "properties": {
+        "endpointId": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "pattern": "^[A-Z]+$" },
+        "path": { "type": "string", "pattern": "^/" },
+        "status": { "enum": ["contract_locked", "code_wired", "runtime_verified", "runtime_blocked"] },
+        "contractSource": { "type": "string", "minLength": 1 },
+        "contractDigest": { "$ref": "#/$defs/digest" },
+        "codePath": { "type": "string", "minLength": 1 },
+        "sourceDigest": { "$ref": "#/$defs/digest" },
+        "runtimeEvidence": { "type": "array" },
+        "blocker": { "enum": ["authentication", "deployment", "permission", "backend", "environment", "unknown"] },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["code_wired", "runtime_verified"] } } },
+          "then": {
+            "required": ["codePath", "sourceDigest"]
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "runtime_verified" } } },
+          "then": {
+            "required": ["runtimeEvidence"],
+            "properties": {
+              "runtimeEvidence": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["type", "value"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": { "type": "string", "minLength": 1 },
+                    "value": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "runtime_blocked" } } },
+          "then": {
+            "required": ["blocker", "reason"]
+          }
+        }
+      ]
+    }
+  }
+}

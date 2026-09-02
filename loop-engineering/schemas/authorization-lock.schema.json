@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "authorization-lock.schema.json",
+  "title": "Authorization Lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "version", "taskId", "projectId", "repositoryId", "actions", "scope", "grantedBy", "grantedAt", "expiresAt", "digest"],
+  "properties": {
+    "kind": { "const": "AuthorizationLock" },
+    "version": { "const": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "minLength": 1 },
+    "repositoryId": { "type": "string", "minLength": 1 },
+    "actions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "scope": { "type": "string", "minLength": 1 },
+    "grantedBy": { "type": "string", "minLength": 1 },
+    "grantedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^(?:sha256:)?[a-f0-9]{64}$" } }
+}

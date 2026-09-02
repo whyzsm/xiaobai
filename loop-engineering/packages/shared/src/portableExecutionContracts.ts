@@ -1,6 +1,11 @@
 import {
   BrokerDecision,
   BrokerDecisionStatus,
+  ApiEndpointExecutionStatus,
+  ApiExecutionContract,
+  AuthorizationLock,
+  ExecutionContract,
+  ExecutionMode,
   GatePassEvidence,
   HarnessEvidenceType,
   JsonRecord,
@@ -13,6 +18,8 @@ import {
   ProviderSandboxProfile,
   ProviderSupportLevel,
   ProviderTransport,
+  PageExecutionContract,
+  RepositoryBaselineLock,
   RepositoryAction,
   TaskEntryPoint,
   TaskEnvelope,
@@ -93,6 +100,14 @@ const evidenceTypes = new Set<HarnessEvidenceType>([
   'human-approval',
   'other'
 ]);
+const executionModes = new Set<ExecutionMode>(['new-page', 'existing-page', 'ApiWiring', 'ApiIntegration']);
+const apiEndpointStatuses = new Set<ApiEndpointExecutionStatus>([
+  'contract_locked',
+  'code_wired',
+  'runtime_verified',
+  'runtime_blocked'
+]);
+const runtimeBlockers = new Set(['authentication', 'deployment', 'permission', 'backend', 'environment', 'unknown']);
 
 export function validateTaskRequest(value: unknown): string[] {
   const errors: string[] = [];
@@ -102,7 +117,11 @@ export function validateTaskRequest(value: unknown): string[] {
   if (value.repositoryId !== undefined && !isNonEmptyString(value.repositoryId)) {
     errors.push('repositoryId must be a non-empty string when provided');
   }
-  if (!isRecord(value.subject)) errors.push('subject must be a JSON object');
+  if (!isRecord(value.subject)) {
+    errors.push('subject must be a JSON object');
+  } else {
+    errors.push(...validateExecutionSubject(value.subject, 'subject'));
+  }
   errors.push(...validateActionArray(value.requestedActions, 'requestedActions'));
   if (value.provider !== undefined) {
     if (!isRecord(value.provider)) {
@@ -123,7 +142,11 @@ export function validateTaskEnvelope(value: unknown): string[] {
   if (!taskStates.has(value.state as TaskState)) errors.push('state must be a supported task state');
   if (!taskEntryPoints.has(value.entryPoint as TaskEntryPoint)) errors.push('entryPoint must be a supported entry point');
   requireString(value, 'projectId', errors);
-  if (!isRecord(value.subject)) errors.push('subject must be a JSON object');
+  if (!isRecord(value.subject)) {
+    errors.push('subject must be a JSON object');
+  } else {
+    errors.push(...validateExecutionSubject(value.subject, 'subject'));
+  }
   errors.push(...validateActionArray(value.requestedActions, 'requestedActions'));
   if (!providerModes.has(value.providerMode as ProviderMode)) errors.push('providerMode must be managed or client');
   if (!Array.isArray(value.gateRequirements) || !value.gateRequirements.every(isNonEmptyString)) {
@@ -294,6 +317,143 @@ export function validateProviderRunResult(value: unknown): string[] {
   return errors;
 }
 
+/** Validate the evidence envelope persisted for a read-only IMA retrieval. */
+export function validateImaRetrievalEvidence(value: unknown, field = 'imaRetrieval'): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  requireString(value, 'query', errors, `${field}.`);
+  if (!isDigest(value.queryHash)) errors.push(`${field}.queryHash must be a digest`);
+  if (!Array.isArray(value.selectedItemIds) || !value.selectedItemIds.every(isNonEmptyString)) {
+    errors.push(`${field}.selectedItemIds must be an array of non-empty strings`);
+  }
+  errors.push(...validateIsoField(value, 'retrievedAt', `${field}.`));
+  for (const name of ['source', 'revision'] as const) {
+    if (!Array.isArray(value[name]) || !value[name].every(isNonEmptyString)) {
+      errors.push(`${field}.${name} must be an array of non-empty strings`);
+    }
+  }
+  if (!Array.isArray(value.digest) || !value.digest.every(isDigest)) {
+    errors.push(`${field}.digest must be an array of digests`);
+  }
+  if (
+    Array.isArray(value.selectedItemIds) &&
+    Array.isArray(value.source) &&
+    Array.isArray(value.revision) &&
+    Array.isArray(value.digest) &&
+    (value.selectedItemIds.length === 0 ||
+      value.source.length !== value.selectedItemIds.length ||
+      value.revision.length !== value.selectedItemIds.length ||
+      value.digest.length !== value.selectedItemIds.length)
+  ) {
+    errors.push(`${field} item metadata arrays must match selectedItemIds`);
+  }
+  requireString(value, 'scope', errors, `${field}.`);
+  if (value.adapterVersion !== 'ima-adapter-v1') errors.push(`${field}.adapterVersion must be ima-adapter-v1`);
+  if (value.status !== 'success') errors.push(`${field}.status must be success`);
+  return errors;
+}
+
+export function validateAuthorizationLock(value: unknown, field = 'authorization', now?: Date): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  if (value.kind !== 'AuthorizationLock') errors.push(`${field}.kind must be AuthorizationLock`);
+  if (value.version !== 1) errors.push(`${field}.version must be 1`);
+  for (const name of ['taskId', 'projectId', 'repositoryId', 'scope', 'grantedBy'] as const) {
+    requireString(value, name, errors, `${field}.`);
+  }
+  errors.push(...validateActionArray(value.actions, `${field}.actions`));
+  errors.push(...validateIsoField(value, 'grantedAt', `${field}.`));
+  errors.push(...validateIsoField(value, 'expiresAt', `${field}.`));
+  if (typeof value.grantedAt === 'string' && typeof value.expiresAt === 'string') {
+    if (Date.parse(value.expiresAt) <= Date.parse(value.grantedAt)) {
+      errors.push(`${field}.expiresAt must be later than grantedAt`);
+    }
+    if (now !== undefined && Number.isFinite(now.getTime()) && Date.parse(value.expiresAt) <= now.getTime()) {
+      errors.push(`${field}.expiresAt must be later than the current time`);
+    }
+  }
+  if (!isDigest(value.digest)) errors.push(`${field}.digest must be a digest`);
+  return errors;
+}
+
+export function validateRepositoryBaselineLock(value: unknown, field = 'baseline'): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  if (value.kind !== 'RepositoryBaselineLock') errors.push(`${field}.kind must be RepositoryBaselineLock`);
+  if (value.version !== 1) errors.push(`${field}.version must be 1`);
+  for (const name of [
+    'taskId',
+    'projectId',
+    'repositoryId',
+    'repositoryRoot',
+    'worktreePath',
+    'branch',
+    'baseRef',
+    'headSha'
+  ] as const) {
+    requireString(value, name, errors, `${field}.`);
+  }
+  if (!Array.isArray(value.dirtyFiles) || !value.dirtyFiles.every(isNonEmptyString)) {
+    errors.push(`${field}.dirtyFiles must be an array of non-empty strings`);
+  }
+  errors.push(...validateIsoField(value, 'capturedAt', `${field}.`));
+  if (!isDigest(value.digest)) errors.push(`${field}.digest must be a digest`);
+  return errors;
+}
+
+export function validatePageExecutionContract(value: unknown, field = 'executionContract', now?: Date): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  if (value.kind !== 'PageExecutionContract') errors.push(`${field}.kind must be PageExecutionContract`);
+  if (value.version !== 1) errors.push(`${field}.version must be 1`);
+  if (value.mode !== 'new-page' && value.mode !== 'existing-page') errors.push(`${field}.mode is unsupported`);
+  for (const name of ['taskId', 'projectId', 'repositoryId', 'targetPageRoot'] as const) {
+    requireString(value, name, errors, `${field}.`);
+  }
+  if (!isDigest(value.contextDigest)) errors.push(`${field}.contextDigest must be a digest`);
+  if (!isDigest(value.contractDigest)) errors.push(`${field}.contractDigest must be a digest`);
+  errors.push(...validateAuthorizationLock(value.authorization, `${field}.authorization`, now));
+  errors.push(...validateRepositoryBaselineLock(value.baseline, `${field}.baseline`));
+  errors.push(...validateEvidenceArray(value.evidence, `${field}.evidence`));
+  if (value.changedFiles !== undefined && (!Array.isArray(value.changedFiles) || !value.changedFiles.every(isNonEmptyString))) {
+    errors.push(`${field}.changedFiles must be an array of non-empty strings when provided`);
+  }
+  errors.push(...validateContractIdentity(value, field));
+  return errors;
+}
+
+export function validateApiExecutionContract(value: unknown, field = 'executionContract', now?: Date): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  if (value.kind !== 'ApiExecutionContract') errors.push(`${field}.kind must be ApiExecutionContract`);
+  if (value.version !== 1) errors.push(`${field}.version must be 1`);
+  if (value.mode !== 'ApiWiring' && value.mode !== 'ApiIntegration') errors.push(`${field}.mode is unsupported`);
+  for (const name of ['taskId', 'projectId', 'repositoryId'] as const) requireString(value, name, errors, `${field}.`);
+  if (!isDigest(value.contextDigest)) errors.push(`${field}.contextDigest must be a digest`);
+  if (!isDigest(value.contractDigest)) errors.push(`${field}.contractDigest must be a digest`);
+  errors.push(...validateAuthorizationLock(value.authorization, `${field}.authorization`, now));
+  errors.push(...validateRepositoryBaselineLock(value.baseline, `${field}.baseline`));
+  if (!Array.isArray(value.endpoints) || value.endpoints.length === 0) {
+    errors.push(`${field}.endpoints must be a non-empty array`);
+  } else {
+    value.endpoints.forEach((endpoint, index) => errors.push(...validateApiEndpoint(endpoint, `${field}.endpoints[${index}]`, value.mode)));
+  }
+  errors.push(...validateEvidenceArray(value.evidence, `${field}.evidence`));
+  errors.push(...validateContractIdentity(value, field));
+  return errors;
+}
+
+export function validateExecutionContract(value: unknown, field = 'executionContract', now?: Date): string[] {
+  if (!isRecord(value)) return [`${field} must be an object`];
+  if (value.kind === 'PageExecutionContract') return validatePageExecutionContract(value, field, now);
+  if (value.kind === 'ApiExecutionContract') return validateApiExecutionContract(value, field, now);
+  return [`${field}.kind must be PageExecutionContract or ApiExecutionContract`];
+}
+
+export function assertValidExecutionContract(value: unknown, now?: Date): asserts value is ExecutionContract {
+  assertNoErrors('ExecutionContract', validateExecutionContract(value, 'executionContract', now));
+}
+
 export function validatePromotionPlan(value: unknown): string[] {
   const errors: string[] = [];
   if (!isRecord(value)) return ['PromotionPlan must be an object'];
@@ -354,6 +514,80 @@ export function validateProjectContext(value: unknown, field = 'projectContext')
   }
   if (!isSha256(value.policyDigest)) {
     errors.push(`${field}.policyDigest must be a sha256 hex digest`);
+  }
+  return errors;
+}
+
+function validateExecutionSubject(subject: JsonRecord, field: string): string[] {
+  const mode = subject.executionMode;
+  const contract = subject.executionContract;
+  if (mode === undefined && contract === undefined) return [];
+  const errors: string[] = [];
+  if (!executionModes.has(mode as ExecutionMode)) {
+    errors.push(`${field}.executionMode must be new-page, existing-page, ApiWiring, or ApiIntegration`);
+  }
+  if (contract === undefined) {
+    errors.push(`${field}.executionContract is required when executionMode is declared`);
+    return errors;
+  }
+  errors.push(...validateExecutionContract(contract, `${field}.executionContract`));
+  if (isRecord(contract) && contract.mode !== mode) {
+    errors.push(`${field}.executionContract.mode must match executionMode`);
+  }
+  return errors;
+}
+
+function validateApiEndpoint(value: unknown, field: string, mode: unknown): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return [`${field} must be an object`];
+  requireString(value, 'endpointId', errors, `${field}.`);
+  requireString(value, 'method', errors, `${field}.`);
+  requireString(value, 'path', errors, `${field}.`);
+  if (typeof value.method === 'string' && !/^[A-Z]+$/.test(value.method)) {
+    errors.push(`${field}.method must be uppercase`);
+  }
+  if (typeof value.path === 'string' && !value.path.startsWith('/')) {
+    errors.push(`${field}.path must start with /`);
+  }
+  if (!apiEndpointStatuses.has(value.status as ApiEndpointExecutionStatus)) {
+    errors.push(`${field}.status is unsupported`);
+  }
+  requireString(value, 'contractSource', errors, `${field}.`);
+  if (!isDigest(value.contractDigest)) errors.push(`${field}.contractDigest must be a digest`);
+  if (value.sourceDigest !== undefined && !isDigest(value.sourceDigest)) {
+    errors.push(`${field}.sourceDigest must be a digest when provided`);
+  }
+  if (value.status === 'code_wired' || value.status === 'runtime_verified') {
+    requireString(value, 'codePath', errors, `${field}.`);
+    if (!isDigest(value.sourceDigest)) {
+      errors.push(`${field}.sourceDigest is required for ${value.status}`);
+    }
+  }
+  if (value.runtimeEvidence !== undefined) errors.push(...validateEvidenceArray(value.runtimeEvidence, `${field}.runtimeEvidence`));
+  if (value.status === 'runtime_verified' && (!Array.isArray(value.runtimeEvidence) || value.runtimeEvidence.length === 0)) {
+    errors.push(`${field}.runtimeEvidence is required for runtime_verified`);
+  }
+  if (value.status === 'runtime_blocked') {
+    if (!runtimeBlockers.has(value.blocker as string)) errors.push(`${field}.blocker is required for runtime_blocked`);
+    requireString(value, 'reason', errors, `${field}.`);
+  }
+  if (mode === 'ApiWiring' && (value.status === 'runtime_verified' || value.status === 'runtime_blocked')) {
+    errors.push(`${field}.status cannot be runtime status for ApiWiring`);
+  }
+  if (mode === 'ApiIntegration' && value.status !== 'runtime_verified' && value.status !== 'runtime_blocked') {
+    errors.push(`${field}.status must be runtime_verified or runtime_blocked for ApiIntegration`);
+  }
+  return errors;
+}
+
+function validateContractIdentity(value: JsonRecord, field: string): string[] {
+  const errors: string[] = [];
+  for (const nestedName of ['authorization', 'baseline'] as const) {
+    const nested = value[nestedName];
+    if (!isRecord(nested)) continue;
+    for (const name of ['taskId', 'projectId', 'repositoryId'] as const) {
+      if (nested[name] !== value[name]) errors.push(`${field}.${nestedName}.${name} must match ${field}.${name}`);
+    }
   }
   return errors;
 }
@@ -490,4 +724,8 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isSha256(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+}
+
+function isDigest(value: unknown): value is string {
+  return typeof value === 'string' && /^(?:sha256:)?[0-9a-f]{64}$/.test(value);
 }

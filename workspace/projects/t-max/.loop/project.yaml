@@ -19,6 +19,17 @@ knowledgeBindings:
     trust: bundled
     requiredCapabilities:
       - project_rules
+  - knowledgeId: know_tmax_shared_ima
+    source: ima
+    locator: tmax-shared
+    scope: t-max
+    scopeKind: shared
+    revision: pending-live-resolution
+    digest: sha256:628e6eae1bc2ea408a1abdf5f5f740dee509ef7bc63e605fab612e63f19eb7aa
+    readOnly: true
+    trust: external
+    requiredCapabilities:
+      - read_knowledge
 children:
   directory: projects
   requireSingleRepository: true

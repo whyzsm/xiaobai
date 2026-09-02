@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repository-baseline-lock.schema.json",
+  "title": "Repository Baseline Lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "version", "taskId", "projectId", "repositoryId", "repositoryRoot", "worktreePath", "branch", "baseRef", "headSha", "dirtyFiles", "capturedAt", "digest"],
+  "properties": {
+    "kind": { "const": "RepositoryBaselineLock" },
+    "version": { "const": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "minLength": 1 },
+    "repositoryId": { "type": "string", "minLength": 1 },
+    "repositoryRoot": { "type": "string", "minLength": 1 },
+    "worktreePath": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "baseRef": { "type": "string", "minLength": 1 },
+    "headSha": { "type": "string", "pattern": "^[a-f0-9]{7,64}$" },
+    "dirtyFiles": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^(?:sha256:)?[a-f0-9]{64}$" } }
+}

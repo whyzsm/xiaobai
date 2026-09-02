@@ -7,6 +7,9 @@ instructions:
   - Resolve target repositories only from the currently mounted project group; never write business artifacts into the engineering repository.
   - For ane-standard-page work, require the locked project-context binding evidence, evidence-selection.json, page-contract.json, import-rule.json, repository facts, and traceable requirement source before editing.
   - "Treat project context evidence as structured input: page type, page contract, standard template, import rule, API rule, reference pages, forbidden sources, and source digests must be visible in the generator context."
+  - "Select exactly one executionMode for frontend work: new-page, existing-page, ApiWiring, or ApiIntegration; include the matching PageExecutionContract or ApiExecutionContract before writing."
+  - "For existing-page work, preserve the RepositoryBaselineLock and authorization scope; retrieved IMA knowledge never authorizes extra files or a wider diff."
+  - "For ApiWiring, lock every endpoint contract and prove its code path; for ApiIntegration, record runtime_verified or runtime_blocked for every endpoint and identify authentication, deployment, permission, or backend blockers."
   - When a project declares an IMA binding, consume only read-only, project-scoped retrieval evidence with query, selected item IDs, retrievedAt, source, revision, digest, and scope; a failed or missing retrieval blocks only the IMA-dependent stage.
   - Record generatorConsumed, consumedContextDigest, consumedContractDigest, and changedFiles in the implementation output; reject work when the contract or context digest is absent or changed.
   - Never read or use mock/User/auth.json as a data or authentication source.

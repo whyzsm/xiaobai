@@ -39,6 +39,10 @@ import { createStageEvent, projectStageTiming, StageEventStore, validateStageEve
 import { StageTimingMetricStore, stageTimingSourceKey } from './timingMetrics';
 import { ConnectorRuntime } from '../../connector-runtime/src/connectorRuntime';
 import { ImaAdapterError, ImaTransport } from '../../connector-runtime/src/imaAdapter';
+import {
+  validateExecutionContract,
+  validateImaRetrievalEvidence
+} from '../../shared/src/portableExecutionContracts';
 
 export interface ExecutionRuntimeOptions {
   workspaceRoot: string;
@@ -320,6 +324,21 @@ export class ExecutionRuntime {
       await append('failed', [otherEvidence(reason)]);
       return executionResult('failed', adapter.id, authority, [reason], gateDecision, null, recorded, executionEvents);
     }
+    const executionContract = input.subject.executionContract;
+    if (executionContract !== undefined || input.subject.executionMode !== undefined) {
+      const contractErrors = validateExecutionSubjectContract(input.subject, this.clock(), this.options.loop.executionModes);
+      if (contractErrors.length > 0) {
+        const reason = `Execution contract loading failed closed: ${contractErrors.join('; ')}`;
+        await appendExecution({
+          actor: 'runtime',
+          eventType: 'context/resolved',
+          data: { executionContract: 'invalid', executionMode: input.subject.executionMode ?? null },
+          evidence: [otherEvidence(reason)]
+        });
+        await append('failed', [otherEvidence(reason)]);
+        return executionResult('failed', adapter.id, authority, [reason], gateDecision, null, recorded, executionEvents);
+      }
+    }
     let standardPageArtifacts: JsonRecord | undefined;
     try {
       standardPageArtifacts = await readStandardPageArtifacts(
@@ -517,18 +536,29 @@ export class ExecutionRuntime {
     if (!imaBinding) return undefined;
 
     const query = typeof input.subject.imaQuery === 'string' ? input.subject.imaQuery.trim() : '';
-    if (!query) throw new ImaAdapterError('invalid-response', 'IMA context requires explicit subject.imaQuery');
+    // IMA is opt-in at execution time. Legacy stages may carry a project
+    // binding without requiring business-knowledge retrieval; only an
+    // explicit subject.imaQuery crosses the read-only IMA transport boundary.
+    if (!query) return undefined;
     const projectScope = imaBinding.scope ?? this.options.plan.projectContext.projectId;
+    const pinnedRevision = isPinnedImaRevision(imaBinding.revision) ? imaBinding.revision : undefined;
+    const pinnedDigest = pinnedRevision && isPinnedImaDigest(imaBinding.digest) ? imaBinding.digest : undefined;
     const result = await this.connectorRuntime.searchIma(
       {
         query,
         projectScope,
-        expectedRevision: imaBinding.revision,
-        expectedDigest: imaBinding.digest
+        ...(pinnedRevision ? { expectedRevision: pinnedRevision } : {}),
+        ...(pinnedDigest ? { expectedDigest: pinnedDigest } : {})
       },
       'ima',
       this.options.imaTransport
     );
+    const evidenceErrors = validateImaRetrievalEvidence(result.evidence, 'imaRetrieval');
+    if (evidenceErrors.length > 0) {
+      throw new ImaAdapterError('invalid-response', `IMA retrieval evidence is invalid: ${evidenceErrors.join('; ')}`, {
+        errors: evidenceErrors
+      });
+    }
     const context: ImaContextResolution = {
       evidence: result.evidence as unknown as JsonRecord,
       documents: result.documents.map((document) => ({
@@ -579,6 +609,14 @@ export class ExecutionRuntime {
 interface ImaContextResolution {
   evidence: JsonRecord;
   documents: JsonRecord[];
+}
+
+function isPinnedImaRevision(value: string | undefined): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && value !== 'pending-live-resolution';
+}
+
+function isPinnedImaDigest(value: string | undefined): value is string {
+  return typeof value === 'string' && /^sha256:[a-f0-9]{64}$/.test(value);
 }
 
 async function readBackgroundContextLock(
@@ -970,6 +1008,20 @@ function projectContextBindingEvidence(bindings: ProjectContextBinding[]): GateP
     type: 'other',
     value: `project-context-binding:${binding.knowledgeId ?? binding.source}:${binding.revision}:${binding.digest}`
   }));
+}
+
+function validateExecutionSubjectContract(subject: JsonRecord, now?: Date, declaredModes?: LoopSpec['executionModes']): string[] {
+  const mode = subject.executionMode;
+  if (typeof mode !== 'string') return ['executionMode must be declared when executionContract is provided'];
+  if (subject.executionContract === undefined) return ['executionContract is required when executionMode is declared'];
+  const errors = validateExecutionContract(subject.executionContract, 'subject.executionContract', now);
+  if (!declaredModes?.some((definition) => definition.id === mode)) {
+    errors.push(`subject.executionMode '${mode}' is not declared by the current loop`);
+  }
+  if (isRecord(subject.executionContract) && subject.executionContract.mode !== mode) {
+    errors.push('subject.executionContract.mode must match subject.executionMode');
+  }
+  return errors;
 }
 
 function harnessVerdictEventData(result: NonNullable<ExecutionStageResult['harnessResult']>): JsonRecord {

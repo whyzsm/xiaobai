@@ -81,6 +81,28 @@ export async function validateWorkspace(
 
   errors.push(...(await validateObject(ajv, 'loop', path.relative(workspaceRoot, loopPath), loop)));
 
+  const executionModeIds = new Set<string>();
+  for (const mode of loop.executionModes ?? []) {
+    if (executionModeIds.has(mode.id)) errors.push(`Duplicate execution mode id: ${mode.id}`);
+    executionModeIds.add(mode.id);
+    const expectedContract = mode.id === 'ApiWiring' || mode.id === 'ApiIntegration'
+      ? 'ApiExecutionContract'
+      : 'PageExecutionContract';
+    if (mode.contract !== expectedContract) {
+      errors.push(`Execution mode ${mode.id} must use ${expectedContract}`);
+    }
+    if (
+      !Array.isArray(mode.requiredInputs) ||
+      !Array.isArray(mode.outputs) ||
+      !Array.isArray(mode.blockers) ||
+      mode.requiredInputs.length === 0 ||
+      mode.outputs.length === 0 ||
+      mode.blockers.length === 0
+    ) {
+      errors.push(`Execution mode ${mode.id} must declare inputs, outputs, and blockers`);
+    }
+  }
+
   if (loop.handoff.targetResolution?.required !== true) {
     errors.push(`Loop ${loop.metadata.id} must require explicit target resolution`);
   }

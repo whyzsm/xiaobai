@@ -38,6 +38,7 @@ export interface LoopSpec {
     requiredChecks: string[];
     allowSelfReview: boolean;
   };
+  executionModes?: ExecutionModeDefinition[];
   persistence: {
     memory: {
       stateFile: string;
@@ -150,11 +151,109 @@ export interface ProjectContextBinding {
   source: string;
   locator?: string;
   scope?: string;
+  /** Shared bindings belong to the parent ProjectGroup; project bindings belong to one child. */
+  scopeKind?: 'shared' | 'project';
   revision: string;
   digest: string;
   readOnly?: boolean;
   trust?: 'bundled' | 'project' | 'external' | 'derived';
   requiredCapabilities?: string[];
+}
+
+/** Explicit execution modes migrated from the legacy frontend delivery flow. */
+export type ExecutionMode = 'new-page' | 'existing-page' | 'ApiWiring' | 'ApiIntegration';
+
+export type ApiEndpointExecutionStatus =
+  | 'contract_locked'
+  | 'code_wired'
+  | 'runtime_verified'
+  | 'runtime_blocked';
+
+export type RuntimeBlocker = 'authentication' | 'deployment' | 'permission' | 'backend' | 'environment' | 'unknown';
+
+export interface AuthorizationLock {
+  kind: 'AuthorizationLock';
+  version: 1;
+  taskId: string;
+  projectId: string;
+  repositoryId: string;
+  actions: RepositoryAction[];
+  scope: string;
+  grantedBy: string;
+  grantedAt: string;
+  expiresAt: string;
+  digest: string;
+}
+
+export interface RepositoryBaselineLock {
+  kind: 'RepositoryBaselineLock';
+  version: 1;
+  taskId: string;
+  projectId: string;
+  repositoryId: string;
+  repositoryRoot: string;
+  worktreePath: string;
+  branch: string;
+  baseRef: string;
+  headSha: string;
+  dirtyFiles: string[];
+  capturedAt: string;
+  digest: string;
+}
+
+export interface PageExecutionContract {
+  kind: 'PageExecutionContract';
+  version: 1;
+  mode: 'new-page' | 'existing-page';
+  taskId: string;
+  projectId: string;
+  repositoryId: string;
+  targetPageRoot: string;
+  contextDigest: string;
+  contractDigest: string;
+  authorization: AuthorizationLock;
+  baseline: RepositoryBaselineLock;
+  changedFiles?: string[];
+  evidence: GatePassEvidence[];
+}
+
+export interface ApiEndpointExecution {
+  endpointId: string;
+  method: string;
+  path: string;
+  status: ApiEndpointExecutionStatus;
+  contractSource: string;
+  contractDigest: string;
+  codePath?: string;
+  sourceDigest?: string;
+  runtimeEvidence?: GatePassEvidence[];
+  blocker?: RuntimeBlocker;
+  reason?: string;
+}
+
+export interface ApiExecutionContract {
+  kind: 'ApiExecutionContract';
+  version: 1;
+  mode: 'ApiWiring' | 'ApiIntegration';
+  taskId: string;
+  projectId: string;
+  repositoryId: string;
+  contextDigest: string;
+  contractDigest: string;
+  authorization: AuthorizationLock;
+  baseline: RepositoryBaselineLock;
+  endpoints: ApiEndpointExecution[];
+  evidence: GatePassEvidence[];
+}
+
+export type ExecutionContract = PageExecutionContract | ApiExecutionContract;
+
+export interface ExecutionModeDefinition {
+  id: ExecutionMode;
+  contract: 'PageExecutionContract' | 'ApiExecutionContract';
+  requiredInputs: string[];
+  outputs: string[];
+  blockers: string[];
 }
 
 export interface ProjectGroupChildren {

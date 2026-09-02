@@ -8,6 +8,8 @@ import {
   validateProviderProfile,
   validateProviderRunRequest,
   validateProviderRunResult,
+  validateExecutionContract,
+  validateImaRetrievalEvidence,
   validatePromotionPlan,
   validateTaskEnvelope,
   validateTaskRequest,
@@ -258,6 +260,118 @@ test('provider run contracts require prompt digests and failure reasons', () => 
     }).join('\n'),
     /reason/
   );
+});
+
+test('frontend execution contracts require scoped authorization and repository baseline locks', () => {
+  const authorization = {
+    kind: 'AuthorizationLock',
+    version: 1,
+    taskId: 'task-page',
+    projectId: 't-max-dcm',
+    repositoryId: 'dcm',
+    actions: ['write'],
+    scope: 'src/pages/orders',
+    grantedBy: 'owner',
+    grantedAt: now,
+    expiresAt: later,
+    digest: `sha256:${'b'.repeat(64)}`
+  };
+  const baseline = {
+    kind: 'RepositoryBaselineLock',
+    version: 1,
+    taskId: 'task-page',
+    projectId: 't-max-dcm',
+    repositoryId: 'dcm',
+    repositoryRoot: '/mounted/dcm',
+    worktreePath: '/mounted/dcm',
+    branch: 'dsh-9829liu',
+    baseRef: 'master',
+    headSha: 'a'.repeat(40),
+    dirtyFiles: [],
+    capturedAt: now,
+    digest: `sha256:${'c'.repeat(64)}`
+  };
+  const contract = {
+    kind: 'PageExecutionContract',
+    version: 1,
+    mode: 'existing-page',
+    taskId: 'task-page',
+    projectId: 't-max-dcm',
+    repositoryId: 'dcm',
+    targetPageRoot: 'src/pages/orders',
+    contextDigest: 'd'.repeat(64),
+    contractDigest: 'e'.repeat(64),
+    authorization,
+    baseline,
+    changedFiles: ['src/pages/orders/index.tsx'],
+    evidence: [{ type: 'file', value: 'baseline captured' }]
+  };
+  assert.deepEqual(validateExecutionContract(contract), []);
+  assert.deepEqual(validateExecutionContract({ ...contract, authorization: { ...authorization, projectId: 'other' } }).filter((error) => /must match/.test(error)).length, 1);
+  assert.match(validateExecutionContract({ ...contract, authorization: undefined }).join('\n'), /authorization/);
+  assert.match(
+    validateExecutionContract(contract, 'executionContract', new Date('2026-08-15T00:11:00.000Z')).join('\n'),
+    /expiresAt must be later than the current time/
+  );
+});
+
+test('API integration contracts require endpoint runtime evidence or explicit blockers', () => {
+  const common = {
+    kind: 'ApiExecutionContract',
+    version: 1,
+    mode: 'ApiIntegration',
+    taskId: 'task-api',
+    projectId: 't-max-dcm',
+    repositoryId: 'dcm',
+    contextDigest: 'a'.repeat(64),
+    contractDigest: 'b'.repeat(64),
+    authorization: {
+      kind: 'AuthorizationLock', version: 1, taskId: 'task-api', projectId: 't-max-dcm', repositoryId: 'dcm',
+      actions: ['write'], scope: 'src/services', grantedBy: 'owner', grantedAt: now, expiresAt: later, digest: `sha256:${'c'.repeat(64)}`
+    },
+    baseline: {
+      kind: 'RepositoryBaselineLock', version: 1, taskId: 'task-api', projectId: 't-max-dcm', repositoryId: 'dcm',
+      repositoryRoot: '/mounted/dcm', worktreePath: '/mounted/dcm', branch: 'dsh-9829liu', baseRef: 'master',
+      headSha: 'd'.repeat(40), dirtyFiles: [], capturedAt: now, digest: `sha256:${'e'.repeat(64)}`
+    },
+    evidence: []
+  };
+  const verified = {
+    ...common,
+    endpoints: [{
+      endpointId: 'orders-list', method: 'GET', path: '/api/orders', status: 'runtime_verified',
+      contractSource: 'openapi/orders.yaml', contractDigest: 'f'.repeat(64), codePath: 'src/services/orders.ts',
+      sourceDigest: '1'.repeat(64), runtimeEvidence: [{ type: 'test', value: 'GET /api/orders 200' }]
+    }]
+  };
+  assert.deepEqual(validateExecutionContract(verified), []);
+  const blocked = {
+    ...common,
+    endpoints: [{
+      endpointId: 'orders-list', method: 'GET', path: '/api/orders', status: 'runtime_blocked',
+      contractSource: 'openapi/orders.yaml', contractDigest: 'f'.repeat(64), blocker: 'authentication', reason: 'token unavailable'
+    }]
+  };
+  assert.deepEqual(validateExecutionContract(blocked), []);
+  assert.match(validateExecutionContract({ ...verified, endpoints: [{ ...verified.endpoints[0], runtimeEvidence: [] }] }).join('\n'), /runtimeEvidence/);
+  assert.match(
+    validateExecutionContract({
+      ...verified,
+      endpoints: [{ ...verified.endpoints[0], codePath: undefined, sourceDigest: undefined }]
+    }).join('\n'),
+    /codePath|sourceDigest/
+  );
+});
+
+test('IMA retrieval evidence requires aligned selected IDs and metadata', () => {
+  const valid = {
+    query: 'page contract', queryHash: `sha256:${'a'.repeat(64)}`, selectedItemIds: ['note-1'],
+    retrievedAt: now, source: ['ima://note-1'], revision: ['r1'], digest: [`sha256:${'b'.repeat(64)}`],
+    scope: 't-max-dcm', adapterVersion: 'ima-adapter-v1', status: 'success'
+  };
+  assert.deepEqual(validateImaRetrievalEvidence(valid), []);
+  assert.match(validateImaRetrievalEvidence({ ...valid, revision: [] }).join('\n'), /metadata arrays/);
+  assert.match(validateImaRetrievalEvidence({ ...valid, digest: ['not-a-digest'] }).join('\n'), /digest must be an array of digests/);
 });
 
 test('promotion contracts block ready plans that still contain conflicts', () => {

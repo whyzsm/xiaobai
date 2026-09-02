@@ -46,6 +46,77 @@ verification:
     - pr-ready
     - promotion-approval
   allowSelfReview: false
+executionModes:
+  - id: new-page
+    contract: PageExecutionContract
+    requiredInputs:
+      - taskId
+      - projectId
+      - repositoryId
+      - targetPageRoot
+      - contextDigest
+      - authorization
+      - baseline
+    outputs:
+      - changedFiles
+      - pageContract
+      - structureEvidence
+    blockers:
+      - missing-project-context
+      - missing-human-design-approval
+      - baseline-drift
+  - id: existing-page
+    contract: PageExecutionContract
+    requiredInputs:
+      - taskId
+      - projectId
+      - repositoryId
+      - targetPageRoot
+      - contextDigest
+      - authorization
+      - baseline
+    outputs:
+      - changedFiles
+      - scopedVerification
+    blockers:
+      - baseline-drift
+      - unauthorized-file-change
+      - scope-expansion
+  - id: ApiWiring
+    contract: ApiExecutionContract
+    requiredInputs:
+      - taskId
+      - projectId
+      - repositoryId
+      - contextDigest
+      - authorization
+      - baseline
+      - endpoints
+    outputs:
+      - endpointContractStatus
+      - codePathEvidence
+    blockers:
+      - missing-api-contract
+      - unauthorized-file-change
+      - baseline-drift
+  - id: ApiIntegration
+    contract: ApiExecutionContract
+    requiredInputs:
+      - taskId
+      - projectId
+      - repositoryId
+      - contextDigest
+      - authorization
+      - baseline
+      - endpoints
+    outputs:
+      - endpointRuntimeEvidence
+      - runtimeStatus
+    blockers:
+      - authentication-unavailable
+      - deployment-unavailable
+      - backend-unavailable
+      - runtime-permission-denied
 persistence:
   memory:
     stateFile: memory/loops/frontend-delivery/state.md
