@@ -163,6 +163,57 @@ export interface ProjectRouteResolution {
   matchedPath?: string;
 }
 
+export interface XiaonengSourceFileEvidence {
+  path: string;
+  hash: string;
+  purpose: string;
+}
+
+export interface XiaonengSkillContext {
+  contractVersion: string;
+  skillId: string;
+  skillCommit: string;
+  entryPath: string;
+  entryHash: string;
+  manifestPath: string;
+  manifestDigest: string;
+  executionMode: string;
+  ownerAgent: string;
+  ownerSkills: string[];
+  selectedReferences: Array<{ id: string; path: string; digest: string }>;
+  contextDigest: string;
+}
+
+export interface XiaonengSourceConsumptionEvidence {
+  sourceRoot: string;
+  manifestPath: string;
+  entryPath: string;
+  files: XiaonengSourceFileEvidence[];
+  consumedBy: string;
+  consumedAt: string;
+}
+
+export interface TaskContextLock {
+  taskId: string;
+  projectId: string;
+  projectKind: ProjectSpec['kind'];
+  projectScopeRepositories: string[];
+  targetRepository: string;
+  targetMount: string;
+  backgroundMount: string;
+  authorizedActions: string[];
+  branch: string;
+  head: string;
+  worktreeStatus: string[];
+  lockedAt: string;
+}
+
+export interface XiaonengRuntimePlan {
+  skillContext: XiaonengSkillContext;
+  sourceConsumption: XiaonengSourceConsumptionEvidence;
+  taskContextLock: TaskContextLock;
+}
+
 export interface ConnectorSpec {
   kind: 'Connector';
   id: string;
@@ -417,6 +468,12 @@ export interface ProjectRoutePlan {
     mount: string;
     remote?: string;
   }>;
+  targetRepository?: {
+    id: string;
+    name: string;
+    mount: string;
+    remote?: string;
+  };
 }
 
 export interface OrchestratorPlan {
@@ -501,6 +558,7 @@ export interface RuntimePlan {
     }>;
     warnings: string[];
   };
+  xiaoneng?: XiaonengRuntimePlan;
 }
 
 export interface SimulationStage {

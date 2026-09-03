@@ -40,6 +40,8 @@ export interface ResolvedProjectRoute {
   project: ProjectSpec;
   projectRoot: string;
   repository?: ProjectRepository;
+  targetRepository?: ProjectRepository;
+  projectScopeRepositories: ProjectRepository[];
   resolution: ProjectRouteResolution;
 }
 
@@ -246,6 +248,8 @@ function buildRoute(match: ProjectMatch): ResolvedProjectRoute {
     project: match.entry.project,
     projectRoot: match.entry.projectRoot,
     repository: match.repository,
+    targetRepository: match.repository,
+    projectScopeRepositories: [...(match.entry.project.repositories ?? [])],
     resolution: {
       source: match.source,
       target: match.target,

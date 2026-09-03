@@ -26,6 +26,7 @@ import { loadMemoryContext } from '../../memory-context/src';
 import { resolveMemoryProtocolPaths } from '../../memory-protocol/src';
 import { pathExists } from '../../shared/src/fs';
 import { ResolvedProjectRoute, resolveProjectRoute } from '../../project-registry/src/projectRegistry';
+import { resolveXiaonengRuntime } from '../../xiaoneng-context-runtime/src/xiaonengContextRuntime';
 
 export interface RuntimeOptions {
   workspaceRoot: string;
@@ -35,6 +36,9 @@ export interface RuntimeOptions {
   targetRepository?: string;
   targetCwd?: string;
   targetRemote?: string;
+  taskId?: string;
+  xiaonengExecutionMode?: string;
+  authorizedActions?: string[];
 }
 
 export class LoopRuntime {
@@ -94,6 +98,18 @@ export class LoopRuntime {
       projectId: project.id,
       maxCharacters: context.maxCharacters
     });
+    const xiaoneng = project.background?.id === 'xiaoneng' && projectRoute.targetRepository
+      ? await resolveXiaonengRuntime({
+          sourceRoot: path.resolve(projectRoute.projectRoot, project.background.mount),
+          projectRoot: projectRoute.projectRoot,
+          project,
+          targetRepository: projectRoute.targetRepository,
+          taskId: options.taskId ?? `${loop.metadata.id}-${projectRoute.targetRepository.id}`,
+          executionMode: options.xiaonengExecutionMode,
+          authorizedActions: options.authorizedActions,
+          now: options.now
+        })
+      : undefined;
 
     return {
       loopId: loop.metadata.id,
@@ -120,7 +136,8 @@ export class LoopRuntime {
       },
       humanGate: humanGate.plan(),
       workflow: buildWorkflowPlan(loop),
-      memoryContext
+      memoryContext,
+      xiaoneng
     };
   }
 }
@@ -222,7 +239,15 @@ function buildProjectRoutePlan(workspaceRoot: string, projectRoute: ResolvedProj
       name: repository.name,
       mount: displayPath(projectRoot, path.resolve(projectRoot, repository.mount)),
       remote: repository.remote
-    }))
+    })),
+    targetRepository: projectRoute.targetRepository
+      ? {
+          id: projectRoute.targetRepository.id,
+          name: projectRoute.targetRepository.name,
+          mount: displayPath(projectRoot, path.resolve(projectRoot, projectRoute.targetRepository.mount)),
+          remote: projectRoute.targetRepository.remote
+        }
+      : undefined
   };
 }
 
