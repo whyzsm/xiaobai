@@ -10,6 +10,7 @@ import {
   ImaSearchResult,
   ImaTransport
 } from './imaAdapter';
+export { ImaBridgeTransport, imaBridgeTransportFromEnv, IMA_BRIDGE_URL_ENV } from './imaBridgeTransport';
 
 export interface ConnectorRuntimeOptions {
   /** Runtime-owned transport registry; credentials stay outside workspace config. */

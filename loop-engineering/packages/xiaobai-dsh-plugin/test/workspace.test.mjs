@@ -251,7 +251,22 @@ test('Loop catalog exposes planning metadata and refuses execution without a Hos
   const plan = service.plan({ loopId: 'morning-triage' })
   assert.equal(plan.status, 'plan-only')
   assert.deepEqual(plan.blockers, ['execution-bridge-unavailable'])
+  assert.equal(plan.executionBridge.available, false)
   await assert.rejects(() => service.run({ loopId: 'morning-triage' }), (error) => error.code === ERROR_CODES.EXECUTION_UNSUPPORTED)
+})
+
+test('Loop plan clears the execution blocker only for a healthy, explicitly provided bridge', async () => {
+  const catalog = await loadLoopCatalog(fileURLToPath(new URL('../../../../workspace', import.meta.url)))
+  const service = new LoopCatalogService({ loader: async () => catalog })
+  await service.load(catalog.workspaceRoot)
+  const healthy = service.plan({ loopId: 'morning-triage', executionBridge: { available: true, url: 'http://127.0.0.1:8791', checkedAt: '2026-09-02T00:00:00.000Z' } })
+  assert.equal(healthy.status, 'bridge-ready')
+  assert.deepEqual(healthy.blockers, [])
+  assert.equal(healthy.executionBridge.available, true)
+  assert.equal(healthy.executionBridge.url, 'http://127.0.0.1:8791')
+  const unreachable = service.plan({ loopId: 'morning-triage', executionBridge: { available: false, url: 'http://127.0.0.1:8791', checkedAt: '2026-09-02T00:00:00.000Z' } })
+  assert.equal(unreachable.status, 'plan-only')
+  assert.deepEqual(unreachable.blockers, ['execution-bridge-unavailable'])
 })
 
 test('Loop catalog discovers declared Project Skill Package Loops through the same core facade', async () => {

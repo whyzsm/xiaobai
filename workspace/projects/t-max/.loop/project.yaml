@@ -24,8 +24,10 @@ knowledgeBindings:
     locator: tmax-shared
     scope: t-max
     scopeKind: shared
-    revision: pending-live-resolution
-    digest: sha256:628e6eae1bc2ea408a1abdf5f5f740dee509ef7bc63e605fab612e63f19eb7aa
+    # Live-resolved 2026-09-02 from the read-only IMA bridge manifest
+    # (11 markdown notes, uniform server sourceRevision, canonical inventory digest).
+    revision: 2a28700bb7d7d19797bf8154a1a1b755df208362
+    digest: sha256:e21d528357fad6a17d3e276904872d445c451791a43e332758578f622d546fbb
     readOnly: true
     trust: external
     requiredCapabilities:

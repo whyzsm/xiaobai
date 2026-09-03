@@ -28,6 +28,7 @@ deploy/
 # AI tool local artifacts (agent working memory, generated screenshots — keep out of remotes)
 .playwright-cli/
 .understand-anything/
+.dsh-vision-toolkit/
 output/
 
 # Plugin distribution archives (packaged build output — regenerate, do not commit)

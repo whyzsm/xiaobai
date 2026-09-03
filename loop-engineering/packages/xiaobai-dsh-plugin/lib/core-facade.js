@@ -283,14 +283,29 @@ export function assessCoreLoop(loop) {
 export function planCoreLoop(loop, input = {}) {
   const assessment = assessCoreLoop(loop)
   const projectId = input.projectId ?? input.targetProject ?? loop.targetProjectId ?? null
+  // The execution bridge (read-only IMA bridge in the DSH host) is the only
+  // sanctioned path from a plan to real execution. Without an explicit,
+  // healthy bridge the plan stays plan-only with an execution blocker.
+  // 执行桥（DSH Host 中的只读 IMA 桥）是 plan 走向真实执行的唯一通道；
+  // 未显式提供且健康检查通过的桥时，plan 保持 plan-only 并带执行阻断项。
+  const bridge = input.executionBridge
+  const bridgeAvailable = bridge?.available === true
+  const blockers = []
+  if (!assessment.valid) blockers.push(...assessment.missing)
+  if (!bridgeAvailable) blockers.push('execution-bridge-unavailable')
   return {
     schemaVersion: PLAN_SCHEMA_VERSION,
     planId: `plan_${sha256Digest({ loopId: loop.loopId, sourceDigest: loop.sourceDigest, projectId }).slice(7, 19)}`,
     loopId: loop.loopId,
     projectId,
-    status: assessment.valid ? 'plan-only' : 'blocked',
+    status: assessment.valid && bridgeAvailable ? 'bridge-ready' : assessment.valid ? 'plan-only' : 'blocked',
     executionStatus: 'plan-only',
-    blockers: assessment.valid ? ['execution-bridge-unavailable'] : assessment.missing,
+    blockers,
+    executionBridge: {
+      available: bridgeAvailable,
+      url: typeof bridge?.url === 'string' ? bridge.url : null,
+      checkedAt: typeof bridge?.checkedAt === 'string' ? bridge.checkedAt : null
+    },
     targetResolution: {
       required: loop.targetResolution?.required === true,
       requested: {

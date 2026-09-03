@@ -18,6 +18,7 @@ import { WorkspaceService } from './workspace.js'
 import { LoopCatalogService } from './loop-catalog.js'
 import { WorkspaceConfigService } from './config-console.js'
 import { registerProjectReferenceBridge } from './project-reference.js'
+import { createImaBridgeFromEnvironment } from './ima-bridge.js'
 
 const REPORT_ENV = 'XIAOBAI_DSH_M0_REPORT'
 
@@ -220,7 +221,13 @@ export function apply(ctx, config = {}) {
     invocation: { modelInvocable: true, userInvocable: true }, requiredContext: ['project-scope', 'knowledge-lock'], capabilities: [], sideEffects: [], evidenceRequirements: ['context-digest'], trust: 'bundled',
   }, { content: '# project-context\n\nResolve only the current Project scope and its locked Knowledge context.' })
   registerTypedContracts(ctx)
-  applyInvariant(ctx)
+  // dsh-invariants reserves the package name on its own service scope; the
+  // registration disposer must be bound to this fiber or a hot reload leaks
+  // the reservation and the reloaded apply fails with "already registered".
+  // dsh-invariants 在服务自身作用域上预留包名；必须把 disposer 绑定到本 fiber，
+  // 否则热重载残留注册，重载后的 apply 会报 already registered。
+  const invariantRegistration = applyInvariant(ctx)
+  if (typeof invariantRegistration === 'function') ctx.effect(() => invariantRegistration)
   registerApprovalAnswerer(ctx, async (_request, next) => next())
   registerPolicyService(ctx)
   const projectService = new ProjectRegistry(ctx, { runPath: runMinimumVerticalPath })
@@ -232,6 +239,19 @@ export function apply(ctx, config = {}) {
   ctx.provide('xiaobaiLoops', loopService)
   ctx.provide('xiaobaiConfig', configService)
   registerProjectReferenceBridge(ctx, { workspaceService, projectRegistry: projectService })
+  // Formal read-only IMA bridge: local-config scoped, loopback-only HTTP
+  // surface for the engine CLI's ImaTransport. Dormant without local config.
+  // 正式只读 IMA 桥：按本地配置启停，仅监听 loopback，供引擎 CLI 注入 ImaTransport。
+  const imaBridge = createImaBridgeFromEnvironment({ logger: ctx.logger })
+  if (imaBridge) {
+    ctx.provide('xiaobaiImaBridge', imaBridge.api())
+    ctx.effect(() => () => { void imaBridge.stop() })
+    imaBridge.startListen().then((address) => {
+      ctx.logger?.info?.(`xiaobai IMA bridge listening on ${address.url} (read-only, loopback)`)
+    }).catch((error) => {
+      ctx.logger?.warning?.(`xiaobai IMA bridge failed to listen: ${errorText(error)}`)
+    })
+  }
   ctx.inject(['commands'], (commandCtx) => registerProjectCommands(commandCtx, projectService, workspaceService, loopService, configService))
 }
 
@@ -264,3 +284,4 @@ export * from './project-reference.js'
 export * from './project-target.js'
 export * from './core-facade.js'
 export * from './projection.js'
+export * from './ima-bridge.js'

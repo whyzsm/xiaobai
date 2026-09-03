@@ -310,6 +310,7 @@ workflow:
       harness: ane-standard-page.harness.yaml
       dependsOn:
         - independent-evaluation
+      requiredChecks: []
       outputs:
         - deliverySummary
     - id: promotion-approval

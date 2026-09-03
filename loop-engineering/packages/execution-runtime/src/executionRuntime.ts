@@ -543,12 +543,23 @@ export class ExecutionRuntime {
     const projectScope = imaBinding.scope ?? this.options.plan.projectContext.projectId;
     const pinnedRevision = isPinnedImaRevision(imaBinding.revision) ? imaBinding.revision : undefined;
     const pinnedDigest = pinnedRevision && isPinnedImaDigest(imaBinding.digest) ? imaBinding.digest : undefined;
+    if (pinnedRevision) {
+      // A pinned knowledge binding locks the whole knowledge base manifest
+      // (uniform server-declared revision + canonical inventory digest).
+      // Per-document digests differ by document and are verified by the
+      // bridge against each note's downloaded bytes, not by this equality check.
+      if (!this.options.imaTransport) {
+        throw new ImaAdapterError('not-loaded', 'IMA transport is not loaded for pinned knowledge binding verification', {
+          scope: projectScope
+        });
+      }
+      await verifyImaKnowledgeManifest(this.options.imaTransport, projectScope, pinnedRevision, pinnedDigest);
+    }
     const result = await this.connectorRuntime.searchIma(
       {
         query,
         projectScope,
-        ...(pinnedRevision ? { expectedRevision: pinnedRevision } : {}),
-        ...(pinnedDigest ? { expectedDigest: pinnedDigest } : {})
+        ...(pinnedRevision ? { expectedRevision: pinnedRevision } : {})
       },
       'ima',
       this.options.imaTransport
@@ -609,6 +620,47 @@ export class ExecutionRuntime {
 interface ImaContextResolution {
   evidence: JsonRecord;
   documents: JsonRecord[];
+}
+
+interface ImaKnowledgeManifest {
+  revision?: unknown;
+  digest?: unknown;
+}
+
+/**
+ * Verify a pinned IMA knowledge binding against the live bridge manifest:
+ * every markdown note of the locked knowledge base, its uniform
+ * server-declared revision, and the canonical inventory digest.
+ */
+async function verifyImaKnowledgeManifest(
+  transport: ImaTransport,
+  scope: string,
+  expectedRevision: string,
+  expectedDigest: string | undefined
+): Promise<void> {
+  let manifest: ImaKnowledgeManifest;
+  try {
+    const raw = await transport.call('ima_kb_manifest', { scope }, { signal: AbortSignal.timeout(15_000) });
+    manifest = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as ImaKnowledgeManifest;
+  } catch (error) {
+    if (error instanceof ImaAdapterError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new ImaAdapterError('transport', `IMA knowledge manifest verification failed: ${message}`, { scope });
+  }
+  if (manifest.revision !== expectedRevision) {
+    throw new ImaAdapterError('digest-mismatch', `IMA knowledge binding revision drifted for scope ${scope}: expected ${expectedRevision}, live manifest reports ${String(manifest.revision)}`, {
+      scope,
+      expectedRevision,
+      liveRevision: typeof manifest.revision === 'string' ? manifest.revision : undefined
+    });
+  }
+  if (expectedDigest && manifest.digest !== expectedDigest) {
+    throw new ImaAdapterError('digest-mismatch', `IMA knowledge binding manifest digest drifted for scope ${scope}: expected ${expectedDigest}, live manifest reports ${String(manifest.digest)}`, {
+      scope,
+      expectedDigest,
+      liveDigest: typeof manifest.digest === 'string' ? manifest.digest : undefined
+    });
+  }
 }
 
 function isPinnedImaRevision(value: string | undefined): value is string {

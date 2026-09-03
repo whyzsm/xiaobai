@@ -7,6 +7,7 @@ import { ClaudeCodeAdapter } from '../packages/execution-runtime/src/claudeCodeA
 import { CodexCliAdapter } from '../packages/execution-runtime/src/codexCliAdapter';
 import { GeminiCliAdapter } from '../packages/execution-runtime/src/geminiCliAdapter';
 import { ExecutionRuntime } from '../packages/execution-runtime/src/executionRuntime';
+import { imaBridgeTransportFromEnv, IMA_BRIDGE_URL_ENV } from '../packages/connector-runtime/src/imaBridgeTransport';
 import { generateCapabilityCatalog } from '../packages/capability-catalog/src/capabilityCatalog';
 import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
@@ -45,6 +46,27 @@ interface CliOptions {
   targetRemote?: string;
   resultPath?: string;
   rest: string[];
+}
+
+/**
+ * Probe the read-only IMA execution bridge health for loop-plan. The probe is
+ * env-gated like imaBridgeTransportFromEnv: without XIAOBAI_IMA_BRIDGE_URL the
+ * bridge stays unavailable and the plan keeps its execution blocker.
+ * 为 loop-plan 探测只读 IMA 执行桥健康状态。与 imaBridgeTransportFromEnv 相同的
+ * 环境变量门控：未设置 XIAOBAI_IMA_BRIDGE_URL 时桥不可用，plan 保留执行阻断项。
+ */
+async function probeImaBridgeHealth(): Promise<{ available: boolean; url: string | null; checkedAt: string }> {
+  const url = process.env[IMA_BRIDGE_URL_ENV]
+  const checkedAt = new Date().toISOString()
+  if (!url) return { available: false, url: null, checkedAt }
+  try {
+    const response = await fetch(`${url.replace(/\/+$/, '')}/health`, { signal: AbortSignal.timeout(3000) })
+    const payload = await response.json().catch(() => undefined) as { ok?: boolean; result?: { ok?: boolean } } | undefined
+    const healthy = response.ok && payload?.ok === true && payload?.result?.ok === true
+    return { available: healthy, url, checkedAt }
+  } catch {
+    return { available: false, url, checkedAt }
+  }
 }
 
 async function main(argv: string[]): Promise<void> {
@@ -122,7 +144,14 @@ async function main(argv: string[]): Promise<void> {
       process.exitCode = result.valid && validation.ok ? 0 : 1;
       return;
     }
-    const result = { ...planCoreLoop(loop, { projectId: options.targetProject, targetProject: options.targetProject, targetRepository: options.targetRepository, targetCwd: options.targetCwd, targetRemote: options.targetRemote }), validation: { valid: validation.ok, errors: validation.errors.map(redactCoreText) } };
+    const result = { ...planCoreLoop(loop, {
+      projectId: options.targetProject,
+      targetProject: options.targetProject,
+      targetRepository: options.targetRepository,
+      targetCwd: options.targetCwd,
+      targetRemote: options.targetRemote,
+      executionBridge: await probeImaBridgeHealth()
+    }), validation: { valid: validation.ok, errors: validation.errors.map(redactCoreText) } };
     if (!validation.ok && result.status === 'plan-only') {
       result.status = 'blocked';
       result.blockers = [...result.blockers, ...validation.errors];
@@ -487,7 +516,8 @@ async function runExecuteCommand(options: CliOptions, workspaceRoot: string, loo
     workspaceRoot,
     memoryRoot: await resolveMemoryRoot(workspaceRoot),
     loop,
-    plan
+    plan,
+    imaTransport: imaBridgeTransportFromEnv()
   }).execute(
     {
       runId: requireGateFlag(flags, 'run-id'),

@@ -1508,6 +1508,10 @@ test('execution runtime retrieves scoped IMA context and persists replayable evi
     executorInstance: 'executor-ima-context',
     imaTransport: {
       async call(tool, input) {
+        if (tool === 'ima_kb_manifest') {
+          assert.deepEqual(input, { scope: fixture.plan.projectContext.projectId });
+          return { revision: 'r1', digest };
+        }
         assert.equal(tool, 'ima_search_knowledge');
         assert.deepEqual(input, { query: 'release gate', scope: fixture.plan.projectContext.projectId, limit: 20 });
         return {
@@ -1610,6 +1614,93 @@ test('execution runtime skips IMA retrieval when no explicit query is provided',
   assert.equal(result.status, 'passed', result.reasons.join('\n'));
   assert.equal(transportCalls, 0);
   assert.equal(Object.prototype.hasOwnProperty.call(receivedSubject ?? {}, 'projectContextIma'), false);
+});
+
+test('execution runtime fails closed when the pinned IMA knowledge manifest drifts', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  fixture.plan.contextBindings = [{
+    source: 'ima',
+    locator: 'ima-test-scope',
+    scope: fixture.plan.projectContext.projectId,
+    revision: 'r1',
+    digest: `sha256:${'c'.repeat(64)}`,
+    readOnly: true,
+    trust: 'external',
+    requiredCapabilities: ['read_knowledge']
+  }];
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-ima-manifest-drift',
+    imaTransport: {
+      async call(tool) {
+        assert.equal(tool, 'ima_kb_manifest');
+        return { revision: 'r2', digest: `sha256:${'d'.repeat(64)}` };
+      }
+    }
+  }).execute(
+    {
+      runId: 'run-ima-manifest-drift',
+      taskId: 'task-ima-manifest-drift',
+      stageId: stage.id,
+      subject: { imaQuery: 'release gate' }
+    },
+    {
+      id: 'never-invoked-executor',
+      async execute() {
+        throw new Error('executor must not run when the knowledge manifest drifted');
+      }
+    }
+  );
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /IMA context loading failed closed: .*revision drifted/);
+});
+
+test('execution runtime fails closed when the IMA knowledge manifest cannot be verified', async () => {
+  const fixture = await createExecutionFixture('morning-triage');
+  const stage = fixture.plan.workflow?.stages.find((item) => item.id === 'triage-discovery');
+  assert(stage);
+  fixture.plan.contextBindings = [{
+    source: 'ima',
+    locator: 'ima-test-scope',
+    scope: fixture.plan.projectContext.projectId,
+    revision: 'r1',
+    digest: `sha256:${'c'.repeat(64)}`,
+    readOnly: true,
+    trust: 'external',
+    requiredCapabilities: ['read_knowledge']
+  }];
+  const result = await new ExecutionRuntime({
+    workspaceRoot: fixture.workspaceRoot,
+    memoryRoot: fixture.memoryRoot,
+    loop: fixture.loop,
+    plan: fixture.plan,
+    executorInstance: 'executor-ima-manifest-error',
+    imaTransport: {
+      async call() {
+        throw new Error('bridge unreachable');
+      }
+    }
+  }).execute(
+    {
+      runId: 'run-ima-manifest-error',
+      taskId: 'task-ima-manifest-error',
+      stageId: stage.id,
+      subject: { imaQuery: 'release gate' }
+    },
+    {
+      id: 'never-invoked-executor',
+      async execute() {
+        throw new Error('executor must not run when the manifest cannot be verified');
+      }
+    }
+  );
+  assert.equal(result.status, 'failed');
+  assert.match(result.reasons.join('\n'), /IMA context loading failed closed: .*bridge unreachable/);
 });
 
 test('execution runtime blocks missing dependencies and stage gates without invoking the adapter', async () => {
