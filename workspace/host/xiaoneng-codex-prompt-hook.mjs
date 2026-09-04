@@ -105,7 +105,12 @@ function resolveRoute({ projectRoot, targetCwd, requestText }) {
     }
   }
 
-  if (/requires a target project or repository/i.test(result.stderr || '')) {
+  // A route failure that means "no T-MAX target could be determined at all"
+  // (benign chit-chat, engineering-repo dev chat, or a cwd that is not a
+  // mapped business repository) is silently skipped. Only a failure where a
+  // T-MAX project WAS identified but its handoff could not be verified should
+  // block the turn (per README: "a failed route must stop").
+  if (/requires a target project or repository|not mapped to any project|no (target|repository) (?:is |was )?mapped/i.test(result.stderr || '')) {
     return { status: 'not-applicable' };
   }
   return { status: 'blocked', reason: 'Xiaobai route CLI failed to resolve the current T-MAX context.' };

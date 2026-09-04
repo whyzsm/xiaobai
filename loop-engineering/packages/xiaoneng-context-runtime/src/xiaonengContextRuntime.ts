@@ -177,8 +177,9 @@ async function createTaskContextLock(input: {
     targetMount: input.targetMount,
     backgroundMount: input.backgroundMount,
     authorizedActions: input.request.authorizedActions ?? ['implement'],
-    branch,
-    head,
+    branch: branch ?? '',
+    head: head ?? '',
+    gitAvailable: status != null,
     worktreeStatus: status ? status.split('\n') : [],
     lockedAt: input.lockedAt
   };
@@ -262,18 +263,23 @@ function readManifestReferences(mode: JsonObject, manifest: JsonObject): Array<{
 
 async function readGitHead(repositoryRoot: string): Promise<string> {
   const head = await gitOutput(repositoryRoot, ['rev-parse', 'HEAD']);
+  if (head == null) {
+    throw new Error(`XIAONENG_CONTEXT_INCOMPLETE: source git HEAD unavailable at ${repositoryRoot}`);
+  }
   if (!/^[0-9a-f]{40}$/.test(head)) {
     throw new Error(`XIAONENG_CONTEXT_INCOMPLETE: invalid source git HEAD: ${head}`);
   }
   return head;
 }
 
-async function gitOutput(cwd: string, args: string[]): Promise<string> {
+async function gitOutput(cwd: string, args: string[]): Promise<string | null> {
   try {
     const result = await execFileAsync('git', ['-C', cwd, ...args]);
     return String(result.stdout).trim();
   } catch {
-    return 'unavailable';
+    // Do not swallow the failure into a truthy string; callers must tell
+    // "git unavailable" apart from "git ran and reported an empty tree".
+    return null;
   }
 }
 

@@ -232,8 +232,9 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
             targetRepository: xiaoneng.taskContextLock.targetRepository,
             branch: xiaoneng.taskContextLock.branch,
             head: xiaoneng.taskContextLock.head,
-            dirty: xiaoneng.taskContextLock.worktreeStatus.length > 0,
-            statusCount: xiaoneng.taskContextLock.worktreeStatus.length
+            gitAvailable: xiaoneng.taskContextLock.gitAvailable,
+            dirty: xiaoneng.taskContextLock.gitAvailable && xiaoneng.taskContextLock.worktreeStatus.length > 0,
+            statusCount: xiaoneng.taskContextLock.gitAvailable ? xiaoneng.taskContextLock.worktreeStatus.length : 0
           }
         }
       : undefined,

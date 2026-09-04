@@ -212,6 +212,7 @@ export interface TaskContextLock {
   authorizedActions: string[];
   branch: string;
   head: string;
+  gitAvailable: boolean;
   worktreeStatus: string[];
   lockedAt: string;
 }
