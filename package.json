@@ -13,6 +13,7 @@
     "validate": "npm run loop -- validate",
     "dry-run": "npm run loop -- dry-run --json --loop morning-triage",
     "simulate": "npm run loop -- simulate --loop morning-triage",
+    "setup:codex": "npm run build --silent && node workspace/host/install-codex-hook.mjs",
     "memory:checkpoint": "npm run loop -- memory checkpoint --project xbaiProjectCode --loop morning-triage",
     "memory:audit-today": "npm run loop -- memory audit-today --project xbaiProjectCode",
     "dashboard:xiaobai": "node workspace/monitoring/scripts/start-dashboard.mjs",

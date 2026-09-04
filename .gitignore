@@ -25,6 +25,7 @@ workspace/projects/*/.loop/local.paths.yaml
 .xiaobai-data/
 deploy/
 .trellis/
+.dsh-vision-toolkit/
 
 # Executables
 *.swf
