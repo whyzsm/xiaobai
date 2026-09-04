@@ -37,6 +37,38 @@ test('T-MAX ProjectGroup routes every registered repository with one target and 
   }
 });
 
+test('leading repository markers route arbitrary messages through the matching project group', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+
+  for (const repositoryId of repositories) {
+    const route = await resolveProjectRoute(workspaceRoot, loop, {
+      userMessage: `${repositoryId} 随便问什么都必须先解析仓库背景`
+    });
+    assert.equal(route.resolution.source, 'leading-repository', repositoryId);
+    assert.equal(route.project.id, 't-max', repositoryId);
+    assert.equal(route.targetRepository?.id, repositoryId, repositoryId);
+  }
+
+  const noSpaceRoute = await resolveProjectRoute(workspaceRoot, loop, {
+    userMessage: 'operateBusiness项目内容与路由无关'
+  });
+  assert.equal(noSpaceRoute.targetRepository?.id, 'operateBusiness');
+
+  const leadingMarkerWins = await resolveProjectRoute(workspaceRoot, loop, {
+    userMessage: 'operateBusiness任意后文',
+    targetRepository: 'operateSupport'
+  });
+  assert.equal(leadingMarkerWins.targetRepository?.id, 'operateBusiness');
+
+  await assert.rejects(
+    resolveProjectRoute(workspaceRoot, loop, {
+      userMessage: '请处理 operateBusiness 项目'
+    }),
+    /requires a target project or repository/
+  );
+});
+
 test('source-backed resolver consumes the mounted Manifest and derives owner skills', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const loop = await readYamlFile<LoopSpec>(loopPath);

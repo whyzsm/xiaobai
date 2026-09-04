@@ -24,6 +24,50 @@
 
 ## 规则
 
+### 强制小能入口 / Mandatory Xiaoneng Entrypoint
+
+中文：
+
+消息路由先看去除前导空白后的首个仓库标识。只要消息以本项目组登记的仓库标识开头（例如 `operateBusiness`、`operateSupport`、`KPIUI`、`max-console-ui`、`max-operate-monitor-ui`、`dcm` 或 `scan`，后面可直接接中文或空格），就先按该仓库解析项目背景；后续消息是在提问、出方案、实现、测试、复盘还是其他内容，不影响是否进入小能。仓库标识不在消息开头时，继续使用显式仓库、工作目录或其他既有路由规则。
+
+English:
+
+Message routing first inspects the first repository marker after leading whitespace is removed. When a message starts with a repository registered in this project group (for example `operateBusiness`, `operateSupport`, `KPIUI`, `max-console-ui`, `max-operate-monitor-ui`, `dcm`, or `scan`, followed either by Chinese text or whitespace), resolve the project background from that repository before interpreting the rest of the message. Whether the remaining message asks a question, requests a plan, implementation, testing, retrospective work, or anything else does not affect whether it enters Xiaoneng. When no repository marker is at the beginning, keep using explicit repository, working-directory, and other existing routing rules.
+
+中文：
+
+对 `.loop/project.yaml` 中任一仓库的任何页面、需求、方案或实现请求，只要 `background.runtime.type: manifest-source`，顶层对话执行者必须先进入挂载的 `harness/runtime/manifest.yaml` 和 `skillContext.entryPath`（`xiaoneng-agent/SKILL.md`）。这是“走小能”的判定条件。
+
+不得把全局可用的 `sa-page-plan`、`sa-component-gate`、`watermelon-frontend-agent` 或 Loop 的 `frontend-generator` 直接当作顶层入口。它们只有在小能读取 Manifest、确定 `executionMode`、`ownerAgent` 和 `ownerSkills` 后，才能作为小能下游能力被调用。没有 Manifest、入口 Skill、owner 和消费证据时必须停止并返回 `XIAONENG_CONTEXT_INCOMPLETE`，不得回退到 Xiaobai 或直接输出方案。
+
+当用户说“先出页面方案”“不要直接写页面”“只看目录和组件调用”等只读设计约束时，使用小能 `DesignOnly` 档位；小能随后按 Manifest 选择 `orange-architect-agent` 和 `sa-page-plan`。首条结果必须先给出类似以下路由证据，再给页面方案：
+
+```text
+Route: t-max/<targetRepository> -> xiaoneng-agent
+Manifest: harness/runtime/manifest.yaml
+Mode: DesignOnly
+Owner: orange-architect-agent
+Skills: sa-component-gate, sa-page-plan
+Write: none
+```
+
+English:
+
+For any page, requirement, design, or implementation request targeting a repository listed in `.loop/project.yaml`, when `background.runtime.type: manifest-source`, the conversational execution root must first enter the mounted `harness/runtime/manifest.yaml` and `skillContext.entryPath` (`xiaoneng-agent/SKILL.md`). This is the condition for proving that the task went through Xiaoneng.
+
+Do not use globally available `sa-page-plan`, `sa-component-gate`, `watermelon-frontend-agent`, or the Loop `frontend-generator` as a top-level entrypoint. They may be used only as Xiaoneng downstream capabilities after Xiaoneng consumes the Manifest and resolves `executionMode`, `ownerAgent`, and `ownerSkills`. If Manifest, entry Skill, owner, or source-consumption evidence is missing, stop with `XIAONENG_CONTEXT_INCOMPLETE`; do not fall back to Xiaobai or present a plan directly.
+
+When the user asks to provide a page plan first, forbids direct page/code writing, or requests only directories and component calls, use Xiaoneng `DesignOnly`. Xiaoneng then selects `orange-architect-agent` and `sa-page-plan` from the Manifest. The first response must show routing evidence like the following before presenting the page plan:
+
+```text
+Route: t-max/<targetRepository> -> xiaoneng-agent
+Manifest: harness/runtime/manifest.yaml
+Mode: DesignOnly
+Owner: orange-architect-agent
+Skills: sa-component-gate, sa-page-plan
+Write: none
+```
+
 1. 小白解析目标仓挂载路径，并在修改任何 T-MAX 目标仓前读取 `workspace/.local/t-max/mounts/background/xiaoneng`；小能只提供业务背景和执行规则，不创建、解析或维护另一套 T-MAX 挂载。
 2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
 3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用小能业务背景指导。

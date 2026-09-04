@@ -468,6 +468,94 @@ test('all T-MAX repositories hand off directly to the mounted Xiaoneng executor'
   }
 });
 
+test('T-MAX design-only requests keep Xiaoneng as the root and select the Manifest owner', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetRepository: 'operateBusiness',
+    xiaonengExecutionMode: 'DesignOnly',
+    now: new Date('2026-09-04T00:00:00.000Z')
+  });
+
+  assert.equal(plan.execution.executor, 'xiaoneng');
+  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.effective.executionMode, 'DesignOnly');
+  assert.equal(plan.orchestrator?.effective.ownerAgent, 'orange-architect-agent');
+  assert.deepEqual(plan.orchestrator?.effective.ownerSkills, ['sa-component-gate', 'sa-page-plan']);
+  assert.equal(plan.generatorRuns.length, 0);
+  assert.equal(plan.evaluations.length, 0);
+  assert.equal(plan.workflow, undefined);
+});
+
+test('arbitrary messages with a leading T-MAX repository marker still enter Xiaoneng', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    userMessage: 'operateBusiness 这不是页面需求，也不改变路由判断',
+    now: new Date('2026-09-04T00:00:00.000Z')
+  });
+
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'leading-repository');
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
+  assert.equal(plan.execution.executor, 'xiaoneng');
+  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
+  assert.equal(plan.generatorRuns.length, 0);
+  assert.equal(plan.evaluations.length, 0);
+  assert.equal(plan.workflow, undefined);
+});
+
+test('dry-run CLI accepts the Xiaoneng execution mode for plan-only requests', async () => {
+  const { stdout } = await execFileAsync('node', [
+    'dist/loop-engineering/cli/loop.js',
+    'dry-run',
+    '--json',
+    '--loop',
+    'frontend-delivery',
+    '--target-repository',
+    'operateBusiness',
+    '--xiaoneng-execution-mode',
+    'DesignOnly'
+  ]);
+  const plan = JSON.parse(stdout) as {
+    execution: { executor: string; agentId: string };
+    orchestrator?: { effective: { executionMode?: string; ownerAgent?: string } };
+  };
+
+  assert.equal(plan.execution.executor, 'xiaoneng');
+  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.effective.executionMode, 'DesignOnly');
+  assert.equal(plan.orchestrator?.effective.ownerAgent, 'orange-architect-agent');
+});
+
+test('dry-run CLI routes from a leading repository marker without interpreting the message body', async () => {
+  const { stdout } = await execFileAsync('node', [
+    'dist/loop-engineering/cli/loop.js',
+    'dry-run',
+    '--json',
+    '--loop',
+    'frontend-delivery',
+    '--request-text',
+    'operateBusiness 只是一个普通问题，不要求页面实现'
+  ]);
+  const plan = JSON.parse(stdout) as {
+    execution: { executor: string; agentId: string };
+    orchestrator?: {
+      effective: { agentId: string };
+      routesTo: { project: { resolution: { source: string; matchedRepositoryId?: string } } };
+    };
+  };
+
+  assert.equal(plan.execution.executor, 'xiaoneng');
+  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'leading-repository');
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
+});
+
 test('frontend delivery exposes explicit workflow stages and yuque api shape', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const plan = await new LoopRuntime().dryRun({

@@ -35,6 +35,7 @@ export interface RuntimeOptions {
   now?: Date;
   targetProject?: string;
   targetRepository?: string;
+  userMessage?: string;
   targetCwd?: string;
   targetRemote?: string;
   taskId?: string;
@@ -51,6 +52,7 @@ export class LoopRuntime {
     const projectRoute = await resolveProjectRoute(workspaceRoot, loop, {
       targetProject: options.targetProject,
       targetRepository: options.targetRepository,
+      userMessage: options.userMessage,
       targetCwd: options.targetCwd,
       targetRemote: options.targetRemote
     });

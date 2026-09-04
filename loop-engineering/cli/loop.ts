@@ -10,6 +10,8 @@ import { GatePassEvidence, HarnessEvidenceType, LoopSpec } from '../packages/sha
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
+import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
+import { resolveXiaonengRuntime } from '../packages/xiaoneng-context-runtime/src/xiaonengContextRuntime';
 
 interface CliOptions {
   command: string;
@@ -18,8 +20,10 @@ interface CliOptions {
   json: boolean;
   targetProject?: string;
   targetRepository?: string;
+  userMessage?: string;
   targetCwd?: string;
   targetRemote?: string;
+  xiaonengExecutionMode?: string;
   resultPath?: string;
   rest: string[];
 }
@@ -36,6 +40,11 @@ async function main(argv: string[]): Promise<void> {
       workspaceRoot,
       repoRoot: process.cwd()
     });
+    return;
+  }
+
+  if (options.command === 'route') {
+    await runRouteCommand(options, workspaceRoot);
     return;
   }
 
@@ -109,8 +118,10 @@ async function main(argv: string[]): Promise<void> {
       loopPath,
       targetProject: options.targetProject,
       targetRepository: options.targetRepository,
+      userMessage: options.userMessage,
       targetCwd: options.targetCwd,
-      targetRemote: options.targetRemote
+      targetRemote: options.targetRemote,
+      xiaonengExecutionMode: options.xiaonengExecutionMode
     });
     if (options.json) {
       process.stdout.write(formatJson(plan));
@@ -151,6 +162,109 @@ async function listLoopSpecs(workspaceRoot: string): Promise<string[]> {
   return files.map((file) => path.join(loopsDir, file));
 }
 
+async function runRouteCommand(options: CliOptions, workspaceRoot: string): Promise<void> {
+  const loopPath = await findLoopSpec(workspaceRoot, options.loop ?? 'frontend-delivery');
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+  const route = await resolveProjectRoute(workspaceRoot, loop, {
+    targetProject: options.targetProject,
+    targetRepository: options.targetRepository,
+    userMessage: options.userMessage,
+    targetCwd: options.targetCwd,
+    targetRemote: options.targetRemote
+  });
+  const targetRepository = route.targetRepository;
+  if (!targetRepository) {
+    throw new Error('PROJECT_ROUTE_INCOMPLETE: a target repository is required for host routing');
+  }
+
+  const background = route.project.background;
+  const xiaoneng = background?.runtime?.type === 'manifest-source'
+    ? await resolveXiaonengRuntime({
+        sourceRoot: path.resolve(route.projectRoot, background.mount),
+        projectRoot: route.projectRoot,
+        project: route.project,
+        targetRepository,
+        taskId: `host-route-${targetRepository.id}`,
+        executionMode: options.xiaonengExecutionMode,
+        authorizedActions: ['read', 'plan'],
+        consumerAgent: 'xiaoneng-agent'
+      })
+    : undefined;
+
+  const result = {
+    host: 'xiaobai',
+    project: {
+      id: route.project.id,
+      kind: route.project.kind,
+      root: route.projectRoot,
+      routeSource: route.resolution.source,
+      routeTarget: route.resolution.target,
+      matchedRepositoryId: route.resolution.matchedRepositoryId,
+      projectScopeRepositories: route.projectScopeRepositories.map((repository) => repository.id)
+    },
+    targetRepository: {
+      id: targetRepository.id,
+      mount: path.resolve(route.projectRoot, targetRepository.mount)
+    },
+    background: background
+      ? {
+          id: background.id,
+          mount: path.resolve(route.projectRoot, background.mount),
+          runtime: background.runtime?.type
+        }
+      : undefined,
+    executor: xiaoneng ? 'xiaoneng' : 'xiaobai',
+    xiaoneng: xiaoneng
+      ? {
+          agentId: xiaoneng.skillContext.skillId,
+          entryPath: xiaoneng.skillContext.entryPath,
+          entryHash: xiaoneng.skillContext.entryHash,
+          manifestPath: xiaoneng.skillContext.manifestPath,
+          manifestDigest: xiaoneng.skillContext.manifestDigest,
+          executionMode: xiaoneng.skillContext.executionMode,
+          ownerAgent: xiaoneng.skillContext.ownerAgent,
+          ownerSkills: xiaoneng.skillContext.ownerSkills,
+          selectedReferences: xiaoneng.skillContext.selectedReferences,
+          contextDigest: xiaoneng.skillContext.contextDigest,
+          sourceConsumption: xiaoneng.sourceConsumption,
+          taskContextLock: {
+            taskId: xiaoneng.taskContextLock.taskId,
+            targetRepository: xiaoneng.taskContextLock.targetRepository,
+            branch: xiaoneng.taskContextLock.branch,
+            head: xiaoneng.taskContextLock.head,
+            dirty: xiaoneng.taskContextLock.worktreeStatus.length > 0,
+            statusCount: xiaoneng.taskContextLock.worktreeStatus.length
+          }
+        }
+      : undefined,
+    write: 'none'
+  };
+
+  if (options.json) {
+    process.stdout.write(formatJson(result));
+    return;
+  }
+
+  process.stdout.write([
+    `Host: ${result.host}`,
+    `Project: ${result.project.id} (${result.project.kind})`,
+    `Route source: ${result.project.routeSource}`,
+    `Target repository: ${result.targetRepository.id}`,
+    `Executor: ${result.executor}`,
+    ...(result.xiaoneng
+      ? [
+          `Manifest: ${result.xiaoneng.manifestPath}`,
+          `Entry: ${result.xiaoneng.entryPath}`,
+          `Mode: ${result.xiaoneng.executionMode}`,
+          `Owner: ${result.xiaoneng.ownerAgent}`,
+          `Skills: ${result.xiaoneng.ownerSkills.join(', ')}`,
+          `Consumed files: ${result.xiaoneng.sourceConsumption.files.length}`
+        ]
+      : []),
+    'Write: none'
+  ].join('\n') + '\n');
+}
+
 function parseArgs(argv: string[]): CliOptions {
   const [command = 'help', ...rest] = argv;
   const options: CliOptions = {
@@ -181,11 +295,17 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--target-repository') {
       options.targetRepository = requireValue(rest, index, arg);
       index += 1;
+    } else if (arg === '--request-text') {
+      options.userMessage = requireValue(rest, index, arg);
+      index += 1;
     } else if (arg === '--target-cwd') {
       options.targetCwd = requireValue(rest, index, arg);
       index += 1;
     } else if (arg === '--target-remote') {
       options.targetRemote = requireValue(rest, index, arg);
+      index += 1;
+    } else if (arg === '--xiaoneng-execution-mode') {
+      options.xiaonengExecutionMode = requireValue(rest, index, arg);
       index += 1;
     } else if (arg === '--result') {
       options.resultPath = requireValue(rest, index, arg);
@@ -467,7 +587,8 @@ function printHelp(): void {
   loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-digest <sha256:...> --issuer <reviewer> --evidence <type:value>... [--json]
   loop gate check --loop <loop-id> --run-id <id> --task-id <id> <--stage <stage-id>|--action <action>> --subject-digest <sha256:...> [--json]
   loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
-  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--target-cwd path] [--target-remote remote] [--json]
+  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--xiaoneng-execution-mode mode] [--json]
+  loop route    [--workspace workspace] [--loop frontend-delivery] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--xiaoneng-execution-mode mode] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
 `);

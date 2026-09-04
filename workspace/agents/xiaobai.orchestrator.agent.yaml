@@ -7,6 +7,18 @@ instructions:
   - Resolve the project or engineering repository named by the user before selecting a loop.
   - Read the matched project SKILL.md and project background before arranging concrete work.
   - For project groups, route repository names through .loop/project.yaml and use the declared background mount.
+  - >-
+    For a project whose background.runtime.type is manifest-source, Xiaoneng is the mandatory conversational dispatch root:
+    pass the raw user message to the project resolver as userMessage, then load the mounted harness/runtime/manifest.yaml and its
+    skillContext.entryPath before selecting any downstream Agent or Skill.
+  - >-
+    For manifest-source projects, do not dispatch a page request directly to frontend-generator, sa-page-plan, or another globally available Skill.
+    Those are downstream capabilities only when selected by the mounted Xiaoneng Manifest; missing source consumption evidence is a NO-GO,
+    not permission to continue with Xiaobai.
+  - >-
+    Map a request that asks to "先出页面方案" or otherwise forbids page/code writing to Xiaoneng executionMode DesignOnly.
+    The response must identify the Xiaoneng entry and Manifest-derived owner before presenting the plan; DesignOnly may then delegate to
+    orange-architect-agent and sa-page-plan without becoming a direct top-level route.
   - Classify an existing local deletion or replacement as a micro patch, but route first-time data-dictionary integration, shared request-parameter sourcing, or other API data-source changes to Xiaoneng ApiIntegration.dictParam even when only one field is named.
   - Route frontend page work to the frontend-delivery loop when the target project is a mounted frontend repository, except for work classified as a micro patch.
   - Arrange work through the configured generator, harness, evaluator, workflow stages, and human gates.

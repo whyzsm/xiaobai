@@ -32,6 +32,7 @@ interface ProjectMatch {
 export interface ProjectRouteRequest {
   targetProject?: string;
   targetRepository?: string;
+  userMessage?: string;
   targetCwd?: string;
   targetRemote?: string;
 }
@@ -51,6 +52,13 @@ export async function resolveProjectRoute(
   request: ProjectRouteRequest = {}
 ): Promise<ResolvedProjectRoute> {
   const entries = await loadProjectRegistry(workspaceRoot);
+
+  if (request.userMessage) {
+    const leadingRepository = findLeadingRepositoryMatches(entries, request.userMessage);
+    if (leadingRepository.length > 0) {
+      return buildRoute(requireSingleMatch(leadingRepository, 'leading-repository', request.userMessage));
+    }
+  }
 
   if (request.targetProject) {
     return buildRoute(
@@ -175,6 +183,29 @@ function findRepositoryMatches(
     }
   }
   return matches;
+}
+
+function findLeadingRepositoryMatches(entries: ProjectRegistryEntry[], userMessage: string): ProjectMatch[] {
+  const message = userMessage.replace(/^\uFEFF/, '').trimStart();
+  if (!message) return [];
+
+  const matches: ProjectMatch[] = [];
+  for (const entry of entries) {
+    for (const repository of entry.project.repositories ?? []) {
+      const aliases = [repository.id, repository.name, repository.localPathKey].filter(
+        (alias): alias is string => Boolean(alias)
+      );
+      if (aliases.some((alias) => startsWithRepositoryMarker(message, alias))) {
+        matches.push({
+          entry,
+          repository,
+          source: 'leading-repository',
+          target: message
+        });
+      }
+    }
+  }
+  return dedupeMatches(matches);
 }
 
 function findRemoteMatches(
@@ -334,6 +365,14 @@ function containsPath(root: string, candidate: string): boolean {
 
 function sameAlias(left: string | undefined, right: string | undefined): boolean {
   return normalizeAlias(left) === normalizeAlias(right);
+}
+
+function startsWithRepositoryMarker(message: string, alias: string): boolean {
+  if (message.length < alias.length || message.slice(0, alias.length).toLowerCase() !== alias.toLowerCase()) {
+    return false;
+  }
+  const nextCharacter = message[alias.length];
+  return nextCharacter === undefined || !/[a-z0-9_-]/i.test(nextCharacter);
 }
 
 function normalizeAlias(value: string | undefined): string {

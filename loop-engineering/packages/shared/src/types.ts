@@ -158,6 +158,7 @@ export interface ProjectRepository {
 export type ProjectRouteSource =
   | 'explicit-project'
   | 'explicit-repository'
+  | 'leading-repository'
   | 'cwd'
   | 'remote'
   | 'loop-default';

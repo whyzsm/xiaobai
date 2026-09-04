@@ -32,6 +32,16 @@ Create a new page under the first-level menu "网点打卡" in operateSupport. R
 
 ## 3. 核心边界 / Core Boundaries
 
+### 首标识优先 / Leading Repository Marker First
+
+中文：
+
+业务仓库标识是 T-MAX 对话路由的第一判断条件。对去除前导空白后的原始用户消息，只要开头是 `.loop/project.yaml` 登记的仓库标识（例如 `operateBusiness`、`operateSupport`、`KPIUI`、`max-console-ui`、`max-operate-monitor-ui`、`dcm` 或 `scan`），就立即锁定对应仓库并读取 T-MAX 背景；它优先于宿主推断出的项目、仓库、工作目录或远端参数。标识后面的文字不参与“是否进入小能”的判断，因此提问、方案、实现、测试、复盘或任意其他内容都经过同一条小能入口。未以业务仓库标识开头的消息才继续使用显式参数、工作目录、远端或其他项目路由。
+
+English:
+
+The business repository marker is the first routing condition for T-MAX conversations. After leading whitespace is removed from the raw user message, if it starts with a repository registered in `.loop/project.yaml` (for example `operateBusiness`, `operateSupport`, `KPIUI`, `max-console-ui`, `max-operate-monitor-ui`, `dcm`, or `scan`), immediately lock that repository and load the T-MAX background; it takes precedence over project, repository, working-directory, or remote parameters inferred by the host. Text after the marker does not participate in deciding whether the task enters Xiaoneng, so questions, plans, implementation, testing, retrospectives, and any other request use the same Xiaoneng entry. Messages without a leading business repository marker continue through explicit-argument, working-directory, remote, or other project routing.
+
 中文：
 
 ```text
