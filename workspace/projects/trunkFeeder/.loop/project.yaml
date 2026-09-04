@@ -10,6 +10,8 @@ background:
   name: trunkFeeder
   localPathKey: trunkFeeder
   mount: ../../.local/trunkFeeder/mounts/background/trunkFeeder
+  runtime:
+    type: context-only
 repositories:
   - id: trunkFeeder-ui
     name: trunkFeeder-ui

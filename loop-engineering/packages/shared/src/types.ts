@@ -138,7 +138,14 @@ export interface ProjectBackground {
   name: string;
   localPathKey: string;
   mount: string;
+  runtime?: ProjectBackgroundRuntime;
 }
+
+export interface ProjectBackgroundRuntime {
+  type: 'manifest-source' | 'context-only';
+}
+
+export type ProjectExecutor = 'xiaobai' | 'xiaoneng';
 
 export interface ProjectRepository {
   id: string;
@@ -212,6 +219,26 @@ export interface XiaonengRuntimePlan {
   skillContext: XiaonengSkillContext;
   sourceConsumption: XiaonengSourceConsumptionEvidence;
   taskContextLock: TaskContextLock;
+}
+
+export interface XiaonengHandoffPlan {
+  executor: 'xiaoneng';
+  agentId: string;
+  source: 'mounted-background';
+  sourceRoot: string;
+  entryPath: string;
+  manifestPath: string;
+  executionMode: string;
+  ownerAgent: string;
+  ownerSkills: string[];
+  targetRepository: string;
+}
+
+export interface RuntimeExecutionPlan {
+  executor: ProjectExecutor;
+  source: 'workspace-agent' | 'mounted-background';
+  agentId: string;
+  handoff?: XiaonengHandoffPlan;
 }
 
 export interface ConnectorSpec {
@@ -461,6 +488,7 @@ export interface ProjectRoutePlan {
     id: string;
     name: string;
     mount: string;
+    runtime?: ProjectBackgroundRuntime;
   };
   repositories: Array<{
     id: string;
@@ -481,13 +509,24 @@ export interface OrchestratorPlan {
   agentFile: string;
   role: string;
   stance?: string;
+  effective: EffectiveOrchestrator;
   routesTo: {
     discoverySkill: string;
     project: ProjectRoutePlan;
-    generatorAgent: string;
-    evaluatorAgent: string;
+    generatorAgent?: string;
+    evaluatorAgent?: string;
     workflowStages: string[];
   };
+}
+
+export interface EffectiveOrchestrator {
+  agentId: string;
+  source: 'loop-config' | 'manifest-source';
+  entryPath?: string;
+  manifestPath?: string;
+  executionMode?: string;
+  ownerAgent?: string;
+  ownerSkills?: string[];
 }
 
 export interface WorkflowStagePlan {
@@ -522,6 +561,7 @@ export interface RuntimePlan {
     ok: boolean;
     reasons: string[];
   };
+  execution: RuntimeExecutionPlan;
   orchestrator?: OrchestratorPlan;
   context: {
     skillPath: string;

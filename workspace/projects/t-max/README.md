@@ -12,6 +12,7 @@
 - `SKILL.md`：项目组级上下文，供 loop 和 agent 运行时读取。
 - `workspace/.local/t-max/mounts/background/xiaoneng`：生成的小能业务背景仓软链接。
 - `workspace/.local/t-max/mounts/repos/*`：生成的 T-MAX 代码仓软链接。
+- `.loop/project.yaml` 中 `background.runtime.type: manifest-source`：显式声明由挂载 Xiaoneng Manifest 提供 effective orchestrator；Xiaobai 仍是 Loop 宿主。
 
 这些软链接不是代码副本。通过挂载路径修改代码，实际修改的是原始本地 git 仓库。
 
@@ -37,6 +38,7 @@ This directory persists the T-MAX project-group relationship: the Xiaoneng busin
 - `SKILL.md`: project-group context for loop and agent runs.
 - `workspace/.local/t-max/mounts/background/xiaoneng`: generated symlink to the Xiaoneng business background repository.
 - `workspace/.local/t-max/mounts/repos/*`: generated symlinks to the mounted T-MAX code repositories.
+- `background.runtime.type: manifest-source` in `.loop/project.yaml`: the explicit declaration that the mounted Xiaoneng Manifest supplies the effective orchestrator; Xiaobai remains the Loop host.
 
 The symlinks are intentionally not code copies. Changes made through a repository mount are changes in the original local git repository.
 

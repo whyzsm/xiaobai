@@ -10,6 +10,8 @@ background:
   name: Harmony Wardrobe Project Context
   localPathKey: harmonyWardrobe
   mount: ../../.local/harmony-wardrobe/mounts/background/harmonyWardrobe
+  runtime:
+    type: context-only
 repositories:
   - id: harmonyWardrobe
     name: harmonyWardrobe

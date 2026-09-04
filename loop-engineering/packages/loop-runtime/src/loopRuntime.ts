@@ -16,6 +16,7 @@ import {
   OrchestratorPlan,
   ProjectRoutePlan,
   ProjectSpec,
+  RuntimeExecutionPlan,
   RuntimePlan,
   WorkflowPlan
 } from '../../shared/src/types';
@@ -54,6 +55,10 @@ export class LoopRuntime {
       targetRemote: options.targetRemote
     });
     const project = projectRoute.project;
+    const xiaonengBackground = project.background?.runtime?.type === 'manifest-source'
+      ? project.background
+      : undefined;
+    const usesXiaoneng = Boolean(xiaonengBackground);
 
     const scheduler = new Scheduler(loop);
     const budget = new BudgetGuard(loop.budget).check();
@@ -73,7 +78,7 @@ export class LoopRuntime {
       skillRuntime.loadDiscoverySkill(loop, project.id),
       connectorRuntime.collect(loop.discovery.sources),
       harnessRuntime.load(loop),
-      agentRuntime.loadAgent(loop.verification.evaluator),
+      usesXiaoneng ? Promise.resolve(undefined) : agentRuntime.loadAgent(loop.verification.evaluator),
       loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined)
     ]);
 
@@ -87,9 +92,13 @@ export class LoopRuntime {
       maxCharacters: harness.context.maxCharacters
     });
     const findings = skillRuntime.selectFindings(context.evidence);
-    const worktrees = worktreeManager.plan(findings, options.now);
-    const generatorRuns = harnessRuntime.planGeneratorRuns(loop, harness, worktrees);
-    const evaluations = evaluatorRuntime.plan(loop, evaluator, worktrees);
+    const worktrees = usesXiaoneng ? [] : worktreeManager.plan(findings, options.now);
+    const generatorRuns = !usesXiaoneng && harness
+      ? harnessRuntime.planGeneratorRuns(loop, harness, worktrees)
+      : [];
+    const evaluations = !usesXiaoneng && evaluator
+      ? evaluatorRuntime.plan(loop, evaluator, worktrees)
+      : [];
     const memoryContext = await buildMemoryContextMetadata({
       workspaceRoot,
       memoryRoot,
@@ -98,9 +107,9 @@ export class LoopRuntime {
       projectId: project.id,
       maxCharacters: context.maxCharacters
     });
-    const xiaoneng = project.background?.id === 'xiaoneng' && projectRoute.targetRepository
+    const xiaoneng = usesXiaoneng && projectRoute.targetRepository
       ? await resolveXiaonengRuntime({
-          sourceRoot: path.resolve(projectRoute.projectRoot, project.background.mount),
+          sourceRoot: path.resolve(projectRoute.projectRoot, xiaonengBackground!.mount),
           projectRoot: projectRoute.projectRoot,
           project,
           targetRepository: projectRoute.targetRepository,
@@ -110,13 +119,18 @@ export class LoopRuntime {
           now: options.now
         })
       : undefined;
+    if (usesXiaoneng && !xiaoneng) {
+      throw new Error('XIAONENG_HANDOFF_INCOMPLETE: target repository and mounted Xiaoneng runtime are required');
+    }
+    const execution = buildExecutionPlan(project, projectRoute, xiaoneng, orchestrator?.id);
 
     return {
       loopId: loop.metadata.id,
       loopWorkCount: await memoryStore.runCount(),
       schedule: scheduler.plan(),
       budget,
-      orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, projectRoute),
+      execution,
+      orchestrator: buildOrchestratorPlan(workspaceRoot, loop, orchestrator, projectRoute, execution),
       context: {
         skillPath: path.relative(workspaceRoot, context.skill.path),
         evidenceSources: context.evidence.length,
@@ -135,7 +149,7 @@ export class LoopRuntime {
         plannedWrites: memoryStore.plannedWrites()
       },
       humanGate: humanGate.plan(),
-      workflow: buildWorkflowPlan(loop),
+      workflow: execution.executor === 'xiaobai' ? buildWorkflowPlan(loop) : undefined,
       memoryContext,
       xiaoneng
     };
@@ -195,7 +209,8 @@ function buildOrchestratorPlan(
   workspaceRoot: string,
   loop: LoopSpec,
   agent: AgentSpec | undefined,
-  projectRoute: ResolvedProjectRoute
+  projectRoute: ResolvedProjectRoute,
+  execution: RuntimeExecutionPlan
 ): OrchestratorPlan | undefined {
   if (!loop.orchestrator || !agent) {
     return undefined;
@@ -206,12 +221,65 @@ function buildOrchestratorPlan(
     agentFile: loop.orchestrator.agent,
     role: agent.role,
     stance: agent.stance,
+    effective: execution.executor === 'xiaoneng' && execution.handoff
+      ? {
+          agentId: execution.agentId,
+          source: 'manifest-source',
+          entryPath: execution.handoff.entryPath,
+          manifestPath: execution.handoff.manifestPath,
+          executionMode: execution.handoff.executionMode,
+          ownerAgent: execution.handoff.ownerAgent,
+          ownerSkills: execution.handoff.ownerSkills
+        }
+      : {
+          agentId: execution.agentId,
+          source: 'loop-config'
+        },
     routesTo: {
       discoverySkill: loop.discovery.skill,
       project: buildProjectRoutePlan(workspaceRoot, projectRoute),
-      generatorAgent: loop.generator.agent,
-      evaluatorAgent: loop.verification.evaluator,
-      workflowStages: (loop.workflow?.stages ?? []).map((stage) => stage.id)
+      generatorAgent: execution.executor === 'xiaobai' ? loop.generator.agent : undefined,
+      evaluatorAgent: execution.executor === 'xiaobai' ? loop.verification.evaluator : undefined,
+      workflowStages: execution.executor === 'xiaobai'
+        ? (loop.workflow?.stages ?? []).map((stage) => stage.id)
+        : []
+    }
+  };
+}
+
+function buildExecutionPlan(
+  project: ProjectSpec,
+  projectRoute: ResolvedProjectRoute,
+  xiaoneng: RuntimePlan['xiaoneng'],
+  xiaobaiAgentId?: string
+): RuntimeExecutionPlan {
+  if (project.background?.runtime?.type !== 'manifest-source') {
+    return {
+      executor: 'xiaobai',
+      source: 'workspace-agent',
+      agentId: xiaobaiAgentId ?? 'xiaobai'
+    };
+  }
+
+  if (!xiaoneng || !projectRoute.targetRepository) {
+    throw new Error('XIAONENG_HANDOFF_INCOMPLETE: Xiaoneng handoff cannot be created without a resolved target');
+  }
+
+  return {
+    executor: 'xiaoneng',
+    source: 'mounted-background',
+    agentId: xiaoneng.skillContext.skillId,
+    handoff: {
+      executor: 'xiaoneng',
+      agentId: xiaoneng.skillContext.skillId,
+      source: 'mounted-background',
+      sourceRoot: xiaoneng.sourceConsumption.sourceRoot,
+      entryPath: xiaoneng.skillContext.entryPath,
+      manifestPath: xiaoneng.skillContext.manifestPath,
+      executionMode: xiaoneng.skillContext.executionMode,
+      ownerAgent: xiaoneng.skillContext.ownerAgent,
+      ownerSkills: xiaoneng.skillContext.ownerSkills,
+      targetRepository: projectRoute.targetRepository.id
     }
   };
 }
@@ -231,7 +299,8 @@ function buildProjectRoutePlan(workspaceRoot: string, projectRoute: ResolvedProj
       ? {
           id: project.background.id,
           name: project.background.name,
-          mount: displayPath(projectRoot, path.resolve(projectRoot, project.background.mount))
+          mount: displayPath(projectRoot, path.resolve(projectRoot, project.background.mount)),
+          runtime: project.background.runtime
         }
       : undefined,
     repositories: (project.repositories ?? []).map((repository) => ({

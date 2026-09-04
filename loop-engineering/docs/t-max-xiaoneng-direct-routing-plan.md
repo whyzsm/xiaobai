@@ -1,14 +1,14 @@
-# T-MAX 项目组小能直达路由与多 Agent 执行方案 / T-MAX Project Group Xiaoneng Direct Routing And Multi-Agent Execution Plan
+# T-MAX 项目组小能直达路由方案 / T-MAX Project Group Xiaoneng Direct Routing Plan
 
 ## 1. 目标 / Objective
 
 中文：
 
-将 T-MAX 项目组下的任意登记代码仓库接入同一套小能执行链路。用户只提供目标仓库、页面目标和需求文档地址，系统自动识别所属 t-max 项目组，读取共享 xiaoneng 源码，按小能 Manifest 路由，通过 Trellis 调度多 Agent，并由 suagent 独立监督。
+将 T-MAX 项目组下的任意登记代码仓库接入同一套小能执行链路。用户只提供目标仓库、页面目标和需求文档地址，系统自动识别所属 t-max 项目组，读取共享 xiaoneng 源码，并按小能 Manifest 路由到小能自己的 Agent 和 Skill。
 
 English:
 
-Route every registered repository in the T-MAX project group through one Xiaoneng execution path. The user provides only the target repository, page goal, and requirement URL. The system resolves the t-max project group, loads shared Xiaoneng source, routes through the Manifest, coordinates Agents through Trellis, and uses suagent for independent supervision.
+Route every registered repository in the T-MAX project group through one Xiaoneng execution path. The user provides only the target repository, page goal, and requirement URL. The system resolves the t-max project group, loads the shared Xiaoneng source, and routes the task to Xiaoneng's own Agents and Skills through its Manifest.
 
 ## 2. 最短用户话术 / Shortest User Request
 
@@ -42,6 +42,8 @@ backgroundId              = 共享 xiaoneng 背景
 
 operateSupport 可以自动读取 t-max 的项目组元数据、仓库清单和共享小能规则，但不会因为读取了项目组范围就默认扫描或修改其他仓库。
 
+Loop 宿主始终是 Xiaobai。只有项目 `project.yaml` 的 `background.runtime.type` 明确声明为 `manifest-source` 时，运行时才读取挂载 Xiaoneng 的 Manifest，并把 effective orchestrator 路由为 Manifest 声明的 `xiaoneng-agent`；`context-only` 或没有独立 runtime 声明的项目继续由 Xiaobai 编排。项目存在 `SKILL.md` 不会触发切换。
+
 默认行为：
 
 ```yaml
@@ -49,8 +51,7 @@ defaults:
   loadProjectGroup: true
   loadSharedBackground: true
   xiaonengRouting: manifest-only
-  execution: trellis
-  supervisor: suagent
+  execution: xiaoneng-manifest
   writeScope: targetRepository-only
   commit: false
   push: false
@@ -63,6 +64,8 @@ defaults:
 English:
 
 operateSupport may read T-MAX project-group metadata, the repository inventory, and shared Xiaoneng rules, but it must not scan or modify other repositories merely because the group scope was loaded. Cross-repository changes require an explicit affectedRepositories declaration and a new scope and authorization check.
+
+Xiaobai remains the Loop host. The runtime reads the mounted Xiaoneng Manifest and routes the effective orchestrator to the Manifest-declared `xiaoneng-agent` only when `project.yaml` explicitly declares `background.runtime.type: manifest-source`. Projects with `context-only`, or with no independent runtime declaration, remain Xiaobai-orchestrated. The presence of a project `SKILL.md` never triggers the switch.
 
 ## 4. 当前事实与缺口 / Current Facts And Gaps
 
@@ -77,11 +80,11 @@ operateSupport may read T-MAX project-group metadata, the repository inventory, 
 
 小能源码通过 workspace/.local/t-max/mounts/background/xiaoneng/ 挂载访问，入口为 xiaoneng-agent/SKILL.md，机器路由真源为 harness/runtime/manifest.yaml。不需要安装到 $CODEX_HOME/skills/xiaoneng-agent/，也不需要调用 sync-xiaoneng-hosts.sh。
 
-现有小白工程已经能根据仓库名解析项目组，但还需要补齐源码型小能上下文解析、执行桥、源码消费证据、Trellis worker 生命周期和独立监督闭环。
+现有小白工程已经能根据仓库名解析项目组，但还需要补齐源码型小能上下文解析、有效执行入口和源码消费证据。
 
 English:
 
-The project configuration already declares the T-MAX ProjectGroup, its seven repositories, the shared Xiaoneng background, and the ignored mount layout. The Xiaoneng source is loaded directly from its mounted checkout; no Codex skill installation or host-sync script is required. The remaining work is source-backed context resolution, an execution bridge, source-consumption evidence, Trellis lifecycle handling, and independent supervision.
+The project configuration already declares the T-MAX ProjectGroup, its seven repositories, the shared Xiaoneng background, and the ignored mount layout. The Xiaoneng source is loaded directly from its mounted checkout; no Codex skill installation or host-sync script is required. The remaining work is source-backed context resolution, an effective execution handoff, and source-consumption evidence.
 
 ## 5. 统一任务输入 / Unified Task Input
 
@@ -240,40 +243,7 @@ English:
 
 Use the Manifest-declared mode for scaffolding, implementation, API wiring, integration, testing, or the full workflow. If machine-readable intent mapping such as page.create is needed, add taskRouting only to the Xiaoneng Manifest and its schema.
 
-## 10. Trellis 多 Agent 与 suagent / Trellis Multi-Agent And suagent
-
-中文：
-
-每个任务使用独立 channel：xiaoneng-tmax-<taskId>。
-
-| Agent | 职责 | 写权限 |
-| --- | --- | --- |
-| xiaobai | 总编排、路由、上下文锁、状态机 | 运行时证据 |
-| lemon-product-agent | 需求、范围、字段、验收标准 | 只读 |
-| orange-architect-agent | 页面类型、组件、技术方案、结构门禁 | 只读 |
-| watermelon-frontend-agent | 目标仓页面实现 | 仅目标仓 |
-| mango-test-agent | 代码审查、测试、验收 | 只读 |
-| cantaloupe-knowledge-agent | 完整流程下的复盘沉淀 | 按授权 |
-| suagent | 独立检查和 Go/No-Go | 只读 |
-
-Lemon、Orange、Mango 和 suagent 可以并行只读；Watermelon 是唯一代码写入 Agent；同一任务只能有一个 writer。使用现有 workspace/agents/suagent.agent.yaml，不再创建第二个同名配置。旧 channel 的事件不能作为新任务证据。
-
-English:
-
-Use an isolated Trellis channel per task. Lemon, Orange, Mango, and suagent may read in parallel; Watermelon is the only code writer; and a task has only one writer. Reuse the existing workspace/agents/suagent.agent.yaml; do not create a second supervisor definition. Events from an old channel cannot prove a new task.
-
-示例：
-
-```bash
-trellis channel create xiaoneng-tmax-<taskId> --scope project --project xbaiProjectCode \
-  --cwd <xbai-workspace-root>
-trellis channel spawn xiaoneng-tmax-<taskId> --as watermelon-frontend-agent \
-  --provider codex --sandbox workspace-write
-trellis channel spawn xiaoneng-tmax-<taskId> --as suagent \
-  --provider codex --sandbox read-only
-```
-
-## 11. 页面执行流程 / Page Execution Flow
+## 10. 页面执行流程 / Page Execution Flow
 
 中文：
 
@@ -284,13 +254,11 @@ trellis channel spawn xiaoneng-tmax-<taskId> --as suagent \
   -> 检查目标仓库分支、HEAD 和 dirty 状态
   -> 加载共享 xiaoneng、Manifest 和入口 Skill
   -> 生成 task-context-lock 和 skill-context
-  -> Lemon 产出需求 brief
-  -> Orange 产出页面技术方案
-  -> 独立设计评审和 human-design-approval
-  -> Watermelon 只修改目标仓库
+  -> 进入 xiaoneng-agent/SKILL.md
+  -> Manifest 选择 executionMode、ownerAgent 和 ownerSkills
+  -> 由小能自己的 Agent/Skill 执行需求、方案、落码和验收阶段
+  -> 只修改 targetRepository
   -> 目标静态检查和 git diff --check
-  -> Mango 独立审查
-  -> suagent 独立 Go/No-Go
   -> 生成本地交付报告
 ```
 
@@ -298,9 +266,9 @@ Yuque 不可访问且没有用户提供可读内容时，停在需求门禁，�
 
 English:
 
-The workflow resolves the repository and project group, locks one target, loads the shared Xiaoneng source, produces requirement and design artifacts, waits for design approval, lets Watermelon modify only the target repository, runs static checks, and obtains independent Mango and suagent decisions. An inaccessible Yuque document or missing API evidence blocks the task instead of triggering guesses.
+The workflow resolves the repository and project group, locks one target, loads the shared Xiaoneng source, enters `xiaoneng-agent/SKILL.md`, lets the Xiaoneng Manifest select the execution mode and owner Agent/Skills, and restricts writes to the target repository. An inaccessible Yuque document or missing API evidence blocks the task instead of triggering guesses.
 
-## 12. 门禁、权限与证据 / Gates, Authorization, And Evidence
+## 11. 门禁、权限与证据 / Gates, Authorization, And Evidence
 
 中文：
 
@@ -319,7 +287,6 @@ component-availability-gate
 page-structure-gate
 human-design-approval
 implementation-verification-gate
-independent-suagent-review-gate
 commit-gate
 push-gate
 ```
@@ -341,33 +308,31 @@ stage-events.jsonl
 agent-runs.jsonl
 gate-results.json
 repo-diff.json
-suagent-review.json
 ```
 
 每个 workflow stage 记录 stageId、stageKind、owner、status、enteredAt、firstActionAt、exitedAt、durationMs、activeMs、waitingMs、waitingReason 和 evidence。没有真实采集的时间只能记录为 unmeasured。
 
 English:
 
-The listed routing, source, authorization, implementation, review, and delivery gates are mandatory. Each task stores context, source, requirement, page, API, stage, Agent, Gate, diff, and suagent evidence. Every stage records ownership, status, active time, waiting time, waiting reason, and evidence; missing timing is recorded as unmeasured.
+The listed routing, source, authorization, implementation, review, and delivery gates are mandatory. Each task stores context, source, requirement, page, API, stage, Agent, Gate, and diff evidence. Every stage records ownership, status, active time, waiting time, waiting reason, and evidence; missing timing is recorded as unmeasured.
 
-## 13. 实施拆分 / Implementation Breakdown
+## 12. 实施拆分 / Implementation Breakdown
 
 中文：
 
-建议拆成 6 个独立变更：
+建议拆成 5 个独立变更：
 
 1. 项目组路由增强：扩展 project-registry，返回全量 scope 和唯一 target，补齐 7 个仓库测试。
 2. 小能上下文运行时：新增 skill-context-runtime，实现 Manifest、schema、containment、digest 和白名单。
 3. 任务锁与权限：实现 task-context-lock、目标仓写入校验和 stale 检查。
 4. 执行事件与证据：实现 stage、Agent、Gate、源码消费和 diff 证据。
-5. Trellis/suagent 接入：实现独立 channel、单 writer、多 reader 和只读监督。
-6. Manifest 机器路由补齐：如有需要，只修改小能 Manifest 和 schema，增加 taskRouting。
+5. Manifest 机器路由补齐：如有需要，只修改小能 Manifest 和 schema，增加 taskRouting。
 
 English:
 
-Implement six independently verifiable changes: project-group routing; source-backed skill context; task locking and authorization; execution and evidence events; Trellis and suagent integration; and, only when needed, machine-readable routing in the Xiaoneng Manifest and schema.
+Implement five independently verifiable changes: project-group routing; source-backed skill context; task locking and authorization; execution and evidence events; and, only when needed, machine-readable routing in the Xiaoneng Manifest and schema.
 
-## 14. 验收矩阵 / Acceptance Matrix
+## 13. 验收矩阵 / Acceptance Matrix
 
 中文：
 
@@ -383,25 +348,25 @@ dcm
 scan
 ```
 
-每个用例必须证明：projectId=t-max；项目类型为 ProjectGroup；范围完整包含 7 个仓库；target 等于用户指定仓库；background 为 xiaoneng；Manifest 和入口 Skill 被真实读取；owner Agent 和 Skills 来自 Manifest；只允许目标仓写入；suagent 可以独立检查证据；未知、歧义、越界和未授权跨仓场景会阻断。
+每个用例必须证明：projectId=t-max；项目类型为 ProjectGroup；范围完整包含 7 个仓库；target 等于用户指定仓库；background 为 xiaoneng；Manifest 和入口 Skill 被真实读取；owner Agent 和 Skills 来自 Manifest；只允许目标仓写入；未知、歧义、越界和未授权跨仓场景会阻断。
 
 English:
 
-Run routing tests with each of the seven repositories as targetRepository. Every case must prove the T-MAX project-group identity, complete seven-repository scope, exact target, shared Xiaoneng background, actual Manifest and entry consumption, Manifest-derived ownership, target-only writes, independent suagent evidence access, and fail-closed behavior for unknown, ambiguous, out-of-bounds, and unauthorized cross-repository cases.
+Run routing tests with each of the seven repositories as targetRepository. Every case must prove the T-MAX project-group identity, complete seven-repository scope, exact target, shared Xiaoneng background, actual Manifest and entry consumption, Manifest-derived ownership, target-only writes, and fail-closed behavior for unknown, ambiguous, out-of-bounds, and unauthorized cross-repository cases.
 
-## 15. 验证与交付边界 / Verification And Delivery Boundary
+## 14. 验证与交付边界 / Verification And Delivery Boundary
 
 中文：
 
-默认允许路由测试、Manifest/schema 校验、目标文件静态检查、git diff --check、源码消费校验和 suagent 独立审查。默认不执行开发服务、构建、完整测试、浏览器自动化、git commit 或 git push；这些动作必须在对应阶段获得明确授权。
+默认允许路由测试、Manifest/schema 校验、目标文件静态检查、git diff --check 和源码消费校验。默认不执行开发服务、构建、完整测试、浏览器自动化、git commit 或 git push；这些动作必须在对应阶段获得明确授权。
 
 业务代码只能出现在目标仓库自己的 Git 状态中；工程仓库不得提交外部源码、软链接、local.paths.yaml 或 workspace/.local/ 内容。保留 sync-xiaoneng-hosts.sh，新链路禁止调用它；删除它需要单独的删除任务和影响分析。
 
 English:
 
-The default boundary allows routing tests, Manifest/schema validation, target static checks, git diff --check, source-consumption validation, and independent suagent review. Development servers, builds, full tests, browser automation, commits, and pushes require explicit authorization. Business code remains in the target repository; the engineering repository must not contain external source, symlinks, local path files, or ignored mount contents. Keep sync-xiaoneng-hosts.sh; removal is a separate authorized deletion task.
+The default boundary allows routing tests, Manifest/schema validation, target static checks, git diff --check, and source-consumption validation. Development servers, builds, full tests, browser automation, commits, and pushes require explicit authorization. Business code remains in the target repository; the engineering repository must not contain external source, symlinks, local path files, or ignored mount contents. Keep sync-xiaoneng-hosts.sh; removal is a separate authorized deletion task.
 
-## 16. 最终结果 / Final Result
+## 15. 最终结果 / Final Result
 
 中文：
 
@@ -419,8 +384,7 @@ operateSupport
   -> t-max 全部仓库清单
   -> 共享 xiaoneng
   -> Manifest 唯一路由
-  -> Trellis 多 Agent
-  -> suagent 独立监督
+  -> 小能自己的 Agent/Skill
   -> 仅修改 operateSupport
 ```
 
@@ -428,4 +392,4 @@ operateSupport
 
 English:
 
-After implementation, the user only needs to provide the repository, page goal, and Yuque URL. The system resolves the T-MAX ProjectGroup, loads the shared Xiaoneng source, routes only through the Manifest, coordinates Trellis Agents, supervises with suagent, and writes only to the selected repository. Replacing operateSupport supports every other registered T-MAX repository without duplicating routing, Agent, or Skill stacks.
+After implementation, the user only needs to provide the repository, page goal, and Yuque URL. The system resolves the T-MAX ProjectGroup, loads the shared Xiaoneng source, routes only through the Manifest to Xiaoneng's own Agent/Skills, and writes only to the selected repository. Replacing operateSupport supports every other registered T-MAX repository without duplicating routing, Agent, or Skill stacks.

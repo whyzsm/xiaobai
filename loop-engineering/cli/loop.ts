@@ -348,10 +348,26 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Loop work count: ${plan.loopWorkCount}\n`);
   process.stdout.write(`Schedule: ${plan.schedule.type} ${plan.schedule.expression} (${plan.schedule.timezone})\n`);
   process.stdout.write(`Budget: ${plan.budget.ok ? 'ok' : plan.budget.reasons.join(', ')}\n`);
+  process.stdout.write(`Execution: ${plan.execution.executor} (${plan.execution.agentId}, ${plan.execution.source})\n`);
+  if (plan.execution.handoff) {
+    process.stdout.write(
+      `Xiaoneng handoff: ${plan.execution.handoff.targetRepository} -> ${plan.execution.handoff.entryPath}\n`
+    );
+  }
   if (plan.orchestrator) {
     const project = plan.orchestrator.routesTo.project;
     const resolvedTarget = project.resolution.matchedRepositoryId ?? project.resolution.target ?? project.projectId;
     process.stdout.write(`Orchestrator: ${plan.orchestrator.agentId} (${plan.orchestrator.agentFile})\n`);
+    process.stdout.write(
+      `Effective orchestrator: ${plan.orchestrator.effective.agentId} (${plan.orchestrator.effective.source})\n`
+    );
+    if (plan.orchestrator.effective.entryPath && plan.orchestrator.effective.manifestPath) {
+      process.stdout.write(
+        `Route evidence: entry=${plan.orchestrator.effective.entryPath}, manifest=${plan.orchestrator.effective.manifestPath}, ` +
+        `mode=${plan.orchestrator.effective.executionMode}, owner=${plan.orchestrator.effective.ownerAgent}, ` +
+        `skills=${plan.orchestrator.effective.ownerSkills?.join(',')}\n`
+      );
+    }
     process.stdout.write(`Resolved target: ${resolvedTarget} -> ${project.projectId}`);
     if (project.background) {
       process.stdout.write(` -> ${project.background.id}`);

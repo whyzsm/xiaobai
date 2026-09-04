@@ -18,6 +18,15 @@ const workspaceRoot = path.join(repoRoot, 'workspace');
 const execFileAsync = promisify(execFile);
 const subjectDigest = `sha256:${'a'.repeat(64)}`;
 const changedSubjectDigest = `sha256:${'b'.repeat(64)}`;
+const tmaxRepositories = [
+  'KPIUI',
+  'max-console-ui',
+  'max-operate-monitor-ui',
+  'operateBusiness',
+  'operateSupport',
+  'dcm',
+  'scan'
+];
 
 test('workspace validates against schemas and referenced files', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'morning-triage');
@@ -370,7 +379,7 @@ test('gate CLI approves, checks, and revokes an append-only pass', async () => {
   );
 });
 
-test('frontend delivery loop gates design approval before implementation', async () => {
+test('T-MAX page delivery hands off after Xiaobai resolves the target', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const validation = await validateWorkspace(workspaceRoot, loopPath);
   assert.equal(validation.ok, true, validation.errors.join('\n'));
@@ -385,12 +394,32 @@ test('frontend delivery loop gates design approval before implementation', async
   assert.equal(plan.loopId, 'frontend-delivery');
   assert.equal(plan.orchestrator?.agentId, 'xiaobai');
   assert.equal(plan.orchestrator?.routesTo.discoverySkill, 'frontend-delivery');
-  assert.equal(plan.orchestrator?.routesTo.generatorAgent, 'frontend-generator.agent.yaml');
-  assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, 'frontend-evaluator.agent.yaml');
+  assert.equal(plan.orchestrator?.routesTo.generatorAgent, undefined);
+  assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 't-max');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
+  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.effective.source, 'manifest-source');
+  assert.equal(plan.orchestrator?.effective.entryPath, 'xiaoneng-agent/SKILL.md');
+  assert.equal(plan.orchestrator?.effective.manifestPath, 'harness/runtime/manifest.yaml');
+  assert.equal(plan.orchestrator?.effective.executionMode, 'PageImplementation');
+  assert.equal(plan.orchestrator?.effective.ownerAgent, 'watermelon-frontend-agent');
+  assert.deepEqual(plan.orchestrator?.effective.ownerSkills, ['fe-page-workflow', 'fe-typescript-safety']);
+  assert.equal(plan.execution.executor, 'xiaoneng');
+  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
+  assert.equal(plan.execution.source, 'mounted-background');
+  assert.equal(plan.execution.handoff?.targetRepository, 'operateBusiness');
+  assert.equal(plan.handoff.length, 0);
+  assert.equal(plan.generatorRuns.length, 0);
+  assert.equal(plan.evaluations.length, 0);
+  assert.equal(plan.workflow, undefined);
+  assert.equal(plan.orchestrator?.routesTo.generatorAgent, undefined);
+  assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, undefined);
+  assert.equal(plan.xiaoneng?.skillContext.skillId, 'xiaoneng-agent');
+  assert.equal(plan.xiaoneng?.taskContextLock.targetRepository, 'operateBusiness');
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
     true
@@ -401,7 +430,6 @@ test('frontend delivery loop gates design approval before implementation', async
   );
   assert.equal(plan.context.evidenceSources, 2);
   assert.equal(plan.findings.length, 2);
-  assert.equal(plan.evaluations.every((evaluation) => evaluation.allowSelfReview === false), true);
   assert.deepEqual(plan.humanGate.protectedActions, [
     'coding',
     'merge',
@@ -411,23 +439,33 @@ test('frontend delivery loop gates design approval before implementation', async
     'destructive-file-change'
   ]);
   assert.equal(plan.humanGate.gates.length, 6);
-  assert.equal(
-    plan.evaluations.every((evaluation) =>
-      evaluation.requiredChecks.includes('human-design-approval') &&
-      evaluation.requiredChecks.includes('frontend-design-review-passed') &&
-      evaluation.requiredChecks.includes('pr-ready')
-    ),
-    true
-  );
-  assert.equal(
-    plan.generatorRuns.every((run) =>
-      run.expectedOutput.includes('masterDesignPath') &&
-      run.expectedOutput.includes('repositoryDesignPaths') &&
-      run.expectedOutput.includes('humanDesignApproval') &&
-      run.expectedOutput.includes('pullRequestPlan')
-    ),
-    true
-  );
+});
+
+test('all T-MAX repositories hand off directly to the mounted Xiaoneng executor', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+
+  for (const repositoryId of tmaxRepositories) {
+    const plan = await new LoopRuntime().dryRun({
+      workspaceRoot,
+      loopPath,
+      targetRepository: repositoryId,
+      now: new Date('2026-06-28T00:00:00.000Z')
+    });
+
+    assert.equal(plan.execution.executor, 'xiaoneng', repositoryId);
+    assert.equal(plan.execution.agentId, 'xiaoneng-agent', repositoryId);
+    assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent', repositoryId);
+    assert.equal(plan.orchestrator?.effective.source, 'manifest-source', repositoryId);
+    assert.equal(plan.orchestrator?.effective.entryPath, 'xiaoneng-agent/SKILL.md', repositoryId);
+    assert.equal(plan.orchestrator?.effective.manifestPath, 'harness/runtime/manifest.yaml', repositoryId);
+    assert.equal(plan.execution.source, 'mounted-background', repositoryId);
+    assert.equal(plan.execution.handoff?.targetRepository, repositoryId);
+    assert.equal(plan.xiaoneng?.taskContextLock.targetRepository, repositoryId);
+    assert.equal(plan.handoff.length, 0, repositoryId);
+    assert.equal(plan.generatorRuns.length, 0, repositoryId);
+    assert.equal(plan.evaluations.length, 0, repositoryId);
+    assert.equal(plan.workflow, undefined, repositoryId);
+  }
 });
 
 test('frontend delivery exposes explicit workflow stages and yuque api shape', async () => {
@@ -435,7 +473,7 @@ test('frontend delivery exposes explicit workflow stages and yuque api shape', a
   const plan = await new LoopRuntime().dryRun({
     workspaceRoot,
     loopPath,
-    targetRepository: 'operateBusiness',
+    targetRepository: 'harmonyWardrobe',
     now: new Date('2026-06-28T00:00:00.000Z')
   });
 
@@ -498,6 +536,12 @@ test('frontend delivery routes harmony repository to harmony background', async 
 
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 'harmony-wardrobe');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'harmony-wardrobe-context');
+  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
+  assert.equal(plan.execution.executor, 'xiaobai');
+  assert.equal(plan.execution.source, 'workspace-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.effective.source, 'loop-config');
+  assert.equal(plan.xiaoneng, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'harmony-wardrobe'), true);
@@ -515,6 +559,12 @@ test('frontend delivery routes trunkFeeder-ui repository to trunkFeeder backgrou
 
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 'trunkFeeder');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'trunkFeeder');
+  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
+  assert.equal(plan.execution.executor, 'xiaobai');
+  assert.equal(plan.execution.source, 'workspace-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.effective.source, 'loop-config');
+  assert.equal(plan.xiaoneng, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'trunkFeeder-ui');
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'trunkFeeder'), true);
@@ -532,6 +582,12 @@ test('frontend delivery routes target remote to harmony background', async () =>
 
   assert.equal(plan.orchestrator?.routesTo.project.projectId, 'harmony-wardrobe');
   assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'harmony-wardrobe-context');
+  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
+  assert.equal(plan.execution.executor, 'xiaobai');
+  assert.equal(plan.execution.source, 'workspace-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.effective.source, 'loop-config');
+  assert.equal(plan.xiaoneng, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'remote');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
 });
@@ -547,6 +603,29 @@ test('unknown frontend target does not fall back to t-max', async () => {
       now: new Date('2026-06-28T00:00:00.000Z')
     }),
     /Target repository is not mapped to any project: not-a-known-repository/
+  );
+});
+
+test('invalid project background runtime type fails closed', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-project-runtime-validation-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  await execFileAsync('cp', ['-R', path.join(repoRoot, 'loop-engineering'), path.join(tempRoot, 'loop-engineering')]);
+  await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
+  await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
+
+  const projectPath = path.join(tempWorkspace, 'projects', 't-max', '.loop', 'project.yaml');
+  const projectYaml = await readText(projectPath);
+  await writeFile(projectPath, projectYaml.replace('type: manifest-source', 'type: unknown-agent'), 'utf8');
+
+  const loopPath = await findLoopSpec(tempWorkspace, 'frontend-delivery');
+  await assert.rejects(
+    new LoopRuntime().dryRun({
+      workspaceRoot: tempWorkspace,
+      loopPath,
+      targetRepository: 'operateBusiness',
+      now: new Date('2026-06-28T00:00:00.000Z')
+    }),
+    /Invalid project background runtime type/
   );
 });
 
@@ -671,7 +750,7 @@ test('human gate definitions cannot drift from protected actions or reuse ids', 
   );
 });
 
-test('dry-run text output prints workflow stages', async () => {
+test('dry-run text output prints the effective Xiaoneng handoff', async () => {
   const { stdout } = await execFileAsync('node', [
     'dist/loop-engineering/cli/loop.js',
     'dry-run',
@@ -681,13 +760,19 @@ test('dry-run text output prints workflow stages', async () => {
     'operateBusiness'
   ]);
 
-  assert.match(stdout, /Workflow stages: 9/);
+  assert.match(stdout, /Execution: xiaoneng \(xiaoneng-agent, mounted-background\)/);
+  assert.match(stdout, /Xiaoneng handoff: operateBusiness -> xiaoneng-agent\/SKILL\.md/);
+  assert.match(stdout, /Effective orchestrator: xiaoneng-agent \(manifest-source\)/);
+  assert.match(stdout, /Route evidence: entry=xiaoneng-agent\/SKILL\.md, manifest=harness\/runtime\/manifest\.yaml/);
+  assert.match(stdout, /mode=PageImplementation, owner=watermelon-frontend-agent/);
+  assert.match(stdout, /skills=fe-page-workflow,fe-typescript-safety/);
+  assert.match(stdout, /Generator runs: 0/);
+  assert.match(stdout, /Evaluator runs: 0/);
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
   assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
   assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
-  assert.match(stdout, /requirement-intake \[intake, automatic, planned\]/);
-  assert.match(stdout, /human-design-approval \[human-gate, manual, planned\]/);
+  assert.doesNotMatch(stdout, /Workflow stages:/);
 });
 
 test('dry-run output shows loop work count from run log', async () => {
@@ -737,6 +822,20 @@ test('dry-run text output shows harmony route when target repository is harmonyW
   assert.match(stdout, /Route source: explicit-repository/);
   assert.match(stdout, /Project route: harmony-wardrobe -> harmony-wardrobe-context, repositories: 1/);
   assert.match(stdout, /Context: 2 evidence sources, projects\/harmony-wardrobe\/SKILL\.md/);
+});
+
+test('app-a without an explicit background runtime stays on Xiaobai', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'morning-triage');
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    targetProject: 'app-a',
+    now: new Date('2026-09-04T00:00:00.000Z')
+  });
+
+  assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
+  assert.equal(plan.orchestrator?.effective.source, 'loop-config');
+  assert.equal(plan.xiaoneng, undefined);
 });
 
 test('orchestrator agent must be present and use orchestrator role', async () => {

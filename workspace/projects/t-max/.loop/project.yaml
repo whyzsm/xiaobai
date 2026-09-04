@@ -10,6 +10,8 @@ background:
   name: xiaoneng
   localPathKey: xiaoneng
   mount: ../../.local/t-max/mounts/background/xiaoneng
+  runtime:
+    type: manifest-source
 repositories:
   - id: KPIUI
     name: KPIUI

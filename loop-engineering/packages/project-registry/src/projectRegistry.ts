@@ -118,6 +118,7 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
     }
 
     const project = await readYamlFile<ProjectSpec>(projectPath);
+    validateProjectBackgroundRuntime(project, projectPath);
     const localPathsPath = project.localPaths ? path.join(projectRoot, project.localPaths) : undefined;
     const localPaths = localPathsPath && (await pathExists(localPathsPath))
       ? await readYamlFile<ProjectLocalPaths>(localPathsPath)
@@ -126,6 +127,13 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
   }
 
   return entries;
+}
+
+function validateProjectBackgroundRuntime(project: ProjectSpec, projectPath: string): void {
+  const runtimeType = project.background?.runtime?.type;
+  if (runtimeType !== undefined && runtimeType !== 'manifest-source' && runtimeType !== 'context-only') {
+    throw new Error(`Invalid project background runtime type in ${projectPath}: ${runtimeType}`);
+  }
 }
 
 function findProjectMatches(
