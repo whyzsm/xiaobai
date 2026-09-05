@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isXiaobaiProjectContext } from './xiaobai-host-scope.mjs';
+import { ensureBuilt } from './build-if-stale.mjs';
 
 const hostDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(process.env.XIAOBAI_PROJECT_ROOT || path.join(hostDir, '../..'));
@@ -19,7 +19,7 @@ const requestText = firstString(input.prompt, input.userPrompt, input.message);
 // belongs to its own host and must not be bridged through Xiaobai.
 if (!(await isXiaobaiProjectContext(projectRoot, targetCwd))) process.exit(0);
 
-const route = resolveRoute({ projectRoot, targetCwd, requestText });
+const route = await resolveRoute({ projectRoot, targetCwd, requestText });
 
 if (route.status === 'not-applicable') process.exit(0);
 
@@ -65,17 +65,13 @@ process.stdout.write([
   'If any required source or handoff evidence is missing, stop with XIAONENG_CONTEXT_INCOMPLETE.'
 ].join('\n') + '\n');
 
-function resolveRoute({ projectRoot, targetCwd, requestText }) {
+async function resolveRoute({ projectRoot, targetCwd, requestText }) {
   const cliPath = path.join(projectRoot, 'dist/loop-engineering/cli/loop.js');
-  if (!existsSync(cliPath)) {
-    const build = spawnSync('npm', ['run', 'build', '--silent'], {
-      cwd: projectRoot,
-      encoding: 'utf8',
-      stdio: 'pipe'
-    });
-    if (build.status !== 0) {
-      return { status: 'blocked', reason: 'Xiaobai route CLI is not built and the engineering build failed.' };
-    }
+  // Rebuild when the CLI is missing OR stale (sources/tsconfig newer than the
+  // compiled output), so a branch switch can never route on a foreign build.
+  const build = ensureBuilt(projectRoot);
+  if (!build.ok) {
+    return { status: 'blocked', reason: 'Xiaobai route CLI is not built and the engineering build failed.' };
   }
 
   const args = [

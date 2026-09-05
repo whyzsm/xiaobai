@@ -11,7 +11,7 @@ node workspace/host/t-max-xiaobai-entry.mjs \
   --message 'operateBusiness 任意用户消息'
 ```
 
-入口只接受 Xiaobai 工程上下文中的调用，先校验 `--host-cwd` 的真实路径，再执行小白工程仓的 TypeScript 编译和 `loop route` 只读路由校验。不启动业务服务、不构建业务仓、不修改业务仓、不提交或推送。直接在 Xiaobai 工程仓之外的任何项目或代码仓中调用时，都没有 Xiaobai 宿主上下文，不会建立 Xiaobai bridge；该场景由对应宿主自身已安装或项目内声明的 Xiaoneng 决定。路由失败必须停止，不能退回到任何仓库本地辅助入口、旧的 `workspace/projects/<repository>` 残留或全局页面 Skill。
+入口只接受 Xiaobai 工程上下文中的调用，先校验 `--host-cwd` 的真实路径，再按需执行小白工程仓的 TypeScript 编译（仅当 `loop-engineering/cli`、`loop-engineering/packages` 或 `tsconfig.json` 比编译产物新时才重建），然后运行 `loop route` 只读路由校验。不启动业务服务、不构建业务仓、不修改业务仓、不提交或推送。直接在 Xiaobai 工程仓之外的任何项目或代码仓中调用时，都没有 Xiaobai 宿主上下文，不会建立 Xiaobai bridge；该场景由对应宿主自身已安装或项目内声明的 Xiaoneng 决定。路由失败必须停止，不能退回到任何仓库本地辅助入口、旧的 `workspace/projects/<repository>` 残留或全局页面 Skill。
 
 T-MAX 的唯一项目组源是 `workspace/projects/t-max/.loop/project.yaml`。只有其中登记的仓库才会进入共享 `xiaoneng` 背景；其他项目（例如 `harmonyWardrobe`）继续使用自己的项目背景和小白默认编排。
 
@@ -26,7 +26,7 @@ node workspace/host/t-max-xiaobai-entry.mjs \
   --message 'operateBusiness any user message'
 ```
 
-The entry accepts calls only from a Xiaobai engineering context. It first verifies the real path of `--host-cwd`, then compiles the Xiaobai engineering repository and runs the read-only `loop route` check. It does not start a business service, build a business repository, modify a business repository, commit, or push. A direct call from any project or repository outside Xiaobai has no Xiaobai host context and does not create a Xiaobai bridge; that host's own globally or project-installed Xiaoneng determines routing. A failed route must stop; it must not fall back to any repository-local auxiliary entry, stale `workspace/projects/<repository>` remnants, or a globally available page Skill.
+The entry accepts calls only from a Xiaobai engineering context. It first verifies the real path of `--host-cwd`, then rebuilds the Xiaobai engineering repository only when `loop-engineering/cli`, `loop-engineering/packages`, or `tsconfig.json` is newer than the compiled CLI, and runs the read-only `loop route` check. It does not start a business service, build a business repository, modify a business repository, commit, or push. A direct call from any project or repository outside Xiaobai has no Xiaobai host context and does not create a Xiaobai bridge; that host's own globally or project-installed Xiaoneng determines routing. A failed route must stop; it must not fall back to any repository-local auxiliary entry, stale `workspace/projects/<repository>` remnants, or a globally available page Skill.
 
 The only T-MAX project-group source is `workspace/projects/t-max/.loop/project.yaml`. Only repositories registered there enter the shared `xiaoneng` background. Other projects, such as `harmonyWardrobe`, continue to use their own project background and Xiaobai's default orchestration.
 
@@ -34,7 +34,7 @@ The only T-MAX project-group source is `workspace/projects/t-max/.loop/project.y
 
 中文：
 
-要让 Xiaobai 工程仓中的 Codex 对话进入 Xiaoneng，可在 Codex 用户级 hook 中注册 `UserPromptSubmit`。这个注册虽然位于用户级配置，但 hook 首先要求宿主提供真实 `cwd`，再检查它是否位于安装它的 Xiaobai 工程根目录；缺少 `cwd`、`workspace/.local` 及其软链接目标都会被排除。只有通过该宿主边界后，才把原始 prompt 和 cwd 交给 `loop route`；只有返回 `project=t-max` 且存在完整 Xiaoneng handoff 时，才向当前对话注入路由锁。位于 Xiaobai 工程仓之外的任何项目或代码仓的对话都会静默跳过，不会被 Xiaobai bridge 劫持。
+要让 Xiaobai 工程仓中的 Codex 对话进入 Xiaoneng，可在 Codex 用户级 hook 中注册 `UserPromptSubmit`。这个注册虽然位于用户级配置，但 hook 首先要求宿主提供真实 `cwd`，再检查它是否位于安装它的 Xiaobai 工程根目录；缺少 `cwd`、`workspace/.local` 及其软链接目标都会被排除。只有通过该宿主边界后，才把原始 prompt 和 cwd 交给 `loop route`（路由 CLI 缺失或源码过期时先自动重建，避免用陈旧构建路由）；只有返回 `project=t-max` 且存在完整 Xiaoneng handoff 时，才向当前对话注入路由锁。位于 Xiaobai 工程仓之外的任何项目或代码仓的对话都会静默跳过，不会被 Xiaobai bridge 劫持。
 
 本机注册文件是 `~/.codex/hooks.json`，它属于 Codex 用户级配置，不属于任何业务仓，也不会在仓库中生成隐藏配置。注册内容如下，路径按实际 Xiaobai 工程位置调整：
 
@@ -62,7 +62,7 @@ The only T-MAX project-group source is `workspace/projects/t-max/.loop/project.y
 
 English:
 
-To let Codex conversations hosted inside the Xiaobai engineering repository enter Xiaoneng, register a `UserPromptSubmit` hook at the Codex user level. Although the registration is user-level, the hook first requires an actual `cwd` from the host and checks that its real path is inside the Xiaobai project root that installed it; a missing `cwd`, `workspace/.local`, and their symlink targets are excluded. Only after that host boundary passes does it send the raw prompt and cwd to `loop route`. It injects a routing lock only when the result is `project=t-max` with a complete Xiaoneng handoff. Conversations opened in any project or repository outside Xiaobai are silently skipped and are not taken over by the Xiaobai bridge.
+To let Codex conversations hosted inside the Xiaobai engineering repository enter Xiaoneng, register a `UserPromptSubmit` hook at the Codex user level. Although the registration is user-level, the hook first requires an actual `cwd` from the host and checks that its real path is inside the Xiaobai project root that installed it; a missing `cwd`, `workspace/.local`, and their symlink targets are excluded. Only after that host boundary passes does it send the raw prompt and cwd to `loop route` (rebuilding the route CLI automatically when it is missing or stale, so routing never runs on an outdated build). It injects a routing lock only when the result is `project=t-max` with a complete Xiaoneng handoff. Conversations opened in any project or repository outside Xiaobai are silently skipped and are not taken over by the Xiaobai bridge.
 
 The local registration file is `~/.codex/hooks.json`. It is Codex user configuration, not business-repository content, and it does not create hidden configuration inside a repository. The registration is shown above; adjust the Xiaobai project path for the machine.
 

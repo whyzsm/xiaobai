@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isXiaobaiProjectContext } from './xiaobai-host-scope.mjs';
+import { ensureBuilt } from './build-if-stale.mjs';
 
 const hostDir = path.dirname(fileURLToPath(import.meta.url));
 const xiaobaiRoot = path.resolve(process.env.XIAOBAI_PROJECT_ROOT || path.join(hostDir, '../..'));
@@ -24,10 +25,10 @@ if (!args.message && !args.repository && !args.cwd) {
 }
 
 try {
-  execFileSync('npm', ['run', 'build', '--silent'], {
-    cwd: xiaobaiRoot,
-    stdio: 'inherit'
-  });
+  const build = ensureBuilt(xiaobaiRoot);
+  if (!build.ok) {
+    fail('Xiaobai engineering build failed before routing.');
+  }
 
   const cliArgs = [
     path.join(xiaobaiRoot, 'dist/loop-engineering/cli/loop.js'),
