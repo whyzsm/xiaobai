@@ -3,6 +3,9 @@ id: requirement-input
 capabilities:
   - read_local_documents
   - read_conversation_requirements
+  - read_requirement_links
+  - extract_versioned_sections
+  - record_requirement_source_hash
   - normalize_requirement_brief
 permissions:
   write:

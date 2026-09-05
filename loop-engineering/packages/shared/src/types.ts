@@ -603,6 +603,166 @@ export interface RuntimePlan {
   xiaoneng?: XiaonengRuntimePlan;
 }
 
+export type RequirementScope = 'frontend_only' | 'full_stack';
+
+export interface RequirementBackendContract {
+  status: 'provided' | 'not_provided';
+  allowNewRequest: boolean;
+  allowResponseFieldGuessing: boolean;
+}
+
+export interface RequirementSourceInput {
+  pageRoute: string;
+  sourceUri: string;
+  requestedVersion: string;
+  extractedSection: {
+    heading: string;
+    content: string;
+  };
+  visualEvidenceStatus: 'not_required' | 'provided' | 'required_missing';
+}
+
+export interface RequirementItemInput {
+  id: string;
+  text: string;
+  acceptanceIds: string[];
+}
+
+export interface RequirementAcceptanceInput {
+  id: string;
+  text: string;
+}
+
+export interface RequirementOpenQuestion {
+  id: string;
+  text: string;
+  blocksImplementation: boolean;
+}
+
+export interface RequirementPrecisionPolicy {
+  display: string;
+  input: string;
+  import: string;
+}
+
+export interface RequirementIntakeInput {
+  scope: RequirementScope;
+  backendContract: RequirementBackendContract;
+  targetPageRoutes: string[];
+  requirementSources: RequirementSourceInput[];
+  requirements: RequirementItemInput[];
+  acceptanceCriteria: RequirementAcceptanceInput[];
+  openQuestions?: RequirementOpenQuestion[];
+  precision?: RequirementPrecisionPolicy;
+}
+
+export interface XiaonengRequirementPolicy {
+  kind: 'TmaxRequirementPolicy';
+  version: '1.0.0';
+  appliesTo: 't-max';
+  sourceBinding: {
+    requirePageRoute: true;
+    requireSourceUri: true;
+    requireRequestedVersion: true;
+    requireExactSectionHeading: true;
+    requireContentHash: true;
+  };
+  backendContract: {
+    frontendOnlyWithoutBackend: {
+      allowNewRequest: false;
+      allowResponseFieldGuessing: false;
+    };
+  };
+  precision: {
+    requireSeparatedLayersWhenSpecified: true;
+    requiredLayers: ['display', 'input', 'import'];
+  };
+  referenceSelection: {
+    canonicalTemplateSource: 'xiaoneng';
+    targetProjectRole: 'project_facts_only';
+  };
+}
+
+export interface RequirementSourceArtifact {
+  pageRoute: string;
+  sourceUri: string;
+  requestedVersion: string;
+  sectionHeading: string;
+  contentHash: string;
+  visualEvidenceStatus: RequirementSourceInput['visualEvidenceStatus'];
+}
+
+export interface RequirementArtifact {
+  contractVersion: '1.0.0';
+  taskId: string;
+  projectId: string;
+  targetRepository: string;
+  scope: RequirementScope;
+  targetPageRoutes: string[];
+  background: {
+    id: 'xiaoneng';
+    commit: string;
+    manifestDigest: string;
+    contextDigest: string;
+  };
+  policy: {
+    path: string;
+    digest: string;
+    version: XiaonengRequirementPolicy['version'];
+  };
+  backendContract: RequirementBackendContract;
+  requirementSources: RequirementSourceArtifact[];
+  requirements: RequirementItemInput[];
+  acceptanceCriteria: RequirementAcceptanceInput[];
+  openQuestions: RequirementOpenQuestion[];
+  precision?: RequirementPrecisionPolicy;
+  status: 'go' | 'blocked';
+  blockingReasons: string[];
+  contentDigest: string;
+}
+
+export interface TaskStageEvent {
+  taskId: string;
+  stageId: 'target-repository-resolution' | 'requirement-intake' | 'external-dispatch';
+  enteredAt: string;
+  firstActionAt: string;
+  exitedAt: string;
+  durationMs: number;
+  activeMs: number;
+  waitingMs: number;
+  waitingReason?: string;
+  status: 'completed' | 'blocked' | 'waiting';
+  evidence: string[];
+}
+
+export interface TaskAdapterContext {
+  plan: RuntimePlan;
+  requirementArtifact: RequirementArtifact;
+  targetWriteRoot: string;
+}
+
+export interface TaskExecutionAdapter {
+  id: string;
+  dispatch(context: TaskAdapterContext): Promise<{
+    status: 'completed' | 'blocked';
+    evidence: string[];
+    waitingReason?: string;
+  }>;
+}
+
+export interface TaskExecutionResult {
+  plan: RuntimePlan;
+  requirementArtifact: RequirementArtifact;
+  stageEvents: TaskStageEvent[];
+  status: 'blocked' | 'ready_for_adapter' | 'completed';
+  artifactDirectory?: string;
+  adapter?: {
+    id: string;
+    status: 'completed' | 'blocked';
+    evidence: string[];
+  };
+}
+
 export interface SimulationStage {
   id: string;
   title: string;

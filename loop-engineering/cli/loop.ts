@@ -6,12 +6,13 @@ import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
-import { GatePassEvidence, HarnessEvidenceType, LoopSpec } from '../packages/shared/src/types';
+import { GatePassEvidence, HarnessEvidenceType, LoopSpec, RequirementIntakeInput } from '../packages/shared/src/types';
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
 import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
 import { resolveXiaonengRuntime } from '../packages/xiaoneng-context-runtime/src/xiaonengContextRuntime';
+import { TaskExecutionRuntime } from '../packages/task-execution-runtime/src/taskExecutionRuntime';
 
 interface CliOptions {
   command: string;
@@ -25,6 +26,8 @@ interface CliOptions {
   targetRemote?: string;
   xiaonengExecutionMode?: string;
   resultPath?: string;
+  requirementPath?: string;
+  taskId?: string;
   rest: string[];
 }
 
@@ -73,6 +76,11 @@ async function main(argv: string[]): Promise<void> {
   }
 
   const loopPath = await findLoopSpec(workspaceRoot, options.loop);
+
+  if (options.command === 'intake') {
+    await runIntakeCommand(options, workspaceRoot, loopPath);
+    return;
+  }
 
   if (options.command === 'gate') {
     await runGateCommand(options, workspaceRoot, loopPath);
@@ -311,6 +319,12 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--result') {
       options.resultPath = requireValue(rest, index, arg);
       index += 1;
+    } else if (arg === '--requirement' && command === 'intake') {
+      options.requirementPath = requireValue(rest, index, arg);
+      index += 1;
+    } else if (arg === '--task-id' && command === 'intake') {
+      options.taskId = requireValue(rest, index, arg);
+      index += 1;
     } else if (arg === '--json') {
       options.json = true;
     } else {
@@ -319,6 +333,51 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return options;
+}
+
+async function runIntakeCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
+  if (!options.requirementPath) {
+    throw new Error('intake requires --requirement <json-file>');
+  }
+
+  const validation = await validateWorkspace(workspaceRoot, loopPath);
+  if (!validation.ok) {
+    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const requirement = JSON.parse(
+    await readFile(path.resolve(process.cwd(), options.requirementPath), 'utf8')
+  ) as RequirementIntakeInput;
+  const runtime = new TaskExecutionRuntime();
+  const result = await runtime.execute({
+    workspaceRoot,
+    loopPath,
+    targetProject: options.targetProject,
+    targetRepository: options.targetRepository,
+    userMessage: options.userMessage,
+    targetCwd: options.targetCwd,
+    targetRemote: options.targetRemote,
+    taskId: options.taskId,
+    xiaonengExecutionMode: options.xiaonengExecutionMode,
+    requirement,
+    persistArtifacts: true
+  });
+
+  if (options.json) {
+    process.stdout.write(formatJson(result));
+  } else {
+    process.stdout.write([
+      `Task: ${result.requirementArtifact.taskId}`,
+      `Target repository: ${result.requirementArtifact.targetRepository}`,
+      `Requirement gate: ${result.requirementArtifact.status}`,
+      `Execution status: ${result.status}`,
+      `Artifacts: ${result.artifactDirectory ?? 'not-written'}`,
+      ...result.requirementArtifact.blockingReasons.map((reason) => `Blocker: ${reason}`)
+    ].join('\n') + '\n');
+  }
+  process.exitCode = result.status === 'blocked' ? 1 : 0;
 }
 
 async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
@@ -588,6 +647,7 @@ function printHelp(): void {
   loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-digest <sha256:...> --issuer <reviewer> --evidence <type:value>... [--json]
   loop gate check --loop <loop-id> --run-id <id> --task-id <id> <--stage <stage-id>|--action <action>> --subject-digest <sha256:...> [--json]
   loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
+  loop intake --loop frontend-delivery --target-repository <repo> --requirement <json-file> [--task-id <id>] [--xiaoneng-execution-mode mode] [--json]
   loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--xiaoneng-execution-mode mode] [--json]
   loop route    [--workspace workspace] [--loop frontend-delivery] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--xiaoneng-execution-mode mode] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
