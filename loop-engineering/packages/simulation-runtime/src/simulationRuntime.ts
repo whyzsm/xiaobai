@@ -10,7 +10,7 @@ import {
   SimulationResult,
   SimulationStage
 } from '../../shared/src/types';
-import { formatJson, writeText } from '../../shared/src/fs';
+import { formatJson, pathExists, readText, writeText } from '../../shared/src/fs';
 import { MemoryRootConfig, resolveMemoryPath, resolveMemoryRootConfig } from '../../shared/src/memoryRoot';
 import { planCaseWrite, writeCase } from '../../memory-capture/src';
 import { buildMemoryIndex, writeMemoryIndexAtomic } from '../../memory-indexer/src';
@@ -54,8 +54,14 @@ export class SimulationRuntime {
       sourceUser
     });
     artifacts.obsidianCasePath = obsidianCase;
-    await writeText(artifacts.casesIndexPath, formatJson([buildCaseIndexEntry(now, artifacts, sourceUser)]));
-    await writeText(artifacts.patternsIndexPath, renderPatternsIndex(now, artifacts));
+    const caseIndexEntry = buildCaseIndexEntry(now, artifacts, sourceUser);
+    const previousCasesIndex = await readTextIfAny(artifacts.casesIndexPath);
+    const mergedEntries = mergeCasesIndexEntries(previousCasesIndex, caseIndexEntry);
+    await writeText(artifacts.casesIndexPath, formatJson(mergedEntries));
+
+    const updateLine = `- ${now.toISOString().slice(0, 10)}: 新增 \`${relative(process.cwd(), artifacts.casePath)}\``;
+    const updateLines = mergePatternsIndexUpdateLines(await readTextIfAny(artifacts.patternsIndexPath), [updateLine]);
+    await writeText(artifacts.patternsIndexPath, renderPatternsIndex(mergedEntries.length, updateLines));
     await appendJsonl(resolveMemoryPath(memoryRoot, plan.persistence.runLog), {
       runId,
       mode: 'simulation',
@@ -403,17 +409,61 @@ function buildCaseIndexEntry(now: Date, artifacts: SimulationArtifact, sourceUse
   };
 }
 
-function renderPatternsIndex(now: Date, artifacts: SimulationArtifact): string {
+export interface CaseIndexEntry {
+  id: string;
+  [field: string]: unknown;
+}
+
+export function mergeCasesIndexEntries(previousRaw: string, nextEntry: CaseIndexEntry): CaseIndexEntry[] {
+  let previous: CaseIndexEntry[] = [];
+  if (previousRaw.trim()) {
+    try {
+      const parsed: unknown = JSON.parse(previousRaw);
+      if (Array.isArray(parsed)) {
+        previous = parsed.filter((entry): entry is CaseIndexEntry => typeof (entry as CaseIndexEntry)?.id === 'string');
+      }
+    } catch {
+      previous = [];
+    }
+  }
+  return [...previous.filter((entry) => entry.id !== nextEntry.id), nextEntry];
+}
+
+export function mergePatternsIndexUpdateLines(previousRaw: string, nextLines: string[]): string[] {
+  const previousLines = previousRaw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- '))
+    .filter((line) => !line.startsWith('- 暂无'));
+  const merged: string[] = [];
+  for (const line of [...nextLines, ...previousLines]) {
+    if (!merged.includes(line)) {
+      merged.push(line);
+    }
+  }
+  // Keep the changelog bounded so repeated simulation runs cannot grow it forever.
+  return merged.slice(0, 30);
+}
+
+export function renderPatternsIndex(totalCount: number, updateLines: string[]): string {
+  const threshold =
+    totalCount < 3
+      ? '未达到 3 条 case 的 pattern 归纳阈值。'
+      : '已达到 3 条 pattern 归纳阈值，等待人工归纳 active pattern。';
   return `# Patterns Index
 
 ## 主题目录
 
-- 暂无 active pattern。当前只有 1 条 simulation case，未达到 3 条 case 的 pattern 归纳阈值。
+- 暂无 active pattern。当前共 ${totalCount} 条 simulation case，${threshold}
 
 ## 最近更新
 
-- ${now.toISOString().slice(0, 10)}: 新增 \`${relative(process.cwd(), artifacts.casePath)}\`
+${updateLines.join('\n')}
 `;
+}
+
+async function readTextIfAny(filePath: string): Promise<string> {
+  return (await pathExists(filePath)) ? readText(filePath) : '';
 }
 
 async function appendJsonl(filePath: string, value: unknown): Promise<void> {
