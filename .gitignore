@@ -27,6 +27,11 @@ deploy/
 .trellis/
 .dsh-vision-toolkit/
 
+# Local playwright runs & tool caches (regenerable machine state)
+.playwright-cli/
+output/
+.understand-anything/diff-overlay.json
+
 # Executables
 *.swf
 *.air
