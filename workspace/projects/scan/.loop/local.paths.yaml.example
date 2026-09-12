@@ -1,0 +1,8 @@
+# Copy this file to local.paths.yaml on each computer, then adjust paths.
+# local.paths.yaml is ignored by git because these paths are machine-specific.
+# xigua is an external canonical source read by Xiaobai; it is never installed
+# into scan or at system level as a routing prerequisite.
+background:
+  xigua: /absolute/path/to/xigua
+repositories:
+  scan: /absolute/path/to/T-MAX/scan

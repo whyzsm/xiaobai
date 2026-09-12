@@ -18,8 +18,9 @@ const workspaceRoot = path.join(repoRoot, 'workspace');
 const execFileAsync = promisify(execFile);
 const subjectDigest = `sha256:${'a'.repeat(64)}`;
 const changedSubjectDigest = `sha256:${'b'.repeat(64)}`;
-const tmaxRepositories = [
-  // KPIUI migrated to the standalone xigua route; xigua-routing.test.ts covers it.
+const standaloneTmaxRepositories = [
+  // All T-MAX repositories now run as standalone xigua Projects.
+  'KPIUI',
   'max-console-ui',
   'max-operate-monitor-ui',
   'operateBusiness',
@@ -379,7 +380,7 @@ test('gate CLI approves, checks, and revokes an append-only pass', async () => {
   );
 });
 
-test('T-MAX page delivery hands off after Xiaobai resolves the target', async () => {
+test('standalone T-MAX page delivery routes through the xigua executor after target resolution', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const validation = await validateWorkspace(workspaceRoot, loopPath);
   assert.equal(validation.ok, true, validation.errors.join('\n'));
@@ -388,7 +389,7 @@ test('T-MAX page delivery hands off after Xiaobai resolves the target', async ()
     workspaceRoot,
     loopPath,
     targetRepository: 'operateBusiness',
-    now: new Date('2026-06-28T00:00:00.000Z')
+    now: new Date('2026-09-12T00:00:00.000Z')
   });
 
   assert.equal(plan.loopId, 'frontend-delivery');
@@ -396,30 +397,26 @@ test('T-MAX page delivery hands off after Xiaobai resolves the target', async ()
   assert.equal(plan.orchestrator?.routesTo.discoverySkill, 'frontend-delivery');
   assert.equal(plan.orchestrator?.routesTo.generatorAgent, undefined);
   assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, undefined);
-  assert.equal(plan.orchestrator?.routesTo.project.projectId, 't-max');
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 'operateBusiness');
+  assert.equal(plan.orchestrator?.routesTo.project.projectKind, 'Project');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
-  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xiaoneng');
-  assert.equal(plan.orchestrator?.agentId, 'xiaobai');
-  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
-  assert.equal(plan.orchestrator?.effective.source, 'manifest-source');
-  assert.equal(plan.orchestrator?.effective.entryPath, 'xiaoneng-agent/SKILL.md');
-  assert.equal(plan.orchestrator?.effective.manifestPath, 'harness/runtime/manifest.yaml');
-  assert.equal(plan.orchestrator?.effective.executionMode, 'PageImplementation');
-  assert.equal(plan.orchestrator?.effective.ownerAgent, 'watermelon-frontend-agent');
-  assert.deepEqual(plan.orchestrator?.effective.ownerSkills, ['fe-page-workflow', 'fe-typescript-safety']);
-  assert.equal(plan.execution.executor, 'xiaoneng');
-  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.routesTo.project.background?.id, 'xigua');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xigua-frontend-agent');
+  assert.equal(plan.orchestrator?.effective.source, 'skill-source');
+  assert.equal(plan.orchestrator?.effective.entryPath, 'AGENT.md');
+  assert.equal(plan.execution.executor, 'xigua');
+  assert.equal(plan.execution.agentId, 'xigua-frontend-agent');
   assert.equal(plan.execution.source, 'mounted-background');
+  assert.equal(plan.execution.handoff?.executor, 'xigua');
+  assert.equal(plan.execution.handoff?.entryPath, 'AGENT.md');
   assert.equal(plan.execution.handoff?.targetRepository, 'operateBusiness');
+  assert.equal(plan.xigua?.skillContext.agentId, 'xigua-frontend-agent');
+  assert.equal(plan.xigua?.taskContextLock.targetRepository, 'operateBusiness');
   assert.equal(plan.handoff.length, 0);
   assert.equal(plan.generatorRuns.length, 0);
   assert.equal(plan.evaluations.length, 0);
   assert.equal(plan.workflow, undefined);
-  assert.equal(plan.orchestrator?.routesTo.generatorAgent, undefined);
-  assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, undefined);
-  assert.equal(plan.xiaoneng?.skillContext.skillId, 'xiaoneng-agent');
-  assert.equal(plan.xiaoneng?.taskContextLock.targetRepository, 'operateBusiness');
   assert.equal(
     plan.orchestrator?.routesTo.project.repositories.some((repository) => repository.id === 'operateBusiness'),
     true
@@ -428,8 +425,6 @@ test('T-MAX page delivery hands off after Xiaobai resolves the target', async ()
     plan.orchestrator?.routesTo.project.repositories.find((repository) => repository.id === 'operateBusiness')?.mount ?? '',
     /repos\/operateBusiness$/
   );
-  assert.equal(plan.context.evidenceSources, 2);
-  assert.equal(plan.findings.length, 2);
   assert.deepEqual(plan.humanGate.protectedActions, [
     'coding',
     'merge',
@@ -441,26 +436,27 @@ test('T-MAX page delivery hands off after Xiaobai resolves the target', async ()
   assert.equal(plan.humanGate.gates.length, 6);
 });
 
-test('all T-MAX repositories hand off directly to the mounted Xiaoneng executor', async () => {
+test('all standalone T-MAX repositories route to the xigua executor', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
 
-  for (const repositoryId of tmaxRepositories) {
+  for (const repositoryId of standaloneTmaxRepositories) {
     const plan = await new LoopRuntime().dryRun({
       workspaceRoot,
       loopPath,
       targetRepository: repositoryId,
-      now: new Date('2026-06-28T00:00:00.000Z')
+      now: new Date('2026-09-12T00:00:00.000Z')
     });
 
-    assert.equal(plan.execution.executor, 'xiaoneng', repositoryId);
-    assert.equal(plan.execution.agentId, 'xiaoneng-agent', repositoryId);
-    assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent', repositoryId);
-    assert.equal(plan.orchestrator?.effective.source, 'manifest-source', repositoryId);
-    assert.equal(plan.orchestrator?.effective.entryPath, 'xiaoneng-agent/SKILL.md', repositoryId);
-    assert.equal(plan.orchestrator?.effective.manifestPath, 'harness/runtime/manifest.yaml', repositoryId);
+    assert.equal(plan.orchestrator?.routesTo.project.projectId, repositoryId, repositoryId);
+    assert.equal(plan.orchestrator?.routesTo.project.projectKind, 'Project', repositoryId);
+    assert.equal(plan.execution.executor, 'xigua', repositoryId);
+    assert.equal(plan.execution.agentId, 'xigua-frontend-agent', repositoryId);
+    assert.equal(plan.orchestrator?.effective.agentId, 'xigua-frontend-agent', repositoryId);
+    assert.equal(plan.orchestrator?.effective.source, 'skill-source', repositoryId);
+    assert.equal(plan.orchestrator?.effective.entryPath, 'AGENT.md', repositoryId);
     assert.equal(plan.execution.source, 'mounted-background', repositoryId);
-    assert.equal(plan.execution.handoff?.targetRepository, repositoryId);
-    assert.equal(plan.xiaoneng?.taskContextLock.targetRepository, repositoryId);
+    assert.equal(plan.execution.handoff?.targetRepository, repositoryId, repositoryId);
+    assert.equal(plan.xigua?.taskContextLock.targetRepository, repositoryId, repositoryId);
     assert.equal(plan.handoff.length, 0, repositoryId);
     assert.equal(plan.generatorRuns.length, 0, repositoryId);
     assert.equal(plan.evaluations.length, 0, repositoryId);
@@ -468,67 +464,29 @@ test('all T-MAX repositories hand off directly to the mounted Xiaoneng executor'
   }
 });
 
-test('T-MAX design-only requests keep Xiaoneng as the root and select the Manifest owner', async () => {
-  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
-  const plan = await new LoopRuntime().dryRun({
-    workspaceRoot,
-    loopPath,
-    targetRepository: 'operateBusiness',
-    xiaonengExecutionMode: 'DesignOnly',
-    now: new Date('2026-09-04T00:00:00.000Z')
-  });
+// Xiaoneng-only behavior tests (DesignOnly plan, --xiaoneng-execution-mode CLI
+// flag) were removed with the standalone migration: no project routes into
+// Xiaoneng until Batch E deletes it. resolveXiaonengRuntime keeps fixture-based
+// coverage in xiaoneng-context.test.ts.
 
-  assert.equal(plan.execution.executor, 'xiaoneng');
-  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
-  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
-  assert.equal(plan.orchestrator?.effective.executionMode, 'DesignOnly');
-  assert.equal(plan.orchestrator?.effective.ownerAgent, 'orange-architect-agent');
-  assert.deepEqual(plan.orchestrator?.effective.ownerSkills, ['sa-component-gate', 'sa-page-plan']);
-  assert.equal(plan.generatorRuns.length, 0);
-  assert.equal(plan.evaluations.length, 0);
-  assert.equal(plan.workflow, undefined);
-});
-
-test('arbitrary messages with a leading T-MAX repository marker still enter Xiaoneng', async () => {
+test('arbitrary messages with a leading T-MAX repository marker still enter the standalone xigua route', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const plan = await new LoopRuntime().dryRun({
     workspaceRoot,
     loopPath,
     userMessage: 'operateBusiness 这不是页面需求，也不改变路由判断',
-    now: new Date('2026-09-04T00:00:00.000Z')
+    now: new Date('2026-09-12T00:00:00.000Z')
   });
 
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'leading-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
-  assert.equal(plan.execution.executor, 'xiaoneng');
-  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
-  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 'operateBusiness');
+  assert.equal(plan.execution.executor, 'xigua');
+  assert.equal(plan.execution.agentId, 'xigua-frontend-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xigua-frontend-agent');
   assert.equal(plan.generatorRuns.length, 0);
   assert.equal(plan.evaluations.length, 0);
   assert.equal(plan.workflow, undefined);
-});
-
-test('dry-run CLI accepts the Xiaoneng execution mode for plan-only requests', async () => {
-  const { stdout } = await execFileAsync('node', [
-    'dist/loop-engineering/cli/loop.js',
-    'dry-run',
-    '--json',
-    '--loop',
-    'frontend-delivery',
-    '--target-repository',
-    'operateBusiness',
-    '--xiaoneng-execution-mode',
-    'DesignOnly'
-  ]);
-  const plan = JSON.parse(stdout) as {
-    execution: { executor: string; agentId: string };
-    orchestrator?: { effective: { executionMode?: string; ownerAgent?: string } };
-  };
-
-  assert.equal(plan.execution.executor, 'xiaoneng');
-  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
-  assert.equal(plan.orchestrator?.effective.executionMode, 'DesignOnly');
-  assert.equal(plan.orchestrator?.effective.ownerAgent, 'orange-architect-agent');
 });
 
 test('dry-run CLI routes from a leading repository marker without interpreting the message body', async () => {
@@ -545,13 +503,14 @@ test('dry-run CLI routes from a leading repository marker without interpreting t
     execution: { executor: string; agentId: string };
     orchestrator?: {
       effective: { agentId: string };
-      routesTo: { project: { resolution: { source: string; matchedRepositoryId?: string } } };
+      routesTo: { project: { projectId: string; resolution: { source: string; matchedRepositoryId?: string } } };
     };
   };
 
-  assert.equal(plan.execution.executor, 'xiaoneng');
-  assert.equal(plan.execution.agentId, 'xiaoneng-agent');
-  assert.equal(plan.orchestrator?.effective.agentId, 'xiaoneng-agent');
+  assert.equal(plan.execution.executor, 'xigua');
+  assert.equal(plan.execution.agentId, 'xigua-frontend-agent');
+  assert.equal(plan.orchestrator?.effective.agentId, 'xigua-frontend-agent');
+  assert.equal(plan.orchestrator?.routesTo.project.projectId, 'operateBusiness');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'leading-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'operateBusiness');
 });
@@ -701,9 +660,9 @@ test('invalid project background runtime type fails closed', async () => {
   await execFileAsync('cp', ['-R', workspaceRoot, tempWorkspace]);
   await writeFile(path.join(tempWorkspace, 'workspace.local.yaml'), 'memoryRoot: memory\n', 'utf8');
 
-  const projectPath = path.join(tempWorkspace, 'projects', 't-max', '.loop', 'project.yaml');
+  const projectPath = path.join(tempWorkspace, 'projects', 'operateBusiness', '.loop', 'project.yaml');
   const projectYaml = await readText(projectPath);
-  await writeFile(projectPath, projectYaml.replace('type: manifest-source', 'type: unknown-agent'), 'utf8');
+  await writeFile(projectPath, projectYaml.replace('type: skill-source', 'type: unknown-agent'), 'utf8');
 
   const loopPath = await findLoopSpec(tempWorkspace, 'frontend-delivery');
   await assert.rejects(
@@ -838,7 +797,7 @@ test('human gate definitions cannot drift from protected actions or reuse ids', 
   );
 });
 
-test('dry-run text output prints the effective Xiaoneng handoff', async () => {
+test('dry-run text output prints the effective xigua handoff', async () => {
   const { stdout } = await execFileAsync('node', [
     'dist/loop-engineering/cli/loop.js',
     'dry-run',
@@ -848,21 +807,18 @@ test('dry-run text output prints the effective Xiaoneng handoff', async () => {
     'operateBusiness'
   ]);
 
-  assert.match(stdout, /Execution: xiaoneng \(xiaoneng-agent, mounted-background\)/);
-  assert.match(stdout, /Xiaoneng handoff: operateBusiness -> xiaoneng-agent\/SKILL\.md/);
-  assert.match(stdout, /Effective orchestrator: xiaoneng-agent \(manifest-source\)/);
-  assert.match(stdout, /Route evidence: entry=xiaoneng-agent\/SKILL\.md, manifest=harness\/runtime\/manifest\.yaml/);
-  assert.match(stdout, /mode=PageImplementation, owner=watermelon-frontend-agent/);
-  assert.match(stdout, /skills=fe-page-workflow,fe-typescript-safety/);
+  assert.match(stdout, /Execution: xigua \(xigua-frontend-agent, mounted-background\)/);
+  assert.match(stdout, /Xigua handoff: operateBusiness -> AGENT\.md/);
+  assert.match(stdout, /Effective orchestrator: xigua-frontend-agent \(skill-source\)/);
+  assert.doesNotMatch(stdout, /Route evidence:/);
   assert.match(stdout, /Generator runs: 0/);
   assert.match(stdout, /Evaluator runs: 0/);
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
-  assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
+  assert.match(stdout, /Resolved target: operateBusiness -> operateBusiness -> xigua/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 6/);
+  assert.match(stdout, /Project route: operateBusiness -> xigua, repositories: 1/);
   assert.doesNotMatch(stdout, /Workflow stages:/);
 });
-
 test('dry-run output shows loop work count from run log', async () => {
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'loop-work-count-'));
   const tempWorkspace = path.join(tempRoot, 'workspace');

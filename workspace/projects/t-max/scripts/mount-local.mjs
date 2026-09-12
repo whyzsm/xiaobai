@@ -19,7 +19,7 @@ const desiredMounts = [
     target: readConfiguredPath(localPaths.background, projectConfig.background.localPathKey),
     mount: path.resolve(projectDir, projectConfig.background.mount)
   },
-  ...projectConfig.repositories.map((repo) => ({
+  ...(projectConfig.repositories ?? []).map((repo) => ({
     label: `repository:${repo.id}`,
     target: readConfiguredPath(localPaths.repositories, repo.localPathKey),
     mount: path.resolve(projectDir, repo.mount)

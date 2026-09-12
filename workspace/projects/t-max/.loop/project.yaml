@@ -12,34 +12,3 @@ background:
   mount: ../../.local/t-max/mounts/background/xiaoneng
   runtime:
     type: manifest-source
-repositories:
-  - id: max-console-ui
-    name: max-console-ui
-    localPathKey: max-console-ui
-    mount: ../../.local/t-max/mounts/repos/max-console-ui
-    remote: http://10.10.103.4/T-MAX/max-console
-  - id: max-operate-monitor-ui
-    name: max-operate-monitor-ui
-    localPathKey: max-operate-monitor-ui
-    mount: ../../.local/t-max/mounts/repos/max-operate-monitor-ui
-    remote: http://10.10.103.4/T-MAX/max-operate-monitor-ui
-  - id: operateBusiness
-    name: operateBusiness
-    localPathKey: operateBusiness
-    mount: ../../.local/t-max/mounts/repos/operateBusiness
-    remote: http://10.10.103.4/T-MAX/max-operate-business-ui
-  - id: operateSupport
-    name: operateSupport
-    localPathKey: operateSupport
-    mount: ../../.local/t-max/mounts/repos/operateSupport
-    remote: http://10.10.103.4/T-MAX/max-operate-support-ui
-  - id: dcm
-    name: dcm
-    localPathKey: dcm
-    mount: ../../.local/t-max/mounts/repos/dcm
-    remote: http://10.10.103.4/T-MAX/max-dcm-ui
-  - id: scan
-    name: scan
-    localPathKey: scan
-    mount: ../../.local/t-max/mounts/repos/scan
-    remote: http://10.10.103.4/T-MAX/max-scan-ui

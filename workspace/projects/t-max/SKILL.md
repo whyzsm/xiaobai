@@ -10,29 +10,27 @@
 
 - 小能背景挂载：`../../.local/t-max/mounts/background/xiaoneng`
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
-- 小能业务背景适用于 `.loop/project.yaml` 中列出的所有仓库。
+- 小能业务背景只适用于 `.loop/project.yaml` 中列出的仓库；该列表当前为空（见下）。
 
-## 已挂载代码仓
+## 仓库迁移状态
 
-- `KPIUI`: `../../.local/t-max/mounts/repos/KPIUI`
-- `max-console-ui`: `../../.local/t-max/mounts/repos/max-console-ui`
-- `max-operate-monitor-ui`: `../../.local/t-max/mounts/repos/max-operate-monitor-ui`
-- `operateBusiness`: `../../.local/t-max/mounts/repos/operateBusiness`
-- `operateSupport`: `../../.local/t-max/mounts/repos/operateSupport`
-- `dcm`: `../../.local/t-max/mounts/repos/dcm`
-- `scan`: `../../.local/t-max/mounts/repos/scan`
+所有原 t-max 仓库已迁移为独立 Project（kind: Project，executor=xigua），各自持有自己的 `project.yaml`、`SKILL.md` 与 `local.paths.yaml`：`KPIUI`、`max-console-ui`、`max-operate-monitor-ui`、`operateBusiness`、`operateSupport`、`dcm`、`scan`。它们的路由、范围与执行规范以各自项目目录为准。
+
+本组当前不再登记任何仓库，仅保留 xiaoneng 背景挂载以待 Batch E 处置；在此之前不会有任何请求通过本组路由进入小能。
 
 ## 规则
 
 ### 强制小能入口 / Mandatory Xiaoneng Entrypoint
 
+> 迁移注记：本组仓库列表已清空，下列入口规则在本组当前没有可命中的仓库标识；仓库前缀标记现在由各独立 Project 的 SKILL.md 承接（executor=xigua）。规则文本保留以描述 manifest-source 路由的一般判定条件，供 Batch E 前的回溯阅读。
+
 中文：
 
-消息路由先看去除前导空白后的首个仓库标识。只要消息以本项目组登记的仓库标识开头（例如 `operateBusiness`、`operateSupport`、`KPIUI`、`max-console-ui`、`max-operate-monitor-ui`、`dcm` 或 `scan`，后面可直接接中文或空格），就先按该仓库解析项目背景；后续消息是在提问、出方案、实现、测试、复盘还是其他内容，不影响是否进入小能。仓库标识不在消息开头时，继续使用显式仓库、工作目录或其他既有路由规则。
+消息路由先看去除前导空白后的首个仓库标识。只要消息以本项目组登记的仓库标识开头（后面可直接接中文或空格），就先按该仓库解析项目背景；后续消息是在提问、出方案、实现、测试、复盘还是其他内容，不影响是否进入小能。仓库标识不在消息开头时，继续使用显式仓库、工作目录或其他既有路由规则。
 
 English:
 
-Message routing first inspects the first repository marker after leading whitespace is removed. When a message starts with a repository registered in this project group (for example `operateBusiness`, `operateSupport`, `KPIUI`, `max-console-ui`, `max-operate-monitor-ui`, `dcm`, or `scan`, followed either by Chinese text or whitespace), resolve the project background from that repository before interpreting the rest of the message. Whether the remaining message asks a question, requests a plan, implementation, testing, retrospective work, or anything else does not affect whether it enters Xiaoneng. When no repository marker is at the beginning, keep using explicit repository, working-directory, and other existing routing rules.
+Message routing first inspects the first repository marker after leading whitespace is removed. When a message starts with a repository registered in this project group (followed either by Chinese text or whitespace), resolve the project background from that repository before interpreting the rest of the message. Whether the remaining message asks a question, requests a plan, implementation, testing, retrospective work, or anything else does not affect whether it enters Xiaoneng. When no repository marker is at the beginning, keep using explicit repository, working-directory, and other existing routing rules.
 
 中文：
 
@@ -70,7 +68,7 @@ Write: none
 
 1. 小白解析目标仓挂载路径，并在修改任何 T-MAX 目标仓前读取 `workspace/.local/t-max/mounts/background/xiaoneng`；小能只提供业务背景和执行规则，不创建、解析或维护另一套 T-MAX 挂载。
 2. 即使这些仓库共享同一份项目背景，也要把它们视为彼此独立的 git worktree。
-3. 在 KPIUI、max-console-ui、max-operate-monitor-ui、operateBusiness、operateSupport、dcm、scan 中一致应用小能业务背景指导。
+3. 原组内仓库已在各自独立 Project 中按 xigua 规范执行；本组剩余规则（设计门禁、小改快路径、禁启动/构建）仍作为 T-MAX 仓的操作约定保留。
 4. 如果挂载缺失或失效，由小白工程运行 `npm run mount:tmax` 刷新挂载，不把挂载生命周期下放给小能。
 5. 仓库特定业务修改必须通过 `workspace/.local/t-max/mounts/repos/` 下选中的入口落到目标仓真实 worktree；允许修改目标仓源码，但不得把软链接、`local.paths.yaml` 或其它挂载基础设施当作业务交付内容修改或提交。
 6. 修改前检查目标仓库自己的 `git status` 和当前分支；不要假设所有 T-MAX 仓库使用相同默认分支，也不要混入或覆盖已有改动。
@@ -97,23 +95,19 @@ Persist the T-MAX project background in this loop workspace and bind the Xiaonen
 
 - Xiaoneng background mount: `../../.local/t-max/mounts/background/xiaoneng`
 - Local paths are resolved from `.loop/local.paths.yaml`, which is intentionally not committed.
-- The Xiaoneng business background applies to every repository listed in `.loop/project.yaml`.
+- The Xiaoneng business background applies only to repositories listed in `.loop/project.yaml`; that list is currently empty (see below).
 
-## Mounted Repositories
+## Repository Migration Status
 
-- `KPIUI`: `../../.local/t-max/mounts/repos/KPIUI`
-- `max-console-ui`: `../../.local/t-max/mounts/repos/max-console-ui`
-- `max-operate-monitor-ui`: `../../.local/t-max/mounts/repos/max-operate-monitor-ui`
-- `operateBusiness`: `../../.local/t-max/mounts/repos/operateBusiness`
-- `operateSupport`: `../../.local/t-max/mounts/repos/operateSupport`
-- `dcm`: `../../.local/t-max/mounts/repos/dcm`
-- `scan`: `../../.local/t-max/mounts/repos/scan`
+All former t-max repositories have migrated to standalone Projects (kind: Project, executor=xigua), each owning its own `project.yaml`, `SKILL.md`, and `local.paths.yaml`: `KPIUI`, `max-console-ui`, `max-operate-monitor-ui`, `operateBusiness`, `operateSupport`, `dcm`, and `scan`. Their routing, scope, and execution rules live in their own project directories.
+
+This group no longer registers any repository and only keeps the Xiaoneng background mount pending Batch E; until then no request routes into Xiaoneng through this group.
 
 ## Rules
 
 1. Xiaobai resolves the target repository mount and loads `workspace/.local/t-max/mounts/background/xiaoneng` before modifying any T-MAX target repository. Xiaoneng provides business context and execution rules only; it does not create, resolve, or maintain a second T-MAX mount tree.
 2. Treat the repositories as separate git worktrees even though they share the same project background.
-3. Apply the Xiaoneng business background consistently across KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness, operateSupport, dcm, and scan.
+3. Repositories that used to belong to this group now run under their own standalone Projects with the xigua executor; the remaining group rules (design gates, micro patch fast path, no start/build) remain as operating conventions for T-MAX repositories.
 4. If a mount is missing or broken, refresh it from the Xiaobai engineering repository with `npm run mount:tmax`; do not delegate mount lifecycle management to Xiaoneng.
 5. Apply repository-specific business changes through the selected entry under `workspace/.local/t-max/mounts/repos/` so they land in the target repository's real worktree. Editing target source is allowed, but symlinks, `local.paths.yaml`, and other mount infrastructure must not be changed or committed as business deliverables.
 6. Check the target repository's own `git status` and current branch before editing. Do not assume all T-MAX repositories use the same default branch, and do not mix in or overwrite existing changes.

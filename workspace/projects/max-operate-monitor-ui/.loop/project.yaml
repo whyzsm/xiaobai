@@ -1,0 +1,22 @@
+kind: Project
+id: max-operate-monitor-ui
+name: max-operate-monitor-ui
+root: ../../.local/t-max/mounts/repos/max-operate-monitor-ui
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xigua
+  name: xigua
+  localPathKey: xigua
+  mount: ../../.local/t-max/mounts/background/xigua
+  runtime:
+    type: skill-source
+    provider: xigua
+    entryPath: AGENT.md
+repositories:
+  - id: max-operate-monitor-ui
+    name: max-operate-monitor-ui
+    localPathKey: max-operate-monitor-ui
+    mount: ../../.local/t-max/mounts/repos/max-operate-monitor-ui
+    remote: http://10.10.103.4/T-MAX/max-operate-monitor-ui

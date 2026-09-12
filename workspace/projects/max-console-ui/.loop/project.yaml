@@ -1,0 +1,22 @@
+kind: Project
+id: max-console-ui
+name: max-console-ui
+root: ../../.local/t-max/mounts/repos/max-console-ui
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xigua
+  name: xigua
+  localPathKey: xigua
+  mount: ../../.local/t-max/mounts/background/xigua
+  runtime:
+    type: skill-source
+    provider: xigua
+    entryPath: AGENT.md
+repositories:
+  - id: max-console-ui
+    name: max-console-ui
+    localPathKey: max-console-ui
+    mount: ../../.local/t-max/mounts/repos/max-console-ui
+    remote: http://10.10.103.4/T-MAX/max-console

@@ -646,8 +646,9 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
   process.stdout.write(`Budget: ${plan.budget.ok ? 'ok' : plan.budget.reasons.join(', ')}\n`);
   process.stdout.write(`Execution: ${plan.execution.executor} (${plan.execution.agentId}, ${plan.execution.source})\n`);
   if (plan.execution.handoff) {
+    const handoffLabel = plan.execution.executor.charAt(0).toUpperCase() + plan.execution.executor.slice(1);
     process.stdout.write(
-      `Xiaoneng handoff: ${plan.execution.handoff.targetRepository} -> ${plan.execution.handoff.entryPath}\n`
+      `${handoffLabel} handoff: ${plan.execution.handoff.targetRepository} -> ${plan.execution.handoff.entryPath}\n`
     );
   }
   if (plan.orchestrator) {

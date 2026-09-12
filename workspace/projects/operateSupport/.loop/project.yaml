@@ -1,0 +1,22 @@
+kind: Project
+id: operateSupport
+name: operateSupport
+root: ../../.local/t-max/mounts/repos/operateSupport
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xigua
+  name: xigua
+  localPathKey: xigua
+  mount: ../../.local/t-max/mounts/background/xigua
+  runtime:
+    type: skill-source
+    provider: xigua
+    entryPath: AGENT.md
+repositories:
+  - id: operateSupport
+    name: operateSupport
+    localPathKey: operateSupport
+    mount: ../../.local/t-max/mounts/repos/operateSupport
+    remote: http://10.10.103.4/T-MAX/max-operate-support-ui

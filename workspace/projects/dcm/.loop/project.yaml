@@ -1,0 +1,22 @@
+kind: Project
+id: dcm
+name: dcm
+root: ../../.local/t-max/mounts/repos/dcm
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xigua
+  name: xigua
+  localPathKey: xigua
+  mount: ../../.local/t-max/mounts/background/xigua
+  runtime:
+    type: skill-source
+    provider: xigua
+    entryPath: AGENT.md
+repositories:
+  - id: dcm
+    name: dcm
+    localPathKey: dcm
+    mount: ../../.local/t-max/mounts/repos/dcm
+    remote: http://10.10.103.4/T-MAX/max-dcm-ui

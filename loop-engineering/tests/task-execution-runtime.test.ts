@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import {
   RequirementIntakeInput,
   RuntimePlan,
@@ -8,6 +12,8 @@ import {
 } from '../packages/shared/src/types';
 import { buildRequirementArtifact } from '../packages/task-execution-runtime/src/taskExecutionRuntime';
 import { TaskExecutionRuntime } from '../packages/task-execution-runtime/src/taskExecutionRuntime';
+
+const execFileAsync = promisify(execFile);
 
 const policy: XiaonengRequirementPolicy = {
   kind: 'TmaxRequirementPolicy',
@@ -185,11 +191,45 @@ test('requirement artifact blocks a target page without a versioned source bindi
 });
 
 test('T-MAX intake loads the mounted Xiaoneng policy and waits for an external adapter before any write', async () => {
+  // No real project routes into Xiaoneng after the standalone migration; keep
+  // this intake control-plane coverage on a temp workspace fixture that
+  // re-registers a fixture repository under the t-max group's Xiaoneng
+  // background. Mount symlinks survive the copy and still resolve the real
+  // Xiaoneng source.
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'task-intake-xiaoneng-'));
+  const tempWorkspace = path.join(tempRoot, 'workspace');
+  await execFileAsync('cp', ['-R', path.join(process.cwd(), 'workspace'), tempWorkspace]);
+  await writeFile(
+    path.join(tempWorkspace, 'projects', 't-max', '.loop', 'project.yaml'),
+    `kind: ProjectGroup
+id: t-max
+name: T-MAX
+root: ../../.local/t-max/mounts
+defaultBranch: master
+skill: SKILL.md
+localPaths: .loop/local.paths.yaml
+background:
+  id: xiaoneng
+  name: xiaoneng
+  localPathKey: xiaoneng
+  mount: ../../.local/t-max/mounts/background/xiaoneng
+  runtime:
+    type: manifest-source
+repositories:
+  - id: tmaxFixtureRepo
+    name: tmaxFixtureRepo
+    localPathKey: operateSupport
+    mount: ../../.local/t-max/mounts/repos/operateSupport
+    remote: http://10.10.103.4/T-MAX/max-operate-support-ui
+`,
+    'utf8'
+  );
+
   const runtime = new TaskExecutionRuntime();
   const result = await runtime.execute({
-    workspaceRoot: path.join(process.cwd(), 'workspace'),
-    loopPath: path.join(process.cwd(), 'workspace', 'loops', 'frontend-delivery.loop.yaml'),
-    targetRepository: 'operateSupport',
+    workspaceRoot: tempWorkspace,
+    loopPath: path.join(tempWorkspace, 'loops', 'frontend-delivery.loop.yaml'),
+    targetRepository: 'tmaxFixtureRepo',
     taskId: 'task-intake-control-plane',
     requirement: intake(),
     now: new Date('2026-09-05T00:00:00.000Z')

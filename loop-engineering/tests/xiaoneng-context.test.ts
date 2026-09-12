@@ -15,7 +15,8 @@ import { LoopSpec } from '../packages/shared/src/types';
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, 'workspace');
 const repositories = [
-  // KPIUI migrated to the standalone xigua route; xigua-routing.test.ts covers it.
+  // All these repositories (plus KPIUI) now resolve their own standalone
+  // xigua Projects; the t-max group no longer registers any repository.
   'max-console-ui',
   'max-operate-monitor-ui',
   'operateBusiness',
@@ -24,20 +25,19 @@ const repositories = [
   'scan'
 ];
 
-test('T-MAX ProjectGroup routes every registered repository with one target and full scope', async () => {
+test('every migrated T-MAX repository resolves its standalone Project route', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const loop = await readYamlFile<LoopSpec>(loopPath);
 
   for (const repositoryId of repositories) {
     const route = await resolveProjectRoute(workspaceRoot, loop, { targetRepository: repositoryId });
-    assert.equal(route.project.id, 't-max');
-    assert.equal(route.project.kind, 'ProjectGroup');
-    assert.equal(route.targetRepository?.id, repositoryId);
-    assert.deepEqual(route.projectScopeRepositories.map((repository) => repository.id), repositories);
+    assert.equal(route.project.id, repositoryId, repositoryId);
+    assert.equal(route.project.kind, 'Project', repositoryId);
+    assert.equal(route.targetRepository?.id, repositoryId, repositoryId);
+    assert.deepEqual(route.projectScopeRepositories.map((repository) => repository.id), [repositoryId], repositoryId);
   }
 });
-
-test('leading repository markers route arbitrary messages through the matching project group', async () => {
+test('leading repository markers route arbitrary messages through the standalone projects', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const loop = await readYamlFile<LoopSpec>(loopPath);
 
@@ -46,7 +46,8 @@ test('leading repository markers route arbitrary messages through the matching p
       userMessage: `${repositoryId} 随便问什么都必须先解析仓库背景`
     });
     assert.equal(route.resolution.source, 'leading-repository', repositoryId);
-    assert.equal(route.project.id, 't-max', repositoryId);
+    assert.equal(route.project.id, repositoryId, repositoryId);
+    assert.equal(route.project.kind, 'Project', repositoryId);
     assert.equal(route.targetRepository?.id, repositoryId, repositoryId);
   }
 
@@ -70,14 +71,27 @@ test('leading repository markers route arbitrary messages through the matching p
 });
 
 test('source-backed resolver consumes the mounted Manifest and derives owner skills', async () => {
-  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
-  const loop = await readYamlFile<LoopSpec>(loopPath);
-  const route = await resolveProjectRoute(workspaceRoot, loop, { targetRepository: 'operateSupport' });
+  // The t-max group no longer registers repositories; resolveXiaonengRuntime
+  // keeps fixture-based coverage until Batch E deletes the Xiaoneng route.
+  const fixtureRepository = {
+    id: 'fixture-repo',
+    name: 'fixture-repo',
+    mount: '../../.local/t-max/mounts/repos/operateBusiness'
+  };
+  const fixtureProject = {
+    kind: 'ProjectGroup' as const,
+    id: 't-max',
+    name: 'T-MAX',
+    root: '../../.local/t-max/mounts',
+    defaultBranch: 'master',
+    skill: 'SKILL.md',
+    repositories: [fixtureRepository]
+  };
   const plan = await resolveXiaonengRuntime({
     sourceRoot: path.join(workspaceRoot, '.local/t-max/mounts/background/xiaoneng'),
     projectRoot: path.join(workspaceRoot, 'projects/t-max'),
-    project: route.project,
-    targetRepository: route.targetRepository!,
+    project: fixtureProject,
+    targetRepository: fixtureRepository,
     taskId: 'test-page-create',
     executionMode: 'PageImplementation',
     now: new Date('2026-09-03T00:00:00.000Z')
@@ -89,11 +103,10 @@ test('source-backed resolver consumes the mounted Manifest and derives owner ski
   assert.deepEqual(plan.skillContext.ownerSkills, ['fe-page-workflow', 'fe-typescript-safety']);
   assert.equal(plan.sourceConsumption.files.some((file) => file.path.endsWith('manifest.yaml')), true);
   assert.equal(plan.sourceConsumption.files.some((file) => file.path.endsWith('xiaoneng-agent/SKILL.md')), true);
-  assert.equal(plan.taskContextLock.targetRepository, 'operateSupport');
-  assert.equal(plan.taskContextLock.projectScopeRepositories.length, 6);
+  assert.equal(plan.taskContextLock.targetRepository, 'fixture-repo');
+  assert.equal(plan.taskContextLock.projectScopeRepositories.length, 1);
   assert.deepEqual(plan.taskContextLock.authorizedActions, ['implement']);
 });
-
 test('source resolver fails closed for a missing mount', async () => {
   const missingRoot = path.join(await mkdtemp(path.join(tmpdir(), 'xiaoneng-missing-')), 'missing');
   await assert.rejects(

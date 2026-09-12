@@ -13,7 +13,7 @@ node workspace/host/t-max-xiaobai-entry.mjs \
 
 入口只接受 Xiaobai 工程上下文中的调用，先校验 `--host-cwd` 的真实路径，再按需执行小白工程仓的 TypeScript 编译（仅当 `loop-engineering/cli`、`loop-engineering/packages` 或 `tsconfig.json` 比编译产物新时才重建），然后运行 `loop route` 只读路由校验。不启动业务服务、不构建业务仓、不修改业务仓、不提交或推送。直接在 Xiaobai 工程仓之外的任何项目或代码仓中调用时，都没有 Xiaobai 宿主上下文，不会建立 Xiaobai bridge；该场景由对应宿主自身已安装或项目内声明的 Xiaoneng 决定。路由失败必须停止，不能退回到任何仓库本地辅助入口、旧的 `workspace/projects/<repository>` 残留或全局页面 Skill。
 
-T-MAX 的唯一项目组源是 `workspace/projects/t-max/.loop/project.yaml`。只有其中登记的仓库才会进入共享 `xiaoneng` 背景；其他项目（例如 `harmonyWardrobe`）继续使用自己的项目背景和小白默认编排。
+每个 T-MAX 仓库现在都是独立 Project（`workspace/projects/<repoId>/.loop/project.yaml`，executor=xigua），目标仓命中自己的独立项目路由与 xigua 背景；`workspace/projects/t-max` 项目组不再登记任何仓库，仅保留 xiaoneng 背景挂载以待 Batch E 处置。其他项目（例如 `harmonyWardrobe`）继续使用自己的项目背景和小白默认编排。
 
 ## English
 
@@ -104,4 +104,26 @@ npm run setup:codex
 
 The setup command first builds Xiaobai's routing CLI, then uses the current clone's real path to idempotently update that contributor's own `CODEX_HOME/hooks.json`. It preserves unrelated hooks and replaces only Xiaobai's hook. It does not create hidden configuration in a business repository, install a Xiaoneng Skill, copy Xiaoneng source, or modify any business repository. Fully quit and restart Codex Desktop, then create a new conversation.
 
-When a contributor uses a non-default Codex directory through `CODEX_HOME`, the script writes there automatically; if the Xiaobai clone moves, run `npm run setup:codex` again. Routing still reads only Xiaobai's `project.yaml` and the mounted Xiaoneng Manifest, and does not depend on the committer's filesystem layout. `npm run mount:tmax` is a one-time per-machine mount prerequisite; it creates only Git-ignored `.local` symlinks.
+When a contributor uses a non-default Codex directory through `CODEX_HOME`, the script writes there automatically; if the Xiaobai clone moves, run `npm run setup:codex` again. Routing still reads only Xiaobai's project registry and mounted backgrounds, and does not depend on the committer's filesystem layout. `npm run mount:tmax` is a one-time per-machine mount prerequisite; it creates only Git-ignored `.local` symlinks.
+
+## 独立 T-MAX 项目挂载 / Standalone T-MAX Projects
+
+中文：
+
+KPIUI 与其余 6 个 T-MAX 仓（`max-console-ui`、`max-operate-monitor-ui`、`operateBusiness`、`operateSupport`、`dcm`、`scan`）均已迁移为独立 Project：每个仓一个 `workspace/projects/<repoId>/` 目录，持有自己的 `project.yaml`（kind: Project，executor=xigua）、`SKILL.md` 与 `local.paths.yaml`。新机器初始化时，除 `t-max` 组外，还要为用到的每个独立项目执行同样的复制：
+
+```bash
+cp workspace/projects/<repoId>/.loop/local.paths.yaml.example workspace/projects/<repoId>/.loop/local.paths.yaml
+```
+
+`npm run mount:tmax` 会把独立项目的仓库与 xigua 背景挂载到与项目组相同的 `workspace/.local/t-max/mounts/` 根下；路由、范围与执行规范以各独立项目自己的 `SKILL.md` 为准。
+
+English:
+
+KPIUI and the other six T-MAX repositories (`max-console-ui`, `max-operate-monitor-ui`, `operateBusiness`, `operateSupport`, `dcm`, `scan`) have all migrated to standalone Projects: one `workspace/projects/<repoId>/` directory per repository, owning its own `project.yaml` (kind: Project, executor=xigua), `SKILL.md`, and `local.paths.yaml`. When initializing a new machine, copy the example for each standalone project you use, in addition to the `t-max` group:
+
+```bash
+cp workspace/projects/<repoId>/.loop/local.paths.yaml.example workspace/projects/<repoId>/.loop/local.paths.yaml
+```
+
+`npm run mount:tmax` mounts standalone repositories and the xigua background under the same `workspace/.local/t-max/mounts/` root as the project group; routing, scope, and execution rules follow each standalone project's own `SKILL.md`.
