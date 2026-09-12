@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { HarnessRuntime } from '../packages/harness-runtime/src/harnessRuntime';
 import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
@@ -12,6 +13,7 @@ import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
 import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
 import { resolveXiaonengRuntime } from '../packages/xiaoneng-context-runtime/src/xiaonengContextRuntime';
+import { resolveXiguaRuntime } from '../packages/xigua-context-runtime/src/xiguaContextRuntime';
 import { TaskExecutionRuntime } from '../packages/task-execution-runtime/src/taskExecutionRuntime';
 
 interface CliOptions {
@@ -25,6 +27,7 @@ interface CliOptions {
   targetCwd?: string;
   targetRemote?: string;
   xiaonengExecutionMode?: string;
+  traceId?: string;
   resultPath?: string;
   requirementPath?: string;
   taskId?: string;
@@ -198,6 +201,29 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
         consumerAgent: 'xiaoneng-agent'
       })
     : undefined;
+  const xigua = background?.runtime?.type === 'skill-source'
+    ? await resolveXiguaRuntime({
+        sourceRoot: path.resolve(route.projectRoot, background.mount),
+        projectRoot: route.projectRoot,
+        project: route.project,
+        targetRepository,
+        taskId: `host-route-${targetRepository.id}`,
+        entryPath: background.runtime.entryPath,
+        requestText: options.userMessage,
+        authorizedActions: ['read'],
+        consumerAgent: 'xigua-agent'
+      })
+    : undefined;
+
+  const executor = xigua ? 'xigua' : xiaoneng ? 'xiaoneng' : 'xiaobai';
+  const traceId = options.traceId ?? randomUUID();
+  const events = buildRouteEvents({
+    traceId,
+    executor,
+    projectId: route.project.id,
+    targetRepositoryId: targetRepository.id,
+    xigua
+  });
 
   const result = {
     host: 'xiaobai',
@@ -218,10 +244,11 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
       ? {
           id: background.id,
           mount: path.resolve(route.projectRoot, background.mount),
-          runtime: background.runtime?.type
+          runtime: background.runtime?.type,
+          provider: background.runtime?.provider
         }
       : undefined,
-    executor: xiaoneng ? 'xiaoneng' : 'xiaobai',
+    executor,
     xiaoneng: xiaoneng
       ? {
           agentId: xiaoneng.skillContext.skillId,
@@ -246,6 +273,34 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
           }
         }
       : undefined,
+    xigua: xigua
+      ? {
+          agentId: xigua.skillContext.agentId,
+          provider: xigua.skillContext.provider,
+          entryPath: xigua.skillContext.entryPath,
+          entryHash: xigua.skillContext.entryHash,
+          sourceCommit: xigua.skillContext.sourceCommit,
+          contextDigest: xigua.skillContext.contextDigest,
+          sourceConsumption: xigua.sourceConsumption,
+          requirementIntake: xigua.requirementIntake,
+          taskContextLock: {
+            taskId: xigua.taskContextLock.taskId,
+            targetRepository: xigua.taskContextLock.targetRepository,
+            branch: xigua.taskContextLock.branch,
+            head: xigua.taskContextLock.head,
+            gitAvailable: xigua.taskContextLock.gitAvailable,
+            dirty:
+              xigua.taskContextLock.gitAvailable && xigua.taskContextLock.worktreeStatus.length > 0,
+            statusCount: xigua.taskContextLock.gitAvailable
+              ? xigua.taskContextLock.worktreeStatus.length
+              : 0
+          }
+        }
+      : undefined,
+    trace: {
+      traceId,
+      events
+    },
     write: 'none'
   };
 
@@ -260,6 +315,8 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
     `Route source: ${result.project.routeSource}`,
     `Target repository: ${result.targetRepository.id}`,
     `Executor: ${result.executor}`,
+    `Trace: ${traceId}`,
+    ...events.map((event) => `Event: ${event.event}${event.detail ? ` ${event.detail}` : ''}`),
     ...(result.xiaoneng
       ? [
           `Manifest: ${result.xiaoneng.manifestPath}`,
@@ -270,8 +327,64 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
           `Consumed files: ${result.xiaoneng.sourceConsumption.files.length}`
         ]
       : []),
+    ...(result.xigua
+      ? [
+          `Entry: ${result.xigua.entryPath}`,
+          `Agent: ${result.xigua.agentId}`,
+          `Entry hash: ${result.xigua.entryHash}`,
+          `Source commit: ${result.xigua.sourceCommit}`,
+          `Requirement sources: ${result.xigua.requirementIntake.requirementSources.join(', ') || '(none)'}`
+        ]
+      : []),
     'Write: none'
   ].join('\n') + '\n');
+}
+
+interface RouteTraceEvent {
+  event: string;
+  detail?: string;
+}
+
+/**
+ * Builds the ordered, evidence-backed event sequence for a route-only run.
+ * Every event here reflects an action this CLI actually performed; host-entry
+ * callers prepend `dsh.request.received` under the same trace id.
+ */
+function buildRouteEvents(input: {
+  traceId: string;
+  executor: 'xiaobai' | 'xiaoneng' | 'xigua';
+  projectId: string;
+  targetRepositoryId: string;
+  xigua?: Awaited<ReturnType<typeof resolveXiguaRuntime>>;
+}): Array<{ event: string; detail?: string; at: string }> {
+  const markedAt = new Date().toISOString();
+  const mark = (event: string, detail?: string) => ({ event, detail, at: markedAt });
+  return [
+    mark('xiaobai.entry.invoked', 'route CLI is the Xiaobai entry'),
+    mark('project.route.resolved', `project=${input.projectId} targetRepository=${input.targetRepositoryId}`),
+    ...(input.executor === 'xigua' && input.xigua
+      ? [
+          mark('xigua.dispatch.started', 'count=1'),
+          mark('xigua.entry.read', `entry=${input.xigua.skillContext.entryPath}`),
+          mark(
+            'xigua.requirement.intake.started',
+            input.xigua.requirementIntake.requirementSources.length > 0
+              ? `sources=${input.xigua.requirementIntake.requirementSources.join(',')}`
+              : 'sources=none'
+          ),
+          mark('xigua.dispatch.completed', 'count=1'),
+          mark('xiaobai.native.page.skill', 'skipped reason=xigua-route'),
+          mark('target.write', 'skipped')
+        ]
+      : input.executor === 'xiaoneng'
+      ? [
+          mark('xiaoneng.dispatch.started', 'count=1'),
+          mark('xiaoneng.dispatch.completed', 'count=1'),
+          mark('xiaobai.native.page.skill', 'skipped reason=xiaoneng-route'),
+          mark('target.write', 'skipped')
+        ]
+      : [mark('xiaobai.dispatch.started', 'count=1'), mark('xiaobai.dispatch.completed', 'count=1')])
+  ];
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -315,6 +428,9 @@ function parseArgs(argv: string[]): CliOptions {
       index += 1;
     } else if (arg === '--xiaoneng-execution-mode') {
       options.xiaonengExecutionMode = requireValue(rest, index, arg);
+      index += 1;
+    } else if (arg === '--trace-id') {
+      options.traceId = requireValue(rest, index, arg);
       index += 1;
     } else if (arg === '--result') {
       options.resultPath = requireValue(rest, index, arg);

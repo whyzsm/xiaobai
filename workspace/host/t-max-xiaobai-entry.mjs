@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isXiaobaiProjectContext } from './xiaobai-host-scope.mjs';
@@ -24,10 +25,20 @@ if (!args.message && !args.repository && !args.cwd) {
   fail('T-MAX host routing needs the raw user message or a business-repository working directory.');
 }
 
+// The host entry only forwards the raw request to Xiaobai under a trace id.
+// It never selects xigua directly, reads dcm, or generates a page itself.
+const traceId = randomUUID();
+const receivedAt = new Date().toISOString();
+const hostReceivedEvent = {
+  event: 'dsh.request.received',
+  detail: `hostCwd=${hostCwd}`,
+  at: receivedAt
+};
+
 try {
   const build = ensureBuilt(xiaobaiRoot);
   if (!build.ok) {
-    fail('Xiaobai engineering build failed before routing.');
+    fail('XIAOBAI_ENTRY_UNAVAILABLE: Xiaobai engineering build failed before routing.');
   }
 
   const cliArgs = [
@@ -35,6 +46,8 @@ try {
     'route',
     '--workspace',
     'workspace',
+    '--trace-id',
+    traceId,
     '--target-cwd',
     targetCwd,
     '--json'
@@ -43,11 +56,29 @@ try {
   if (args.repository) cliArgs.push('--target-repository', args.repository);
   if (args.mode) cliArgs.push('--xiaoneng-execution-mode', args.mode);
 
-  execFileSync(process.execPath, cliArgs, {
+  const raw = execFileSync(process.execPath, cliArgs, {
     cwd: xiaobaiRoot,
-    stdio: 'inherit'
+    encoding: 'utf8',
+    stdio: ['inherit', 'pipe', 'inherit']
   });
+
+  const route = JSON.parse(raw);
+  // Prove the full order under one trace id: host received -> Xiaobai entry
+  // -> project route -> executor dispatch. Missing xiaobai.entry.invoked here
+  // means the Xiaobai entry was never proven for this request.
+  route.trace = {
+    traceId,
+    events: [hostReceivedEvent, ...(route.trace?.events ?? [])]
+  };
+  if (route.trace.events[1]?.event !== 'xiaobai.entry.invoked') {
+    fail('XIAOBAI_ENTRY_UNAVAILABLE: xiaobai.entry.invoked could not be proven for this request.');
+  }
+
+  process.stdout.write(`${JSON.stringify(route, null, 2)}\n`);
 } catch (error) {
+  if (error instanceof SyntaxError) {
+    fail('XIAOBAI_ENTRY_UNAVAILABLE: Xiaobai route CLI returned invalid JSON.');
+  }
   const status = typeof error?.status === 'number' ? error.status : 1;
   process.exit(status);
 }

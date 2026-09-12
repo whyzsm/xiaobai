@@ -15,7 +15,7 @@ import { LoopSpec } from '../packages/shared/src/types';
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, 'workspace');
 const repositories = [
-  'KPIUI',
+  // KPIUI migrated to the standalone xigua route; xigua-routing.test.ts covers it.
   'max-console-ui',
   'max-operate-monitor-ui',
   'operateBusiness',
@@ -90,7 +90,7 @@ test('source-backed resolver consumes the mounted Manifest and derives owner ski
   assert.equal(plan.sourceConsumption.files.some((file) => file.path.endsWith('manifest.yaml')), true);
   assert.equal(plan.sourceConsumption.files.some((file) => file.path.endsWith('xiaoneng-agent/SKILL.md')), true);
   assert.equal(plan.taskContextLock.targetRepository, 'operateSupport');
-  assert.equal(plan.taskContextLock.projectScopeRepositories.length, 7);
+  assert.equal(plan.taskContextLock.projectScopeRepositories.length, 6);
   assert.deepEqual(plan.taskContextLock.authorizedActions, ['implement']);
 });
 

@@ -1,9 +1,21 @@
 import path from 'node:path';
-import { ConnectorEvidence, Finding, LoopSpec, SkillDocument } from '../../shared/src/types';
+import { ConnectorEvidence, Finding, LoopSpec, ProjectExecutor, SkillDocument } from '../../shared/src/types';
 import { pathExists, readText } from '../../shared/src/fs';
 
 export class SkillRuntime {
   constructor(private readonly workspaceRoot: string) {}
+
+  /**
+   * A route resolved to a source-backed executor (xigua) must not read the
+   * native Xiaobai page skill: route selection finishes before any page skill
+   * is read, and there is no silent fallback.
+   */
+  nativePageSkillPolicy(executor: ProjectExecutor): { status: 'skipped' | 'required'; reason?: string } {
+    if (executor === 'xigua') {
+      return { status: 'skipped', reason: 'xigua-route' };
+    }
+    return { status: 'required' };
+  }
 
   async loadDiscoverySkill(loop: LoopSpec, projectId = loop.handoff.project): Promise<SkillDocument> {
     const loopSkillPath = path.join(

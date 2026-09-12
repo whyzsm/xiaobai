@@ -13,11 +13,6 @@ background:
   runtime:
     type: manifest-source
 repositories:
-  - id: KPIUI
-    name: KPIUI
-    localPathKey: KPIUI
-    mount: ../../.local/t-max/mounts/repos/KPIUI
-    remote: http://10.10.103.4/T-MAX/max-kpi-ui
   - id: max-console-ui
     name: max-console-ui
     localPathKey: max-console-ui

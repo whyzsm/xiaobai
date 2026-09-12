@@ -34,6 +34,28 @@ if (route.status === 'blocked') {
   process.exit(0);
 }
 
+if (route.result.executor === 'xigua' && route.result.xigua) {
+  const xigua = route.result.xigua;
+  process.stdout.write([
+    '[XIGUA PRE-DISPATCH LOCK]',
+    'This evidence was produced by the user-prompt hook before the assistant processed the request.',
+    'Treat it as the mandatory top-level route for this turn.',
+    `Route: ${route.result.project.id}/${route.result.targetRepository.id} -> ${xigua.agentId}`,
+    `Target cwd: ${targetCwd}`,
+    `Target repository root: ${route.result.targetRepository.mount}`,
+    `Xigua source root: ${xigua.sourceConsumption.sourceRoot}`,
+    `Entry: ${path.resolve(xigua.sourceConsumption.sourceRoot, xigua.entryPath)}`,
+    `Entry hash: ${xigua.entryHash}`,
+    `Source commit: ${xigua.sourceCommit}`,
+    `Requirement sources: ${xigua.requirementIntake.requirementSources.join(', ') || '(none)'}`,
+    `Trace: ${route.result.trace?.traceId ?? 'unavailable'}`,
+    'Required next action: continue this turn as the xigua-frontend-agent top-level role using the mounted source above.',
+    'Forbidden: Xiaobai native page skills, frontend-generator, silent fallback, or reading repositories outside the routed project scope.',
+    'If any required source or handoff evidence is missing, stop with XIGUA_CONTEXT_INCOMPLETE.'
+  ].join('\n') + '\n');
+  process.exit(0);
+}
+
 const xiaoneng = route.result.xiaoneng;
 if (!xiaoneng) {
   process.stdout.write([
@@ -79,6 +101,8 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
     'route',
     '--workspace',
     'workspace',
+    '--trace-id',
+    hostTraceId(),
     '--target-cwd',
     targetCwd,
     '--json'
@@ -93,7 +117,7 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
   if (result.status === 0) {
     try {
       const parsed = JSON.parse(result.stdout);
-      return parsed.project?.id === 't-max'
+      return parsed.project?.id === 't-max' || parsed.executor === 'xigua'
         ? { status: 'matched', result: parsed }
         : { status: 'not-applicable' };
     } catch {
@@ -114,6 +138,10 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
 
 function xiaonengRoute(result) {
   return `${result.project.id}/${result.targetRepository.id} -> ${result.xiaoneng.agentId}`;
+}
+
+function hostTraceId() {
+  return `host-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function firstString(...values) {

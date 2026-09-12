@@ -2,6 +2,8 @@
 # local.paths.yaml is ignored by git because these paths are machine-specific.
 background:
   xiaoneng: /absolute/path/to/xiaoneng
+  # xigua is the canonical source for standalone child projects (e.g. KPIUI).
+  xigua: /absolute/path/to/xigua
 repositories:
   KPIUI: /absolute/path/to/T-MAX/KPIUI
   max-console-ui: /absolute/path/to/T-MAX/max-console-ui

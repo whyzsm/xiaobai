@@ -137,9 +137,23 @@ async function loadProjectRegistry(workspaceRoot: string): Promise<ProjectRegist
 }
 
 function validateProjectBackgroundRuntime(project: ProjectSpec, projectPath: string): void {
-  const runtimeType = project.background?.runtime?.type;
-  if (runtimeType !== undefined && runtimeType !== 'manifest-source' && runtimeType !== 'context-only') {
-    throw new Error(`Invalid project background runtime type in ${projectPath}: ${runtimeType}`);
+  const runtime = project.background?.runtime;
+  if (runtime === undefined) {
+    return;
+  }
+  if (runtime.type === 'skill-source') {
+    if (runtime.provider !== 'xigua') {
+      throw new Error(
+        `Unsupported skill-source provider in ${projectPath}: ${runtime.provider ?? '(missing)'}. Only xigua is supported.`
+      );
+    }
+    if (!runtime.entryPath || typeof runtime.entryPath !== 'string') {
+      throw new Error(`skill-source background requires an entryPath in ${projectPath}`);
+    }
+    return;
+  }
+  if (runtime.type !== 'manifest-source' && runtime.type !== 'context-only') {
+    throw new Error(`Invalid project background runtime type in ${projectPath}: ${runtime.type}`);
   }
 }
 
@@ -282,19 +296,31 @@ function findCwdMatches(entries: ProjectRegistryEntry[], targetCwd: string): Pro
 }
 
 function buildRoute(match: ProjectMatch): ResolvedProjectRoute {
+  // A standalone Project (kind: Project) whose scope is exactly one repository
+  // resolves that repository as the target when the match itself did not pin
+  // one (for example an explicit --target-project hit).
+  const targetRepository = match.repository ?? singleRepositoryOf(match.entry.project);
   return {
     project: match.entry.project,
     projectRoot: match.entry.projectRoot,
-    targetRepository: match.repository,
+    targetRepository,
     projectScopeRepositories: [...(match.entry.project.repositories ?? [])],
     resolution: {
       source: match.source,
       target: match.target,
-      matchedRepositoryId: match.repository?.id,
+      matchedRepositoryId: targetRepository?.id,
       matchedRemote: match.matchedRemote,
       matchedPath: match.matchedPath
     }
   };
+}
+
+function singleRepositoryOf(project: ProjectSpec): ProjectRepository | undefined {
+  if (project.kind !== 'Project') {
+    return undefined;
+  }
+  const repositories = project.repositories ?? [];
+  return repositories.length === 1 ? repositories[0] : undefined;
 }
 
 function requireSingleMatch(matches: ProjectMatch[], label: string, target: string): ProjectMatch {

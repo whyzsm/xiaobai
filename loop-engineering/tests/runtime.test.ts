@@ -19,7 +19,7 @@ const execFileAsync = promisify(execFile);
 const subjectDigest = `sha256:${'a'.repeat(64)}`;
 const changedSubjectDigest = `sha256:${'b'.repeat(64)}`;
 const tmaxRepositories = [
-  'KPIUI',
+  // KPIUI migrated to the standalone xigua route; xigua-routing.test.ts covers it.
   'max-console-ui',
   'max-operate-monitor-ui',
   'operateBusiness',
@@ -859,7 +859,7 @@ test('dry-run text output prints the effective Xiaoneng handoff', async () => {
   assert.match(stdout, /Orchestrator: xiaobai \(xiaobai\.orchestrator\.agent\.yaml\)/);
   assert.match(stdout, /Resolved target: operateBusiness -> t-max -> xiaoneng/);
   assert.match(stdout, /Route source: explicit-repository/);
-  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 7/);
+  assert.match(stdout, /Project route: t-max -> xiaoneng, repositories: 6/);
   assert.doesNotMatch(stdout, /Workflow stages:/);
 });
 

@@ -142,10 +142,14 @@ export interface ProjectBackground {
 }
 
 export interface ProjectBackgroundRuntime {
-  type: 'manifest-source' | 'context-only';
+  type: 'manifest-source' | 'context-only' | 'skill-source';
+  /** skill-source only: canonical provider behind the mounted background. */
+  provider?: string;
+  /** skill-source only: entry file inside the source root, e.g. AGENT.md. */
+  entryPath?: string;
 }
 
-export type ProjectExecutor = 'xiaobai' | 'xiaoneng';
+export type ProjectExecutor = 'xiaobai' | 'xiaoneng' | 'xigua';
 
 export interface ProjectRepository {
   id: string;
@@ -223,6 +227,36 @@ export interface XiaonengRuntimePlan {
   taskContextLock: TaskContextLock;
 }
 
+export interface XiguaSkillContext {
+  provider: 'xigua';
+  agentId: string;
+  entryPath: string;
+  entryHash: string;
+  sourceCommit: string;
+  contextDigest: string;
+}
+
+export interface XiguaSourceConsumptionEvidence {
+  sourceRoot: string;
+  entryPath: string;
+  entryHash: string;
+  consumedBy: string;
+  consumedAt: string;
+}
+
+export interface XiguaRequirementIntake {
+  status: 'started';
+  /** Read-only requirement sources extracted from the raw request text. */
+  requirementSources: string[];
+}
+
+export interface XiguaRuntimePlan {
+  skillContext: XiguaSkillContext;
+  sourceConsumption: XiguaSourceConsumptionEvidence;
+  requirementIntake: XiguaRequirementIntake;
+  taskContextLock: TaskContextLock;
+}
+
 export interface XiaonengHandoffPlan {
   executor: 'xiaoneng';
   agentId: string;
@@ -236,11 +270,20 @@ export interface XiaonengHandoffPlan {
   targetRepository: string;
 }
 
+export interface XiguaHandoffPlan {
+  executor: 'xigua';
+  agentId: string;
+  source: 'mounted-background';
+  sourceRoot: string;
+  entryPath: string;
+  targetRepository: string;
+}
+
 export interface RuntimeExecutionPlan {
   executor: ProjectExecutor;
   source: 'workspace-agent' | 'mounted-background';
   agentId: string;
-  handoff?: XiaonengHandoffPlan;
+  handoff?: XiaonengHandoffPlan | XiguaHandoffPlan;
 }
 
 export interface ConnectorSpec {
@@ -523,7 +566,7 @@ export interface OrchestratorPlan {
 
 export interface EffectiveOrchestrator {
   agentId: string;
-  source: 'loop-config' | 'manifest-source';
+  source: 'loop-config' | 'manifest-source' | 'skill-source';
   entryPath?: string;
   manifestPath?: string;
   executionMode?: string;
@@ -601,6 +644,12 @@ export interface RuntimePlan {
     warnings: string[];
   };
   xiaoneng?: XiaonengRuntimePlan;
+  xigua?: XiguaRuntimePlan;
+  /** Present when the native Xiaobai page skill was deliberately not read. */
+  nativePageSkill?: {
+    status: 'skipped';
+    reason: 'xigua-route';
+  };
 }
 
 export type RequirementScope = 'frontend_only' | 'full_stack';
