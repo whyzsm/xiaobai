@@ -25,16 +25,26 @@ if (route.status === 'not-applicable') process.exit(0);
 
 if (route.status === 'blocked') {
   process.stdout.write([
-    '[XIAONENG PRE-DISPATCH BLOCKED]',
+    '[XIGUA PRE-DISPATCH BLOCKED]',
     'The T-MAX route could not be verified before this user turn.',
     `Reason: ${route.reason}`,
     'Do not answer the business request, read page skills, or modify files.',
-    'Stop and report XIAONENG_CONTEXT_INCOMPLETE.'
+    'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
   ].join('\n') + '\n');
   process.exit(0);
 }
 
-if (route.result.executor === 'xigua' && route.result.xigua) {
+if (route.result.executor === 'xigua') {
+  if (!route.result.xigua) {
+    process.stdout.write([
+      '[XIGUA PRE-DISPATCH BLOCKED]',
+      'The standalone project resolved without a complete Xigua handoff.',
+      'Do not answer the business request or fall back to Xiaobai.',
+      'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
+    ].join('\n') + '\n');
+    process.exit(0);
+  }
+
   const xigua = route.result.xigua;
   process.stdout.write([
     '[XIGUA PRE-DISPATCH LOCK]',
@@ -56,35 +66,10 @@ if (route.result.executor === 'xigua' && route.result.xigua) {
   process.exit(0);
 }
 
-const xiaoneng = route.result.xiaoneng;
-if (!xiaoneng) {
-  process.stdout.write([
-    '[XIAONENG PRE-DISPATCH BLOCKED]',
-    'The T-MAX project resolved without a Xiaoneng runtime handoff.',
-    'Do not answer the business request or fall back to Xiaobai.',
-    'Stop and report XIAONENG_CONTEXT_INCOMPLETE.'
-  ].join('\n') + '\n');
-  process.exit(0);
-}
-
 process.stdout.write([
-  '[XIAONENG PRE-DISPATCH LOCK]',
-  'This evidence was produced by the user-prompt hook before the assistant processed the request.',
-  'Treat it as the mandatory top-level route for this turn.',
-  `Route: ${xiaonengRoute(route.result)}`,
-  `Target cwd: ${targetCwd}`,
-  `Target repository root: ${route.result.targetRepository.mount}`,
-  `Xiaoneng source root: ${xiaoneng.sourceConsumption.sourceRoot}`,
-  `Manifest: ${path.resolve(xiaoneng.sourceConsumption.sourceRoot, xiaoneng.manifestPath)}`,
-  `Entry: ${path.resolve(xiaoneng.sourceConsumption.sourceRoot, xiaoneng.entryPath)}`,
-  `Mode: ${xiaoneng.executionMode}`,
-  `Owner: ${xiaoneng.ownerAgent}`,
-  `Skills: ${xiaoneng.ownerSkills.join(', ')}`,
-  `Context digest: ${xiaoneng.contextDigest}`,
-  `Source consumption: ${xiaoneng.sourceConsumption.files.length} files, consumer=${xiaoneng.sourceConsumption.consumedBy}`,
-  'Required next action: continue this turn as the xiaoneng-agent top-level role using the mounted source files above.',
-  'Forbidden before handoff: any user-level installed Skill source, direct frontend-generator, sa-page-plan, global page skills, or direct business-file analysis.',
-  'If any required source or handoff evidence is missing, stop with XIAONENG_CONTEXT_INCOMPLETE.'
+  '[XIGUA PRE-DISPATCH BLOCKED]',
+  'The resolved route is not a Xigua standalone project.',
+  'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
 ].join('\n') + '\n');
 
 async function resolveRoute({ projectRoot, targetCwd, requestText }) {
@@ -117,7 +102,7 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
   if (result.status === 0) {
     try {
       const parsed = JSON.parse(result.stdout);
-      return parsed.project?.id === 't-max' || parsed.executor === 'xigua'
+      return parsed.executor === 'xigua'
         ? { status: 'matched', result: parsed }
         : { status: 'not-applicable' };
     } catch {
@@ -134,10 +119,6 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
     return { status: 'not-applicable' };
   }
   return { status: 'blocked', reason: 'Xiaobai route CLI failed to resolve the current T-MAX context.' };
-}
-
-function xiaonengRoute(result) {
-  return `${result.project.id}/${result.targetRepository.id} -> ${result.xiaoneng.agentId}`;
 }
 
 function hostTraceId() {

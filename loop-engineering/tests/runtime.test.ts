@@ -12,6 +12,7 @@ import { SimulationRuntime } from '../packages/simulation-runtime/src/simulation
 import { findLoopSpec, pathExists, readText, readYamlFile } from '../packages/shared/src/fs';
 import { ConnectorSpec, HarnessRunSubmission, LoopSpec } from '../packages/shared/src/types';
 import { validateWorkspace } from '../packages/shared/src/validation';
+import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
 
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, 'workspace');
@@ -465,9 +466,9 @@ test('all standalone T-MAX repositories route to the xigua executor', async () =
 });
 
 // Xiaoneng-only behavior tests (DesignOnly plan, --xiaoneng-execution-mode CLI
-// flag) were removed with the standalone migration: no project routes into
-// Xiaoneng until Batch E deletes it. resolveXiaonengRuntime keeps fixture-based
-// coverage in xiaoneng-context.test.ts.
+// flag) were removed with the standalone migration, and the Xiaoneng engine
+// code itself was retired with Batch F: every T-MAX repository routes through
+// its standalone xigua Project.
 
 test('arbitrary messages with a leading T-MAX repository marker still enter the standalone xigua route', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
@@ -588,7 +589,6 @@ test('frontend delivery routes harmony repository to harmony background', async 
   assert.equal(plan.execution.source, 'workspace-agent');
   assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
   assert.equal(plan.orchestrator?.effective.source, 'loop-config');
-  assert.equal(plan.xiaoneng, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'harmony-wardrobe'), true);
@@ -611,7 +611,6 @@ test('frontend delivery routes trunkFeeder-ui repository to trunkFeeder backgrou
   assert.equal(plan.execution.source, 'workspace-agent');
   assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
   assert.equal(plan.orchestrator?.effective.source, 'loop-config');
-  assert.equal(plan.xiaoneng, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'explicit-repository');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'trunkFeeder-ui');
   assert.equal(plan.handoff.every((handoff) => handoff.project === 'trunkFeeder'), true);
@@ -634,7 +633,6 @@ test('frontend delivery routes target remote to harmony background', async () =>
   assert.equal(plan.execution.source, 'workspace-agent');
   assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
   assert.equal(plan.orchestrator?.effective.source, 'loop-config');
-  assert.equal(plan.xiaoneng, undefined);
   assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'remote');
   assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'harmonyWardrobe');
 });
@@ -879,7 +877,6 @@ test('app-a without an explicit background runtime stays on Xiaobai', async () =
 
   assert.equal(plan.orchestrator?.effective.agentId, 'xiaobai');
   assert.equal(plan.orchestrator?.effective.source, 'loop-config');
-  assert.equal(plan.xiaoneng, undefined);
 });
 
 test('orchestrator agent must be present and use orchestrator role', async () => {
@@ -1106,4 +1103,50 @@ test('dry-run memory context follows nested Obsidian learning root', async () =>
   );
   assert.equal(await pathExists(path.join(vaultRoot, '88-学习', 'xiaobai', '00-记忆索引', 'memory-index.json')), true);
   assert.equal(await pathExists(path.join(vaultRoot, '88-学习', '00-记忆索引', 'memory-index.json')), false);
+});
+
+test('every migrated T-MAX repository resolves its standalone Project route', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+
+  for (const repositoryId of standaloneTmaxRepositories) {
+    const route = await resolveProjectRoute(workspaceRoot, loop, { targetRepository: repositoryId });
+    assert.equal(route.project.id, repositoryId, repositoryId);
+    assert.equal(route.project.kind, 'Project', repositoryId);
+    assert.equal(route.targetRepository?.id, repositoryId, repositoryId);
+    assert.deepEqual(route.projectScopeRepositories.map((repository) => repository.id), [repositoryId], repositoryId);
+  }
+});
+
+test('leading repository markers route arbitrary messages through the standalone projects', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const loop = await readYamlFile<LoopSpec>(loopPath);
+
+  for (const repositoryId of standaloneTmaxRepositories) {
+    const route = await resolveProjectRoute(workspaceRoot, loop, {
+      userMessage: `${repositoryId} 随便问什么都必须先解析仓库背景`
+    });
+    assert.equal(route.resolution.source, 'leading-repository', repositoryId);
+    assert.equal(route.project.id, repositoryId, repositoryId);
+    assert.equal(route.project.kind, 'Project', repositoryId);
+    assert.equal(route.targetRepository?.id, repositoryId, repositoryId);
+  }
+
+  const noSpaceRoute = await resolveProjectRoute(workspaceRoot, loop, {
+    userMessage: 'operateBusiness项目内容与路由无关'
+  });
+  assert.equal(noSpaceRoute.targetRepository?.id, 'operateBusiness');
+
+  const leadingMarkerWins = await resolveProjectRoute(workspaceRoot, loop, {
+    userMessage: 'operateBusiness任意后文',
+    targetRepository: 'operateSupport'
+  });
+  assert.equal(leadingMarkerWins.targetRepository?.id, 'operateBusiness');
+
+  await assert.rejects(
+    resolveProjectRoute(workspaceRoot, loop, {
+      userMessage: '请处理 operateBusiness 项目'
+    }),
+    /requires a target project or repository/
+  );
 });

@@ -142,14 +142,14 @@ export interface ProjectBackground {
 }
 
 export interface ProjectBackgroundRuntime {
-  type: 'manifest-source' | 'context-only' | 'skill-source';
+  type: 'context-only' | 'skill-source';
   /** skill-source only: canonical provider behind the mounted background. */
   provider?: string;
   /** skill-source only: entry file inside the source root, e.g. AGENT.md. */
   entryPath?: string;
 }
 
-export type ProjectExecutor = 'xiaobai' | 'xiaoneng' | 'xigua';
+export type ProjectExecutor = 'xiaobai' | 'xigua';
 
 export interface ProjectRepository {
   id: string;
@@ -175,36 +175,6 @@ export interface ProjectRouteResolution {
   matchedPath?: string;
 }
 
-export interface XiaonengSourceFileEvidence {
-  path: string;
-  hash: string;
-  purpose: string;
-}
-
-export interface XiaonengSkillContext {
-  contractVersion: string;
-  skillId: string;
-  skillCommit: string;
-  entryPath: string;
-  entryHash: string;
-  manifestPath: string;
-  manifestDigest: string;
-  executionMode: string;
-  ownerAgent: string;
-  ownerSkills: string[];
-  selectedReferences: Array<{ id: string; path: string; digest: string }>;
-  contextDigest: string;
-}
-
-export interface XiaonengSourceConsumptionEvidence {
-  sourceRoot: string;
-  manifestPath: string;
-  entryPath: string;
-  files: XiaonengSourceFileEvidence[];
-  consumedBy: string;
-  consumedAt: string;
-}
-
 export interface TaskContextLock {
   taskId: string;
   projectId: string;
@@ -219,12 +189,6 @@ export interface TaskContextLock {
   gitAvailable: boolean;
   worktreeStatus: string[];
   lockedAt: string;
-}
-
-export interface XiaonengRuntimePlan {
-  skillContext: XiaonengSkillContext;
-  sourceConsumption: XiaonengSourceConsumptionEvidence;
-  taskContextLock: TaskContextLock;
 }
 
 export interface XiguaSkillContext {
@@ -257,19 +221,6 @@ export interface XiguaRuntimePlan {
   taskContextLock: TaskContextLock;
 }
 
-export interface XiaonengHandoffPlan {
-  executor: 'xiaoneng';
-  agentId: string;
-  source: 'mounted-background';
-  sourceRoot: string;
-  entryPath: string;
-  manifestPath: string;
-  executionMode: string;
-  ownerAgent: string;
-  ownerSkills: string[];
-  targetRepository: string;
-}
-
 export interface XiguaHandoffPlan {
   executor: 'xigua';
   agentId: string;
@@ -283,7 +234,7 @@ export interface RuntimeExecutionPlan {
   executor: ProjectExecutor;
   source: 'workspace-agent' | 'mounted-background';
   agentId: string;
-  handoff?: XiaonengHandoffPlan | XiguaHandoffPlan;
+  handoff?: XiguaHandoffPlan;
 }
 
 export interface ConnectorSpec {
@@ -566,12 +517,8 @@ export interface OrchestratorPlan {
 
 export interface EffectiveOrchestrator {
   agentId: string;
-  source: 'loop-config' | 'manifest-source' | 'skill-source';
+  source: 'loop-config' | 'skill-source';
   entryPath?: string;
-  manifestPath?: string;
-  executionMode?: string;
-  ownerAgent?: string;
-  ownerSkills?: string[];
 }
 
 export interface WorkflowStagePlan {
@@ -643,172 +590,11 @@ export interface RuntimePlan {
     }>;
     warnings: string[];
   };
-  xiaoneng?: XiaonengRuntimePlan;
   xigua?: XiguaRuntimePlan;
   /** Present when the native Xiaobai page skill was deliberately not read. */
   nativePageSkill?: {
     status: 'skipped';
     reason: 'xigua-route';
-  };
-}
-
-export type RequirementScope = 'frontend_only' | 'full_stack';
-
-export interface RequirementBackendContract {
-  status: 'provided' | 'not_provided';
-  allowNewRequest: boolean;
-  allowResponseFieldGuessing: boolean;
-}
-
-export interface RequirementSourceInput {
-  pageRoute: string;
-  sourceUri: string;
-  requestedVersion: string;
-  extractedSection: {
-    heading: string;
-    content: string;
-  };
-  visualEvidenceStatus: 'not_required' | 'provided' | 'required_missing';
-}
-
-export interface RequirementItemInput {
-  id: string;
-  text: string;
-  acceptanceIds: string[];
-}
-
-export interface RequirementAcceptanceInput {
-  id: string;
-  text: string;
-}
-
-export interface RequirementOpenQuestion {
-  id: string;
-  text: string;
-  blocksImplementation: boolean;
-}
-
-export interface RequirementPrecisionPolicy {
-  display: string;
-  input: string;
-  import: string;
-}
-
-export interface RequirementIntakeInput {
-  scope: RequirementScope;
-  backendContract: RequirementBackendContract;
-  targetPageRoutes: string[];
-  requirementSources: RequirementSourceInput[];
-  requirements: RequirementItemInput[];
-  acceptanceCriteria: RequirementAcceptanceInput[];
-  openQuestions?: RequirementOpenQuestion[];
-  precision?: RequirementPrecisionPolicy;
-}
-
-export interface XiaonengRequirementPolicy {
-  kind: 'TmaxRequirementPolicy';
-  version: '1.0.0';
-  appliesTo: 't-max';
-  sourceBinding: {
-    requirePageRoute: true;
-    requireSourceUri: true;
-    requireRequestedVersion: true;
-    requireExactSectionHeading: true;
-    requireContentHash: true;
-  };
-  backendContract: {
-    frontendOnlyWithoutBackend: {
-      allowNewRequest: false;
-      allowResponseFieldGuessing: false;
-    };
-  };
-  precision: {
-    requireSeparatedLayersWhenSpecified: true;
-    requiredLayers: ['display', 'input', 'import'];
-  };
-  referenceSelection: {
-    canonicalTemplateSource: 'xiaoneng';
-    targetProjectRole: 'project_facts_only';
-  };
-}
-
-export interface RequirementSourceArtifact {
-  pageRoute: string;
-  sourceUri: string;
-  requestedVersion: string;
-  sectionHeading: string;
-  contentHash: string;
-  visualEvidenceStatus: RequirementSourceInput['visualEvidenceStatus'];
-}
-
-export interface RequirementArtifact {
-  contractVersion: '1.0.0';
-  taskId: string;
-  projectId: string;
-  targetRepository: string;
-  scope: RequirementScope;
-  targetPageRoutes: string[];
-  background: {
-    id: 'xiaoneng';
-    commit: string;
-    manifestDigest: string;
-    contextDigest: string;
-  };
-  policy: {
-    path: string;
-    digest: string;
-    version: XiaonengRequirementPolicy['version'];
-  };
-  backendContract: RequirementBackendContract;
-  requirementSources: RequirementSourceArtifact[];
-  requirements: RequirementItemInput[];
-  acceptanceCriteria: RequirementAcceptanceInput[];
-  openQuestions: RequirementOpenQuestion[];
-  precision?: RequirementPrecisionPolicy;
-  status: 'go' | 'blocked';
-  blockingReasons: string[];
-  contentDigest: string;
-}
-
-export interface TaskStageEvent {
-  taskId: string;
-  stageId: 'target-repository-resolution' | 'requirement-intake' | 'external-dispatch';
-  enteredAt: string;
-  firstActionAt: string;
-  exitedAt: string;
-  durationMs: number;
-  activeMs: number;
-  waitingMs: number;
-  waitingReason?: string;
-  status: 'completed' | 'blocked' | 'waiting';
-  evidence: string[];
-}
-
-export interface TaskAdapterContext {
-  plan: RuntimePlan;
-  requirementArtifact: RequirementArtifact;
-  targetWriteRoot: string;
-}
-
-export interface TaskExecutionAdapter {
-  id: string;
-  dispatch(context: TaskAdapterContext): Promise<{
-    status: 'completed' | 'blocked';
-    evidence: string[];
-    waitingReason?: string;
-  }>;
-}
-
-export interface TaskExecutionResult {
-  plan: RuntimePlan;
-  requirementArtifact: RequirementArtifact;
-  stageEvents: TaskStageEvent[];
-  status: 'blocked' | 'ready_for_adapter' | 'completed';
-  artifactDirectory?: string;
-  adapter?: {
-    id: string;
-    status: 'completed' | 'blocked';
-    evidence: string[];
   };
 }
 

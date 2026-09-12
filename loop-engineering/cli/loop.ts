@@ -7,14 +7,13 @@ import { GatePassStore, HumanGate } from '../packages/human-gate/src/humanGate';
 import { LoopRuntime } from '../packages/loop-runtime/src/loopRuntime';
 import { SimulationRuntime } from '../packages/simulation-runtime/src/simulationRuntime';
 import { findLoopSpec, formatJson, readYamlFile } from '../packages/shared/src/fs';
-import { GatePassEvidence, HarnessEvidenceType, LoopSpec, RequirementIntakeInput } from '../packages/shared/src/types';
+
+import { GatePassEvidence, HarnessEvidenceType, LoopSpec } from '../packages/shared/src/types';
 import { resolveMemoryRoot } from '../packages/shared/src/memoryRoot';
 import { validateWorkspace } from '../packages/shared/src/validation';
 import { runMemoryCommand } from './memory';
 import { resolveProjectRoute } from '../packages/project-registry/src/projectRegistry';
-import { resolveXiaonengRuntime } from '../packages/xiaoneng-context-runtime/src/xiaonengContextRuntime';
 import { resolveXiguaRuntime } from '../packages/xigua-context-runtime/src/xiguaContextRuntime';
-import { TaskExecutionRuntime } from '../packages/task-execution-runtime/src/taskExecutionRuntime';
 
 interface CliOptions {
   command: string;
@@ -26,11 +25,8 @@ interface CliOptions {
   userMessage?: string;
   targetCwd?: string;
   targetRemote?: string;
-  xiaonengExecutionMode?: string;
   traceId?: string;
   resultPath?: string;
-  requirementPath?: string;
-  taskId?: string;
   rest: string[];
 }
 
@@ -80,11 +76,6 @@ async function main(argv: string[]): Promise<void> {
 
   const loopPath = await findLoopSpec(workspaceRoot, options.loop);
 
-  if (options.command === 'intake') {
-    await runIntakeCommand(options, workspaceRoot, loopPath);
-    return;
-  }
-
   if (options.command === 'gate') {
     await runGateCommand(options, workspaceRoot, loopPath);
     return;
@@ -131,8 +122,7 @@ async function main(argv: string[]): Promise<void> {
       targetRepository: options.targetRepository,
       userMessage: options.userMessage,
       targetCwd: options.targetCwd,
-      targetRemote: options.targetRemote,
-      xiaonengExecutionMode: options.xiaonengExecutionMode
+      targetRemote: options.targetRemote
     });
     if (options.json) {
       process.stdout.write(formatJson(plan));
@@ -189,18 +179,6 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
   }
 
   const background = route.project.background;
-  const xiaoneng = background?.runtime?.type === 'manifest-source'
-    ? await resolveXiaonengRuntime({
-        sourceRoot: path.resolve(route.projectRoot, background.mount),
-        projectRoot: route.projectRoot,
-        project: route.project,
-        targetRepository,
-        taskId: `host-route-${targetRepository.id}`,
-        executionMode: options.xiaonengExecutionMode,
-        authorizedActions: ['read', 'plan'],
-        consumerAgent: 'xiaoneng-agent'
-      })
-    : undefined;
   const xigua = background?.runtime?.type === 'skill-source'
     ? await resolveXiguaRuntime({
         sourceRoot: path.resolve(route.projectRoot, background.mount),
@@ -215,7 +193,7 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
       })
     : undefined;
 
-  const executor = xigua ? 'xigua' : xiaoneng ? 'xiaoneng' : 'xiaobai';
+  const executor = xigua ? 'xigua' : 'xiaobai';
   const traceId = options.traceId ?? randomUUID();
   const events = buildRouteEvents({
     traceId,
@@ -249,30 +227,6 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
         }
       : undefined,
     executor,
-    xiaoneng: xiaoneng
-      ? {
-          agentId: xiaoneng.skillContext.skillId,
-          entryPath: xiaoneng.skillContext.entryPath,
-          entryHash: xiaoneng.skillContext.entryHash,
-          manifestPath: xiaoneng.skillContext.manifestPath,
-          manifestDigest: xiaoneng.skillContext.manifestDigest,
-          executionMode: xiaoneng.skillContext.executionMode,
-          ownerAgent: xiaoneng.skillContext.ownerAgent,
-          ownerSkills: xiaoneng.skillContext.ownerSkills,
-          selectedReferences: xiaoneng.skillContext.selectedReferences,
-          contextDigest: xiaoneng.skillContext.contextDigest,
-          sourceConsumption: xiaoneng.sourceConsumption,
-          taskContextLock: {
-            taskId: xiaoneng.taskContextLock.taskId,
-            targetRepository: xiaoneng.taskContextLock.targetRepository,
-            branch: xiaoneng.taskContextLock.branch,
-            head: xiaoneng.taskContextLock.head,
-            gitAvailable: xiaoneng.taskContextLock.gitAvailable,
-            dirty: xiaoneng.taskContextLock.gitAvailable && xiaoneng.taskContextLock.worktreeStatus.length > 0,
-            statusCount: xiaoneng.taskContextLock.gitAvailable ? xiaoneng.taskContextLock.worktreeStatus.length : 0
-          }
-        }
-      : undefined,
     xigua: xigua
       ? {
           agentId: xigua.skillContext.agentId,
@@ -317,16 +271,6 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
     `Executor: ${result.executor}`,
     `Trace: ${traceId}`,
     ...events.map((event) => `Event: ${event.event}${event.detail ? ` ${event.detail}` : ''}`),
-    ...(result.xiaoneng
-      ? [
-          `Manifest: ${result.xiaoneng.manifestPath}`,
-          `Entry: ${result.xiaoneng.entryPath}`,
-          `Mode: ${result.xiaoneng.executionMode}`,
-          `Owner: ${result.xiaoneng.ownerAgent}`,
-          `Skills: ${result.xiaoneng.ownerSkills.join(', ')}`,
-          `Consumed files: ${result.xiaoneng.sourceConsumption.files.length}`
-        ]
-      : []),
     ...(result.xigua
       ? [
           `Entry: ${result.xigua.entryPath}`,
@@ -352,7 +296,7 @@ interface RouteTraceEvent {
  */
 function buildRouteEvents(input: {
   traceId: string;
-  executor: 'xiaobai' | 'xiaoneng' | 'xigua';
+  executor: 'xiaobai' | 'xigua';
   projectId: string;
   targetRepositoryId: string;
   xigua?: Awaited<ReturnType<typeof resolveXiguaRuntime>>;
@@ -374,13 +318,6 @@ function buildRouteEvents(input: {
           ),
           mark('xigua.dispatch.completed', 'count=1'),
           mark('xiaobai.native.page.skill', 'skipped reason=xigua-route'),
-          mark('target.write', 'skipped')
-        ]
-      : input.executor === 'xiaoneng'
-      ? [
-          mark('xiaoneng.dispatch.started', 'count=1'),
-          mark('xiaoneng.dispatch.completed', 'count=1'),
-          mark('xiaobai.native.page.skill', 'skipped reason=xiaoneng-route'),
           mark('target.write', 'skipped')
         ]
       : [mark('xiaobai.dispatch.started', 'count=1'), mark('xiaobai.dispatch.completed', 'count=1')])
@@ -426,20 +363,11 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--target-remote') {
       options.targetRemote = requireValue(rest, index, arg);
       index += 1;
-    } else if (arg === '--xiaoneng-execution-mode') {
-      options.xiaonengExecutionMode = requireValue(rest, index, arg);
-      index += 1;
     } else if (arg === '--trace-id') {
       options.traceId = requireValue(rest, index, arg);
       index += 1;
     } else if (arg === '--result') {
       options.resultPath = requireValue(rest, index, arg);
-      index += 1;
-    } else if (arg === '--requirement' && command === 'intake') {
-      options.requirementPath = requireValue(rest, index, arg);
-      index += 1;
-    } else if (arg === '--task-id' && command === 'intake') {
-      options.taskId = requireValue(rest, index, arg);
       index += 1;
     } else if (arg === '--json') {
       options.json = true;
@@ -449,51 +377,6 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   return options;
-}
-
-async function runIntakeCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
-  if (!options.requirementPath) {
-    throw new Error('intake requires --requirement <json-file>');
-  }
-
-  const validation = await validateWorkspace(workspaceRoot, loopPath);
-  if (!validation.ok) {
-    process.stderr.write(`Validation failed:\n${validation.errors.map((error) => `- ${error}`).join('\n')}\n`);
-    process.exitCode = 1;
-    return;
-  }
-
-  const requirement = JSON.parse(
-    await readFile(path.resolve(process.cwd(), options.requirementPath), 'utf8')
-  ) as RequirementIntakeInput;
-  const runtime = new TaskExecutionRuntime();
-  const result = await runtime.execute({
-    workspaceRoot,
-    loopPath,
-    targetProject: options.targetProject,
-    targetRepository: options.targetRepository,
-    userMessage: options.userMessage,
-    targetCwd: options.targetCwd,
-    targetRemote: options.targetRemote,
-    taskId: options.taskId,
-    xiaonengExecutionMode: options.xiaonengExecutionMode,
-    requirement,
-    persistArtifacts: true
-  });
-
-  if (options.json) {
-    process.stdout.write(formatJson(result));
-  } else {
-    process.stdout.write([
-      `Task: ${result.requirementArtifact.taskId}`,
-      `Target repository: ${result.requirementArtifact.targetRepository}`,
-      `Requirement gate: ${result.requirementArtifact.status}`,
-      `Execution status: ${result.status}`,
-      `Artifacts: ${result.artifactDirectory ?? 'not-written'}`,
-      ...result.requirementArtifact.blockingReasons.map((reason) => `Blocker: ${reason}`)
-    ].join('\n') + '\n');
-  }
-  process.exitCode = result.status === 'blocked' ? 1 : 0;
 }
 
 async function runGateCommand(options: CliOptions, workspaceRoot: string, loopPath: string): Promise<void> {
@@ -658,13 +541,6 @@ function printPlan(plan: Awaited<ReturnType<LoopRuntime['dryRun']>>): void {
     process.stdout.write(
       `Effective orchestrator: ${plan.orchestrator.effective.agentId} (${plan.orchestrator.effective.source})\n`
     );
-    if (plan.orchestrator.effective.entryPath && plan.orchestrator.effective.manifestPath) {
-      process.stdout.write(
-        `Route evidence: entry=${plan.orchestrator.effective.entryPath}, manifest=${plan.orchestrator.effective.manifestPath}, ` +
-        `mode=${plan.orchestrator.effective.executionMode}, owner=${plan.orchestrator.effective.ownerAgent}, ` +
-        `skills=${plan.orchestrator.effective.ownerSkills?.join(',')}\n`
-      );
-    }
     process.stdout.write(`Resolved target: ${resolvedTarget} -> ${project.projectId}`);
     if (project.background) {
       process.stdout.write(` -> ${project.background.id}`);
@@ -764,9 +640,8 @@ function printHelp(): void {
   loop gate approve --loop <loop-id> --gate <gate-id> --run-id <id> --task-id <id> [--stage <stage-id>] --subject-digest <sha256:...> --issuer <reviewer> --evidence <type:value>... [--json]
   loop gate check --loop <loop-id> --run-id <id> --task-id <id> <--stage <stage-id>|--action <action>> --subject-digest <sha256:...> [--json]
   loop gate revoke --loop <loop-id> --pass-id <id> --issuer <reviewer> --reason <text> [--json]
-  loop intake --loop frontend-delivery --target-repository <repo> --requirement <json-file> [--task-id <id>] [--xiaoneng-execution-mode mode] [--json]
-  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--xiaoneng-execution-mode mode] [--json]
-  loop route    [--workspace workspace] [--loop frontend-delivery] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--xiaoneng-execution-mode mode] [--json]
+  loop dry-run  [--workspace workspace] [--loop morning-triage] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--json]
+  loop route    [--workspace workspace] [--loop frontend-delivery] [--target-project id] [--target-repository repo] [--request-text message] [--target-cwd path] [--target-remote remote] [--json]
   loop simulate [--workspace workspace] [--loop morning-triage] [--json]
   loop memory <init|validate|doctor|index|search|context|capture|checkpoint|audit-today|promote|report|snapshot> [...]
 `);

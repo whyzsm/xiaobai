@@ -27,7 +27,6 @@ import { loadMemoryContext } from '../../memory-context/src';
 import { resolveMemoryProtocolPaths } from '../../memory-protocol/src';
 import { pathExists } from '../../shared/src/fs';
 import { ResolvedProjectRoute, resolveProjectRoute } from '../../project-registry/src/projectRegistry';
-import { resolveXiaonengRuntime } from '../../xiaoneng-context-runtime/src/xiaonengContextRuntime';
 import { resolveXiguaRuntime } from '../../xigua-context-runtime/src/xiguaContextRuntime';
 
 export interface RuntimeOptions {
@@ -40,7 +39,6 @@ export interface RuntimeOptions {
   targetCwd?: string;
   targetRemote?: string;
   taskId?: string;
-  xiaonengExecutionMode?: string;
   authorizedActions?: string[];
 }
 
@@ -58,10 +56,6 @@ export class LoopRuntime {
       targetRemote: options.targetRemote
     });
     const project = projectRoute.project;
-    const xiaonengBackground = project.background?.runtime?.type === 'manifest-source'
-      ? project.background
-      : undefined;
-    const usesXiaoneng = Boolean(xiaonengBackground);
     const xiguaBackground = project.background?.runtime?.type === 'skill-source'
       ? project.background
       : undefined;
@@ -87,7 +81,7 @@ export class LoopRuntime {
       usesXigua ? Promise.resolve(undefined) : skillRuntime.loadDiscoverySkill(loop, project.id),
       connectorRuntime.collect(loop.discovery.sources),
       harnessRuntime.load(loop),
-      usesXiaoneng || usesXigua ? Promise.resolve(undefined) : agentRuntime.loadAgent(loop.verification.evaluator),
+      usesXigua ? Promise.resolve(undefined) : agentRuntime.loadAgent(loop.verification.evaluator),
       loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined)
     ]);
 
@@ -103,7 +97,7 @@ export class LoopRuntime {
           maxCharacters: harness.context.maxCharacters
         });
     const findings = context ? skillRuntime.selectFindings(context.evidence) : [];
-    const usesNativePipeline = !usesXiaoneng && !usesXigua;
+    const usesNativePipeline = !usesXigua;
     const worktrees = usesNativePipeline ? worktreeManager.plan(findings, options.now) : [];
     const generatorRuns = usesNativePipeline && harness
       ? harnessRuntime.planGeneratorRuns(loop, harness, worktrees)
@@ -119,21 +113,6 @@ export class LoopRuntime {
       projectId: project.id,
       maxCharacters: context?.maxCharacters ?? harness.context.maxCharacters
     });
-    const xiaoneng = usesXiaoneng && projectRoute.targetRepository
-      ? await resolveXiaonengRuntime({
-          sourceRoot: path.resolve(projectRoute.projectRoot, xiaonengBackground!.mount),
-          projectRoot: projectRoute.projectRoot,
-          project,
-          targetRepository: projectRoute.targetRepository,
-          taskId: options.taskId ?? `${loop.metadata.id}-${projectRoute.targetRepository.id}`,
-          executionMode: options.xiaonengExecutionMode,
-          authorizedActions: options.authorizedActions,
-          now: options.now
-        })
-      : undefined;
-    if (usesXiaoneng && !xiaoneng) {
-      throw new Error('XIAONENG_HANDOFF_INCOMPLETE: target repository and mounted Xiaoneng runtime are required');
-    }
     const xigua = usesXigua && projectRoute.targetRepository
       ? await resolveXiguaRuntime({
           sourceRoot: path.resolve(projectRoute.projectRoot, xiguaBackground!.mount),
@@ -150,7 +129,7 @@ export class LoopRuntime {
     if (usesXigua && !xigua) {
       throw new Error('XIGUA_HANDOFF_INCOMPLETE: target repository and mounted Xigua runtime are required');
     }
-    const execution = buildExecutionPlan(project, projectRoute, xiaoneng, xigua, orchestrator?.id);
+    const execution = buildExecutionPlan(project, projectRoute, xigua, orchestrator?.id);
 
     return {
       loopId: loop.metadata.id,
@@ -181,7 +160,6 @@ export class LoopRuntime {
       humanGate: humanGate.plan(),
       workflow: execution.executor === 'xiaobai' ? buildWorkflowPlan(loop) : undefined,
       memoryContext,
-      xiaoneng,
       xigua,
       nativePageSkill: skillRuntime.nativePageSkillPolicy(execution.executor).status === 'skipped'
         ? { status: 'skipped', reason: 'xigua-route' }
@@ -261,16 +239,6 @@ function buildOrchestratorPlan(
           source: 'skill-source',
           entryPath: execution.handoff.entryPath
         }
-      : execution.handoff?.executor === 'xiaoneng'
-      ? {
-          agentId: execution.agentId,
-          source: 'manifest-source',
-          entryPath: execution.handoff.entryPath,
-          manifestPath: execution.handoff.manifestPath,
-          executionMode: execution.handoff.executionMode,
-          ownerAgent: execution.handoff.ownerAgent,
-          ownerSkills: execution.handoff.ownerSkills
-        }
       : {
           agentId: execution.agentId,
           source: 'loop-config'
@@ -290,7 +258,6 @@ function buildOrchestratorPlan(
 function buildExecutionPlan(
   project: ProjectSpec,
   projectRoute: ResolvedProjectRoute,
-  xiaoneng: RuntimePlan['xiaoneng'],
   xigua: RuntimePlan['xigua'],
   xiaobaiAgentId?: string
 ): RuntimeExecutionPlan {
@@ -314,34 +281,10 @@ function buildExecutionPlan(
     };
   }
 
-  if (project.background?.runtime?.type !== 'manifest-source') {
-    return {
-      executor: 'xiaobai',
-      source: 'workspace-agent',
-      agentId: xiaobaiAgentId ?? 'xiaobai'
-    };
-  }
-
-  if (!xiaoneng || !projectRoute.targetRepository) {
-    throw new Error('XIAONENG_HANDOFF_INCOMPLETE: Xiaoneng handoff cannot be created without a resolved target');
-  }
-
   return {
-    executor: 'xiaoneng',
-    source: 'mounted-background',
-    agentId: xiaoneng.skillContext.skillId,
-    handoff: {
-      executor: 'xiaoneng',
-      agentId: xiaoneng.skillContext.skillId,
-      source: 'mounted-background',
-      sourceRoot: xiaoneng.sourceConsumption.sourceRoot,
-      entryPath: xiaoneng.skillContext.entryPath,
-      manifestPath: xiaoneng.skillContext.manifestPath,
-      executionMode: xiaoneng.skillContext.executionMode,
-      ownerAgent: xiaoneng.skillContext.ownerAgent,
-      ownerSkills: xiaoneng.skillContext.ownerSkills,
-      targetRepository: projectRoute.targetRepository.id
-    }
+    executor: 'xiaobai',
+    source: 'workspace-agent',
+    agentId: xiaobaiAgentId ?? 'xiaobai'
   };
 }
 

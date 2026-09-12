@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(process.env.XIAOBAI_PROJECT_ROOT || path.join(scriptDir, '../..'));
-const hookScript = path.join(projectRoot, 'workspace/host/xiaoneng-codex-prompt-hook.mjs');
+const hookScript = path.join(projectRoot, 'workspace/host/xigua-codex-prompt-hook.mjs');
 const codexHome = path.resolve(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
 const hooksPath = path.join(codexHome, 'hooks.json');
 
@@ -70,7 +70,7 @@ function removeXiaobaiHooks(group) {
 }
 
 function isXiaobaiHook(hook) {
-  return Boolean(hook && typeof hook.command === 'string' && hook.command.includes('xiaoneng-codex-prompt-hook.mjs'));
+  return Boolean(hook && typeof hook.command === 'string' && hook.command.includes('xigua-codex-prompt-hook.mjs'));
 }
 
 function shellQuote(value) {

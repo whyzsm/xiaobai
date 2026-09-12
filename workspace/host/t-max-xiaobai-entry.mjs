@@ -54,7 +54,6 @@ try {
   ];
   if (args.message) cliArgs.push('--request-text', args.message);
   if (args.repository) cliArgs.push('--target-repository', args.repository);
-  if (args.mode) cliArgs.push('--xiaoneng-execution-mode', args.mode);
 
   const raw = execFileSync(process.execPath, cliArgs, {
     cwd: xiaobaiRoot,

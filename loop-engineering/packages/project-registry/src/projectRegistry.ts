@@ -152,7 +152,7 @@ function validateProjectBackgroundRuntime(project: ProjectSpec, projectPath: str
     }
     return;
   }
-  if (runtime.type !== 'manifest-source' && runtime.type !== 'context-only') {
+  if (runtime.type !== 'context-only') {
     throw new Error(`Invalid project background runtime type in ${projectPath}: ${runtime.type}`);
   }
 }

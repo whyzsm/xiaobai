@@ -119,7 +119,7 @@ Before executing create, delete, or batch operations:
    - `workspace/.local/`
    - `workspace/workspace.local.yaml`
    - `workspace/projects/*/.loop/local.paths.yaml`
-3. T-MAX 代码仓和 `xiaoneng` 背景只能通过 ignored 的 `workspace/.local/t-max/mounts/` 挂载访问。挂载由小白 workspace 统一解析和维护；小能不创建或维护另一套 T-MAX 挂载。
+3. T-MAX 代码仓和 `xigua` 真源只能通过 ignored 的 `workspace/.local/t-max/mounts/` 挂载访问。挂载由小白 workspace 统一解析和维护，不引入第二套挂载树。
 4. 如果需要刷新 T-MAX 挂载，运行：
 
 ```bash
@@ -141,7 +141,7 @@ git status --short -uall
    - `workspace/.local/`
    - `workspace/workspace.local.yaml`
    - `workspace/projects/*/.loop/local.paths.yaml`
-3. T-MAX repositories and the `xiaoneng` background must be accessed through ignored mounts under `workspace/.local/t-max/mounts/`. The Xiaobai workspace is the single owner of mount resolution and maintenance; Xiaoneng does not create or maintain a second T-MAX mount tree.
+3. T-MAX repositories and the `xigua` source must be accessed through ignored mounts under `workspace/.local/t-max/mounts/`. The Xiaobai workspace is the single owner of mount resolution and maintenance; no second mount tree is introduced.
 4. To refresh T-MAX mounts, run:
 
 ```bash
@@ -166,13 +166,14 @@ Ensure this engineering repository's output does not include external repository
 npm install
 ```
 
-如果需要使用 T-MAX 代码仓和 `xiaoneng` 背景，必须先创建本机路径配置：
+如果需要使用 T-MAX 代码仓，必须先创建本机路径配置：t-max 组文件保证挂载脚本可运行，每个用到的独立项目再各自复制自己的 example：
 
 ```bash
 cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
+cp workspace/projects/<repoId>/.loop/local.paths.yaml.example workspace/projects/<repoId>/.loop/local.paths.yaml
 ```
 
-然后编辑 `workspace/projects/t-max/.loop/local.paths.yaml`，把 `xiaoneng` 和各 T-MAX 仓库路径改成这台电脑上的真实绝对路径。
+然后编辑各 `local.paths.yaml`，把 `xigua` 真源路径和对应 T-MAX 仓库路径改成这台电脑上的真实绝对路径。
 
 编辑完成后运行：
 
@@ -180,7 +181,7 @@ cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-
 npm run mount:tmax
 ```
 
-这个命令会在 ignored 的 `workspace/.local/t-max/mounts/` 下生成软链接。没有这一步，agent 仍可读取工程配置，但无法通过统一挂载路径访问本机 T-MAX 仓库和 `xiaoneng` 背景。
+这个命令会在 ignored 的 `workspace/.local/t-max/mounts/` 下生成软链接。没有这一步，agent 仍可读取工程配置，但无法通过统一挂载路径访问本机 T-MAX 仓库和 `xigua` 真源。
 
 如果接入新的项目组，也要沿用同样模式：提交项目级 `project.yaml`、`SKILL.md`、`local.paths.yaml.example` 和挂载脚本；不要提交本机 `local.paths.yaml`、`.local/` 软链接或外部代码仓内容。
 
@@ -192,13 +193,14 @@ After cloning this repository on a new machine, install dependencies first:
 npm install
 ```
 
-If T-MAX repositories and the `xiaoneng` background are needed, create the local path configuration first:
+If T-MAX repositories are needed, create the local path configuration first: the t-max group file keeps the mount script runnable, and each standalone project in use gets its own copy:
 
 ```bash
 cp workspace/projects/t-max/.loop/local.paths.yaml.example workspace/projects/t-max/.loop/local.paths.yaml
+cp workspace/projects/<repoId>/.loop/local.paths.yaml.example workspace/projects/<repoId>/.loop/local.paths.yaml
 ```
 
-Then edit `workspace/projects/t-max/.loop/local.paths.yaml` and replace the `xiaoneng` and T-MAX repository paths with real absolute paths on that machine.
+Then edit each `local.paths.yaml` and replace the `xigua` source path and the T-MAX repository paths with real absolute paths on that machine.
 
 After editing, run:
 
@@ -206,7 +208,7 @@ After editing, run:
 npm run mount:tmax
 ```
 
-This command generates symlinks under the ignored `workspace/.local/t-max/mounts/` directory. Without this step, agents can still read the engineering configuration, but they cannot access local T-MAX repositories or the `xiaoneng` background through the unified mount paths.
+This command generates symlinks under the ignored `workspace/.local/t-max/mounts/` directory. Without this step, agents can still read the engineering configuration, but they cannot access local T-MAX repositories or the `xigua` source through the unified mount paths.
 
 When adding a new project group, use the same pattern: commit the project-level `project.yaml`, `SKILL.md`, `local.paths.yaml.example`, and mount script; do not commit local `local.paths.yaml`, `.local/` symlinks, or external repository contents.
 
@@ -256,7 +258,7 @@ memoryLearningRootName: 88-学习/xiaobai
 
 当用户明确点名单个文件、单个字段、单个常量、单个删除或替换动作，并且现有实现路径已经明确、改动不会改变接口或数据来源时，例如“去掉写死的数据”“删除 `DEFAULT_xxx`”“只改这个文件”“把字段 A 换成字段 B”，必须进入小改快路径。
 
-“字段改为走数据字典”“所有请求参数改为同一动态来源”“首次接入或改造接口数据来源”即使只涉及一个字段，也不属于小改快路径，必须路由到小能 `ApiIntegration.dictParam`。只有数据字典已经接入，后续仅删除硬编码、默认值或 fallback 时，才进入小改快路径。
+“字段改为走数据字典”“所有请求参数改为同一动态来源”“首次接入或改造接口数据来源”即使只涉及一个字段，也不属于小改快路径，必须走完整执行链（frontend-delivery loop）处理。只有数据字典已经接入，后续仅删除硬编码、默认值或 fallback 时，才进入小改快路径。
 
 小改快路径只读取目标文件和必要的直接引用；只做用户点名的最小改动；验证只限 `rg` 定位与回查、`git diff --check`，以及确有必要时的目标文件 lint 或语法检查。
 
@@ -268,7 +270,7 @@ memoryLearningRootName: 88-学习/xiaobai
 
 When the user names a single file, field, constant, deletion, or replacement, and the existing implementation path is already clear without changing an API or data source, such as "remove the hardcoded value", "delete `DEFAULT_xxx`", "only change this file", or "replace field A with field B", the agent must use the micro patch fast path.
 
-A request to "make the field use a data dictionary", "make all request parameters use the same dynamic source", or introduce or change an API data source is not a micro patch even when only one field is involved. Route it to Xiaoneng `ApiIntegration.dictParam`. Use the micro patch fast path only for a follow-up that removes a hardcoded value, default, or fallback after the dictionary integration already exists.
+A request to "make the field use a data dictionary", "make all request parameters use the same dynamic source", or introduce or change an API data source is not a micro patch even when only one field is involved. Route it through the full execution chain (the frontend-delivery loop) instead. Use the micro patch fast path only for a follow-up that removes a hardcoded value, default, or fallback after the dictionary integration already exists.
 
 The micro patch fast path reads only the target file and necessary direct references, applies only the smallest requested change, and verifies only with `rg` lookup/recheck, `git diff --check`, and target-file lint or syntax checks when genuinely useful.
 
