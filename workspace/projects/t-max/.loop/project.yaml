@@ -5,10 +5,3 @@ root: ../../.local/t-max/mounts
 defaultBranch: master
 skill: SKILL.md
 localPaths: .loop/local.paths.yaml
-background:
-  id: xiaoneng
-  name: xiaoneng
-  localPathKey: xiaoneng
-  mount: ../../.local/t-max/mounts/background/xiaoneng
-  runtime:
-    type: manifest-source

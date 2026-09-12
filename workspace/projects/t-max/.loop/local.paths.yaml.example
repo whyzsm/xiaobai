@@ -1,10 +1,5 @@
-# Copy this file to local.paths.yaml on each computer, then adjust paths.
-# local.paths.yaml is ignored by git because these paths are machine-specific.
-# All T-MAX repositories now live in their own standalone projects
-# (KPIUI, max-console-ui, max-operate-monitor-ui, operateBusiness,
-# operateSupport, dcm, scan); each keeps its own local.paths.yaml.
-# This group file only resolves the xiaoneng background left before Batch E.
-background:
-  xiaoneng: /absolute/path/to/xiaoneng
-  # xigua is the canonical source for the standalone child projects.
-  xigua: /absolute/path/to/xigua
+# local.paths.yaml is ignored by git because paths are machine-specific.
+# The t-max group no longer declares a background (Batch E removed the legacy
+# Xiaoneng route) and owns no repositories; this file remains because the mount
+# script reads it. Standalone T-MAX projects keep their own local.paths.yaml.
+background: {}

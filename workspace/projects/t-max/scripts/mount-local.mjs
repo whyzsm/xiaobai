@@ -14,11 +14,15 @@ const projectConfig = readYaml(projectConfigPath);
 const localPaths = readYaml(localPathsPath);
 
 const desiredMounts = [
-  {
-    label: `background:${projectConfig.background.id}`,
-    target: readConfiguredPath(localPaths.background, projectConfig.background.localPathKey),
-    mount: path.resolve(projectDir, projectConfig.background.mount)
-  },
+  ...(projectConfig.background
+    ? [
+        {
+          label: `background:${projectConfig.background.id}`,
+          target: readConfiguredPath(localPaths.background, projectConfig.background.localPathKey),
+          mount: path.resolve(projectDir, projectConfig.background.mount)
+        }
+      ]
+    : []),
   ...(projectConfig.repositories ?? []).map((repo) => ({
     label: `repository:${repo.id}`,
     target: readConfiguredPath(localPaths.repositories, repo.localPathKey),
@@ -30,7 +34,9 @@ const desiredMounts = [
 // mounts root, e.g. KPIUI mounting the shared xigua background and its own
 // repository. They have no mount script of their own, so this script maintains
 // them alongside the project-group mounts.
-const desiredBackgroundMounts = [desiredMounts[0].mount];
+const desiredBackgroundMounts = projectConfig.background
+  ? [path.resolve(projectDir, projectConfig.background.mount)]
+  : [];
 for (const extra of await collectStandaloneProjectMounts()) {
   if (desiredMounts.some((desired) => samePath(desired.mount, extra.mount))) {
     continue;

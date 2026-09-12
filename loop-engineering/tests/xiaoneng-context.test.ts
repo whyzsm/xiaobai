@@ -70,43 +70,11 @@ test('leading repository markers route arbitrary messages through the standalone
   );
 });
 
-test('source-backed resolver consumes the mounted Manifest and derives owner skills', async () => {
-  // The t-max group no longer registers repositories; resolveXiaonengRuntime
-  // keeps fixture-based coverage until Batch E deletes the Xiaoneng route.
-  const fixtureRepository = {
-    id: 'fixture-repo',
-    name: 'fixture-repo',
-    mount: '../../.local/t-max/mounts/repos/operateBusiness'
-  };
-  const fixtureProject = {
-    kind: 'ProjectGroup' as const,
-    id: 't-max',
-    name: 'T-MAX',
-    root: '../../.local/t-max/mounts',
-    defaultBranch: 'master',
-    skill: 'SKILL.md',
-    repositories: [fixtureRepository]
-  };
-  const plan = await resolveXiaonengRuntime({
-    sourceRoot: path.join(workspaceRoot, '.local/t-max/mounts/background/xiaoneng'),
-    projectRoot: path.join(workspaceRoot, 'projects/t-max'),
-    project: fixtureProject,
-    targetRepository: fixtureRepository,
-    taskId: 'test-page-create',
-    executionMode: 'PageImplementation',
-    now: new Date('2026-09-03T00:00:00.000Z')
-  });
+// The real-mount Manifest fixture test was removed with Batch E: the xiaoneng
+// background symlink no longer exists, and no real project routes into Xiaoneng.
+// Mount-independent coverage (fail-closed resolver, target-only write policy)
+// remains below.
 
-  assert.equal(plan.skillContext.skillId, 'xiaoneng-agent');
-  assert.equal(plan.skillContext.executionMode, 'PageImplementation');
-  assert.equal(plan.skillContext.ownerAgent, 'watermelon-frontend-agent');
-  assert.deepEqual(plan.skillContext.ownerSkills, ['fe-page-workflow', 'fe-typescript-safety']);
-  assert.equal(plan.sourceConsumption.files.some((file) => file.path.endsWith('manifest.yaml')), true);
-  assert.equal(plan.sourceConsumption.files.some((file) => file.path.endsWith('xiaoneng-agent/SKILL.md')), true);
-  assert.equal(plan.taskContextLock.targetRepository, 'fixture-repo');
-  assert.equal(plan.taskContextLock.projectScopeRepositories.length, 1);
-  assert.deepEqual(plan.taskContextLock.authorizedActions, ['implement']);
-});
 test('source resolver fails closed for a missing mount', async () => {
   const missingRoot = path.join(await mkdtemp(path.join(tmpdir(), 'xiaoneng-missing-')), 'missing');
   await assert.rejects(
