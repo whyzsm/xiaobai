@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, mkdir, rm, utimes, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 const execFileAsync = promisify(execFile);
 const repoRoot = process.cwd();
 const scopeModule = path.join(repoRoot, 'workspace/host/xiaobai-host-scope.mjs');
+const installerScript = path.join(repoRoot, 'workspace/host/install-codex-hook.mjs');
 
 test('Xiaobai host scope accepts only the engineering checkout', async () => {
   const externalRoot = await mkdtemp(path.join(tmpdir(), 'xiaobai-host-routing-'));
@@ -86,3 +87,70 @@ async function checkStale(cliPath: string, sourcePaths: string[]): Promise<boole
   });
   return stdout.trim() === 'true';
 }
+
+test('Codex hook installer replaces legacy Xiaoneng entries without touching other hooks', async () => {
+  const codexHome = await mkdtemp(path.join(tmpdir(), 'xiaobai-hook-install-'));
+  const hooksPath = path.join(codexHome, 'hooks.json');
+  await writeFile(
+    hooksPath,
+    JSON.stringify(
+      {
+        hooks: {
+          UserPromptSubmit: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'node /old/xiaoneng-codex-prompt-hook.mjs'
+                }
+              ]
+            },
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'node /old/xigua-codex-prompt-hook.mjs'
+                }
+              ]
+            },
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'node /unrelated-hook.mjs'
+                }
+              ]
+            }
+          ]
+        }
+      },
+      null,
+      2
+    ) + '\n',
+    'utf8'
+  );
+
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [installerScript], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        CODEX_HOME: codexHome,
+        XIAOBAI_PROJECT_ROOT: repoRoot
+      }
+    });
+    assert.match(stdout, /Codex Xigua hook installed/);
+
+    const config = JSON.parse(await readFile(hooksPath, 'utf8')) as {
+      hooks: { UserPromptSubmit: Array<{ hooks: Array<{ command?: string }> }> };
+    };
+    const commands = config.hooks.UserPromptSubmit.flatMap((group) => group.hooks)
+      .map((hook) => hook.command ?? '')
+      .filter(Boolean);
+    assert.equal(commands.filter((command) => command.includes('xigua-codex-prompt-hook.mjs')).length, 1);
+    assert.equal(commands.some((command) => command.includes('xiaoneng-codex-prompt-hook.mjs')), false);
+    assert.equal(commands.some((command) => command.includes('/unrelated-hook.mjs')), true);
+  } finally {
+    await rm(codexHome, { recursive: true, force: true });
+  }
+});

@@ -10,7 +10,7 @@ const hookScript = path.join(projectRoot, 'workspace/host/xigua-codex-prompt-hoo
 const codexHome = path.resolve(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
 const hooksPath = path.join(codexHome, 'hooks.json');
 
-await access(hookScript).catch(() => fail(`Xiaoneng hook is missing: ${hookScript}`));
+await access(hookScript).catch(() => fail(`Xigua hook is missing: ${hookScript}`));
 const config = await readConfig(hooksPath);
 const hooks = config.hooks && typeof config.hooks === 'object' && !Array.isArray(config.hooks)
   ? config.hooks
@@ -38,7 +38,7 @@ await writeFile(tempPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 await rename(tempPath, hooksPath);
 
 process.stdout.write([
-  'Codex Xiaoneng hook installed.',
+  'Codex Xigua hook installed.',
   `Config: ${hooksPath}`,
   `Project root: ${projectRoot}`,
   'Scope: user-level registration, active only when the conversation cwd is inside this Xiaobai project root.',
@@ -70,7 +70,12 @@ function removeXiaobaiHooks(group) {
 }
 
 function isXiaobaiHook(hook) {
-  return Boolean(hook && typeof hook.command === 'string' && hook.command.includes('xigua-codex-prompt-hook.mjs'));
+  return Boolean(
+    hook &&
+      typeof hook.command === 'string' &&
+      (hook.command.includes('xigua-codex-prompt-hook.mjs') ||
+        hook.command.includes('xiaoneng-codex-prompt-hook.mjs'))
+  );
 }
 
 function shellQuote(value) {
