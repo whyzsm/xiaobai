@@ -208,7 +208,9 @@ function findLeadingRepositoryMatches(entries: ProjectRegistryEntry[], userMessa
       const aliases = [repository.id, repository.name, repository.localPathKey].filter(
         (alias): alias is string => Boolean(alias)
       );
-      if (aliases.some((alias) => startsWithRepositoryMarker(message, alias))) {
+      if (aliases.some((alias) =>
+        startsWithRepositoryMarker(message, alias) || startsWithProjectContextMarker(message, alias)
+      )) {
         matches.push({
           entry,
           repository,
@@ -397,6 +399,19 @@ function startsWithRepositoryMarker(message: string, alias: string): boolean {
   }
   const nextCharacter = message[alias.length];
   return nextCharacter === undefined || !/[a-z0-9_-]/i.test(nextCharacter);
+}
+
+function startsWithProjectContextMarker(message: string, alias: string): boolean {
+  const withoutLeadingHostWord = message.replace(/^在\s*/u, '');
+  if (withoutLeadingHostWord === message) {
+    return false;
+  }
+  if (!startsWithRepositoryMarker(withoutLeadingHostWord, alias)) {
+    return false;
+  }
+
+  const remainder = withoutLeadingHostWord.slice(alias.length).trimStart();
+  return /^(?:项目|工程|仓库)(?:里|中|下|内)?(?:$|[\s，。,：:])/u.test(remainder);
 }
 
 function normalizeAlias(value: string | undefined): string {

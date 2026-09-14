@@ -13,6 +13,22 @@ KPIUI 是独立 Project，不隶属 t-max 项目组。本项目的唯一目标�
 5. 真源、入口文件或目标仓缺失时失败关闭（fail closed），不得回退到任何原生执行者。
 6. 本文件只声明路由与边界，不承载 KPIUI 业务规则；业务实现规范以 xigua `AGENT.md` 为唯一真源。
 
+## UAP 路由事实 / UAP Routing Facts
+
+### 中文
+
+KPIUI 页面在 UAP（统一授权平台）登记时使用以下既定事实，任务内不再向用户询问：
+
+1. UAP 应用中文名：天象（appId `max`）。
+2. KPI 一级目录（路由组 `/manage`）对应父菜单：KPI管理（资源 id `187667`）。
+
+### English
+
+KPIUI pages use the following established facts when registering in UAP (unified authorization platform); tasks must not ask the user for them again:
+
+1. UAP application name: 天象 (appId `max`).
+2. The KPI first-level directory (route group `/manage`) maps to parent menu: KPI管理 (resource id `187667`).
+
 ## English
 
 KPIUI is a standalone Project outside the t-max project group. Its only target repository is KPIUI, and its only background is xigua.

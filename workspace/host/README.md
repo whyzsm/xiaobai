@@ -34,9 +34,11 @@ Every T-MAX repository now runs as its own standalone Project (executor=xigua); 
 
 中文：
 
-要让 Xiaobai 工程仓中的 Codex 对话进入独立 xigua 路由，可在 Codex 用户级 hook 中注册 `UserPromptSubmit`。这个注册虽然位于用户级配置，但 hook 首先要求宿主提供真实 `cwd`，再检查它是否位于安装它的 Xiaobai 工程根目录；缺少 `cwd`、`workspace/.local` 及其软链接目标都会被排除。只有通过该宿主边界后，才把原始 prompt 和 cwd 交给 `loop route`（路由 CLI 缺失或源码过期时先自动重建，避免用陈旧构建路由）；只有返回 executor=xigua 且存在完整 handoff 时，才向当前对话注入 `[XIGUA PRE-DISPATCH LOCK]` 路由锁（旧 `[XIAONENG PRE-DISPATCH LOCK]` 随 Batch E 下线）。位于 Xiaobai 工程仓之外的任何项目或代码仓的对话都会静默跳过，不会被 Xiaobai bridge 劫持。
+要让 Xiaobai 工程仓中的 Codex 对话进入独立 xigua 路由，可在 Codex 用户级 hook 中注册 `UserPromptSubmit`。Codex 会把当前 turn 的 `cwd` 和原始 `prompt` 通过标准 JSON stdin 传给 hook；hook 首先检查真实 `cwd` 是否位于安装它的 Xiaobai 工程根目录，并排除 `workspace/.local` 及其软链接目标。缺少当前 prompt 时直接以退出码 `2` 阻断本轮，绝不从历史 transcript、其他 session 或业务仓推断请求。通过宿主边界后，hook 只读取已经构建的 `loop route` CLI：CLI 缺失或源码比产物新时同样阻断并提示先运行安装脚本，不在用户提交热路径中自动编译。只有返回 executor=xigua 且存在完整 handoff 时，才以 `hookSpecificOutput.additionalContext` 向当前对话注入 `[XIGUA PRE-DISPATCH LOCK]` 路由锁（旧 `[XIAONENG PRE-DISPATCH LOCK]` 随 Batch E 下线）。位于 Xiaobai 工程仓之外的任何项目或代码仓的对话都会静默跳过，不会被 Xiaobai bridge 劫持。
 
 本机注册文件是 `~/.codex/hooks.json`，它属于 Codex 用户级配置，不属于任何业务仓，也不会在仓库中生成隐藏配置。注册内容如下，路径按实际 Xiaobai 工程位置调整：
+
+同一台机器只保留一个小白 xigua `UserPromptSubmit` 注册点；不要再把同一个脚本重复登记到项目级 `.codex/hooks.json`，否则同一条消息会重复执行路由并增加延迟。
 
 ```json
 {
@@ -56,17 +58,19 @@ Every T-MAX repository now runs as its own standalone Project (executor=xigua); 
 }
 ```
 
-新对话中，hook 输出 `[XIGUA PRE-DISPATCH LOCK]` 后，当前 Agent 必须以 `xigua-frontend-agent` 作为顶层角色，使用输出的 xigua 源码根目录和绝对 `AGENT.md` 入口路径继续；缺证据就停止，不能先读用户级安装 Skill、全局页面 Skill 或直接分析业务页面。对 `harmonyWardrobe` 等独立项目，route 返回 Xiaobai 默认执行者时不注入 T-MAX 锁。
+新对话中，hook 输出的 `additionalContext` 含 `[XIGUA PRE-DISPATCH LOCK]` 后，当前 Agent 必须以 `xigua-frontend-agent` 作为顶层角色，使用输出的 xigua 源码根目录和绝对 `AGENT.md` 入口路径继续；缺证据就停止，不能先读用户级安装 Skill、全局页面 Skill 或直接分析业务页面。对 `harmonyWardrobe` 等独立项目，route 返回 Xiaobai 默认执行者时不注入 T-MAX 锁。
 
 这个 hook 能覆盖支持 Codex `UserPromptSubmit` 的 Codex 对话；它不能凭仓库代码强制接管不支持该 hook 的其他 AI 工具。其他工具必须把同一个 `xigua-codex-prompt-hook.mjs` 接到自己的“用户消息提交前”插件或 wrapper 上，才能获得相同的首跳保证。
 
 English:
 
-To let Codex conversations hosted inside the Xiaobai engineering repository enter the standalone Xigua routes, register a `UserPromptSubmit` hook at the Codex user level. Although the registration is user-level, the hook first requires an actual `cwd` from the host and checks that its real path is inside the Xiaobai project root that installed it; a missing `cwd`, `workspace/.local`, and their symlink targets are excluded. Only after that host boundary passes does it send the raw prompt and cwd to `loop route` (rebuilding the route CLI automatically when it is missing or stale, so routing never runs on an outdated build). It injects a `[XIGUA PRE-DISPATCH LOCK]` routing lock only when the result is executor=xigua with a complete handoff (the legacy Xiaoneng lock was retired with Batch E). Conversations opened in any project or repository outside Xiaobai are silently skipped and are not taken over by the Xiaobai bridge.
+To let Codex conversations hosted inside the Xiaobai engineering repository enter the standalone Xigua routes, register a `UserPromptSubmit` hook at the Codex user level. Codex passes the current turn's `cwd` and raw `prompt` to the hook through the standard JSON stdin payload. The hook checks that the real `cwd` is inside the Xiaobai project root that installed it, excluding `workspace/.local` and symlink targets. If the current prompt is missing, it exits with code `2` and blocks the turn; it never infers a request from an old transcript, another session, or a business repository. After the host boundary passes, the hook reads only an already-built `loop route` CLI: a missing or stale CLI blocks the turn with setup instructions, and the user-prompt hot path never compiles the repository. It injects a `[XIGUA PRE-DISPATCH LOCK]` routing lock through `hookSpecificOutput.additionalContext` only when the result is executor=xigua with a complete handoff (the legacy Xiaoneng lock was retired with Batch E). Conversations opened in any project or repository outside Xiaobai are silently skipped and are not taken over by the Xiaobai bridge.
 
 The local registration file is `~/.codex/hooks.json`. It is Codex user configuration, not business-repository content, and it does not create hidden configuration inside a repository. The registration is shown above; adjust the Xiaobai project path for the machine.
 
-In a new conversation, after `[XIGUA PRE-DISPATCH LOCK]` is injected, the current Agent must use `xigua-frontend-agent` as the top-level role and continue from the emitted xigua source root and the absolute `AGENT.md` entry path. Missing evidence must stop the turn; the Agent must not read user-level installed Skill sources, global page Skills, or analyze business pages first. For independent projects such as `harmonyWardrobe`, a Xiaobai route produces no T-MAX lock.
+Keep exactly one Xiaobai Xigua `UserPromptSubmit` registration on a machine; do not register the same script again in a project-local `.codex/hooks.json`, or one message will execute the route twice and incur extra latency.
+
+In a new conversation, after `[XIGUA PRE-DISPATCH LOCK]` is injected through `additionalContext`, the current Agent must use `xigua-frontend-agent` as the top-level role and continue from the emitted xigua source root and the absolute `AGENT.md` entry path. Missing evidence must stop the turn; the Agent must not read user-level installed Skill sources, global page Skills, or analyze business pages first. For independent projects such as `harmonyWardrobe`, a Xiaobai route produces no T-MAX lock.
 
 This hook covers Codex conversations that support `UserPromptSubmit`; repository files alone cannot force an unrelated AI tool that has no such hook. Other tools must attach the same `xigua-codex-prompt-hook.mjs` to their own pre-user-message plugin or wrapper to obtain the same first-hop guarantee.
 

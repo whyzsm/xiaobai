@@ -36,6 +36,8 @@ description: Loop Engineering repository-level implementation skill for coding p
 4. `workspace/projects/<project>/SKILL.md`：项目级或项目组级规则。
 5. loop spec、harness、agent 配置、memory、connector evidence 和任务上下文。
 
+如果 Codex `UserPromptSubmit` 的 `additionalContext` 含 `[XIGUA PRE-DISPATCH LOCK]`，本条加载顺序只保留 `AGENTS.md` 中的安全、范围和提交边界；T-MAX 页面执行必须先读取锁中给出的 xigua `AGENT.md`，不得初始化小白原生页面技能，也不得先读取 `workspace/projects/<project>/SKILL.md` 来决定页面流程。
+
 当规则冲突时，优先遵守更高层级的安全、边界和验证要求；项目级规则只能收窄实现方式，不能降低仓级安全和验证标准。
 
 ## 四条实现原则
@@ -147,6 +149,8 @@ Implementation-phase context priority:
 3. `loop-engineering/docs/**`: platform standards and architecture notes, such as the frontend platform engineering standard.
 4. `workspace/projects/<project>/SKILL.md`: project-level or project-group rules.
 5. Loop specs, harnesses, agent configs, memory, connector evidence, and task context.
+
+When Codex `UserPromptSubmit` `additionalContext` contains `[XIGUA PRE-DISPATCH LOCK]`, this loading order retains only the safety, scope, and commit boundaries from `AGENTS.md`; T-MAX page work must read the xigua `AGENT.md` named by the lock first, must not initialize Xiaobai native page skills, and must not read `workspace/projects/<project>/SKILL.md` first to choose the page workflow.
 
 When rules conflict, follow the stricter safety, boundary, and verification requirement from the higher level. Project-level rules may narrow implementation choices, but they must not weaken repository-level safety or verification standards.
 

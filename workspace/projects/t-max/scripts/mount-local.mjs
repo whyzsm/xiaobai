@@ -69,7 +69,13 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-removeStaleBackgroundSymlinks(desiredBackgroundMounts);
+// Stale background cleanup is a destructive Batch E operation. A normal mount
+// refresh must preserve legacy links until that operation is explicitly enabled.
+if (process.env.XIAOBAI_ALLOW_STALE_BACKGROUND_MOUNT_REMOVAL === '1') {
+  removeStaleBackgroundSymlinks(desiredBackgroundMounts);
+} else {
+  console.log('Preserving undeclared background mounts; explicit Batch E removal is disabled.');
+}
 
 for (const desired of desiredMounts) {
   refreshSymlink(desired.target, desired.mount);

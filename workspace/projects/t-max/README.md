@@ -20,7 +20,7 @@
 
 1. 复制 `.loop/local.paths.yaml.example` 为 `.loop/local.paths.yaml`。
 2. 为用到的每个独立项目复制 `workspace/projects/<repoId>/.loop/local.paths.yaml.example` 并填入本机绝对路径。
-3. 在仓库根目录运行 `npm run mount:tmax`。
+3. 在仓库根目录运行 `npm run mount:tmax`。普通刷新只创建或更新声明的软链接，会保留未声明的旧背景软链接；批次 E 的删除必须在单独确认后显式设置 `XIAOBAI_ALLOW_STALE_BACKGROUND_MOUNT_REMOVAL=1` 执行。
 
 不要提交任何 `local.paths.yaml`，也不要提交 `workspace/.local/` 下的任何生成物。
 
@@ -44,6 +44,6 @@ The symlinks are intentionally not code copies. Changes made through a repositor
 
 1. Copy `.loop/local.paths.yaml.example` to `.loop/local.paths.yaml`.
 2. For each standalone project in use, copy `workspace/projects/<repoId>/.loop/local.paths.yaml.example` and fill in that machine's absolute paths.
-3. Run `npm run mount:tmax` from the repository root.
+3. Run `npm run mount:tmax` from the repository root. A normal refresh only creates or updates declared symlinks and preserves undeclared legacy background symlinks; Batch E removal requires separate confirmation and the explicit `XIAOBAI_ALLOW_STALE_BACKGROUND_MOUNT_REMOVAL=1` switch.
 
 Do not commit any `local.paths.yaml` or anything generated under `workspace/.local/`.

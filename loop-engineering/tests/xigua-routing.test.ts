@@ -65,6 +65,25 @@ test('KPIUI leading repository marker enters the standalone xigua route', async 
   assert.equal(plan.execution.handoff?.targetRepository, 'KPIUI');
 });
 
+test('KPIUI project-context wording enters the standalone xigua route', async () => {
+  const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
+  const plan = await new LoopRuntime().dryRun({
+    workspaceRoot,
+    loopPath,
+    userMessage:
+      '在 KPIUI 项目里，新增一个“简易流水管理”页面，在 KPI 一级目录下，需求地址：https://itxuqiu.yuque.com/gzlcs4/nuv8wt/lhu6g7vtqcukrfae',
+    now: new Date('2026-09-12T00:00:00.000Z')
+  });
+
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.source, 'leading-repository');
+  assert.equal(plan.orchestrator?.routesTo.project.resolution.matchedRepositoryId, 'KPIUI');
+  assert.equal(plan.execution.executor, 'xigua');
+  assert.equal(plan.xigua?.requirementIntake.status, 'started');
+  assert.deepEqual(plan.xigua?.requirementIntake.requirementSources, [
+    'https://itxuqiu.yuque.com/gzlcs4/nuv8wt/lhu6g7vtqcukrfae'
+  ]);
+});
+
 test('KPIUI scope excludes dcm and all other T-MAX repositories', async () => {
   const loopPath = await findLoopSpec(workspaceRoot, 'frontend-delivery');
   const plan = await new LoopRuntime().dryRun({

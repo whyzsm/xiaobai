@@ -74,6 +74,15 @@ Core boundaries:
 2. 会话开始时识别当前可用工具、权限、网络和文件系统边界。
 3. 在会话期间缓存工具可用性状态；如果工具、权限或上下文发生变化，重新确认后再行动。
 
+#### 图像读取路由
+
+当前模型未声明图像输入能力时，读图需求（截图、原型图、扫描件等）按以下顺序路由，不做无效尝试：
+
+1. 先确认模型图像能力；无图像输入能力时不调用 `read_image`。
+2. 远程图片先用 `curl` 等取回本地临时目录，再走 `vision_toolkit`（`vision_glance`、`vision_long_screenshot_ocr` 等）。
+3. 不用 modlens 读取远程 URL（网关版对 CDN 图片报 1210 解析错误）；modlens 本地版受其上游 API `max_tokens<=1024` 限制，大图输出会截断或结构不匹配，仅作兜底，不作首选。
+4. 同一图片与同一焦点只调用一次视觉工具，后续复用已返回的证据，不重复读图。
+
 #### 不可逆操作协议
 
 执行创建、删除或批量操作之前：
@@ -100,6 +109,15 @@ Core boundaries:
 1. Identify the current execution context at session start, such as local development, cloud development, container, or remote runtime.
 2. Identify available tools, permissions, network access, and filesystem boundaries at session start.
 3. Cache tool availability for the session; if tools, permissions, or context change, reconfirm before acting.
+
+#### Image Reading Routing
+
+When the current model does not declare image input capability, route image-reading needs (screenshots, prototypes, scans) as follows and skip dead-end attempts:
+
+1. Check model image capability first; when unavailable, do not call `read_image`.
+2. Fetch remote images to a local temp directory first (for example with `curl`), then use `vision_toolkit` (`vision_glance`, `vision_long_screenshot_ocr`, and so on).
+3. Do not use modlens on remote URLs (the gateway build returns error 1210 on CDN images); the local modlens build is capped by its upstream API `max_tokens<=1024`, so large-image output truncates or breaks the schema — keep it as a fallback only, never the first choice.
+4. Call a vision tool at most once per image and focus, and reuse the returned evidence instead of re-reading.
 
 #### Irreversible Operation Protocol
 
@@ -328,6 +346,8 @@ npm test
 
 评价报告必须包含 workflow 节点停留时间。每个节点至少记录或明确标记 `enteredAt`、`firstActionAt`、`exitedAt`、`durationMs`、`activeMs`、`waitingMs`、`waitingReason`、`status` 和 `evidence`。如果当前运行没有采集节点时间，不得估算或编造，必须把该节点标为 `unmeasured`，并将“缺少节点停留时间采集”列为工程可观测性问题。
 
+节点停留时间优先从 DSH 会话存储采集真实时间戳：用 `workspace/scripts/dsh-stage-timing.mjs <会话目录> --from <开始> --to <结束>`（`$DSH_HOME/sessions/<workspace>/<session>/`）输出 step 级工具轮时间、工具耗时与用户等待，再映射为节点停留时间表；仅当会话日志不可得时才允许 `unmeasured` 标注。
+
 节点停留时间要区分主动执行耗时与等待耗时。等待用户确认、工具运行、外部接口、缺少上下文、权限门禁和错误阻塞必须分别归因；不得把人工等待简单归咎为 agent 执行慢。
 
 ### English
@@ -337,6 +357,8 @@ When evaluating Xiaobai, treat it as a Loop Engineering system, not as a single 
 Evaluation reports must reference `loop-engineering/docs/xiaobai-evaluation-engineering-system.md` and at least state whether the target and route are clear, whether context comes from sources of truth, whether workflow stages have inputs, outputs, and owners, whether evaluator and human gates are actually effective, whether validation and remote delivery have execution evidence, and whether failures can be traced to specific stages.
 
 Evaluation reports must include workflow stage dwell time. Each stage must record, or explicitly mark, `enteredAt`, `firstActionAt`, `exitedAt`, `durationMs`, `activeMs`, `waitingMs`, `waitingReason`, `status`, and `evidence`. If the current run did not collect stage timing, do not estimate or fabricate it; mark that stage as `unmeasured` and list "missing stage dwell-time collection" as an engineering observability issue.
+
+Collect stage dwell time from real DSH session timestamps first: run `workspace/scripts/dsh-stage-timing.mjs <session-dir> --from <start> --to <end>` (under `$DSH_HOME/sessions/<workspace>/<session>/`) to get per-step tool-round timing, tool durations, and user waits, then map them into the stage table; mark `unmeasured` only when the session log is unavailable.
 
 Stage dwell time must separate active execution time from waiting time. Waiting for user confirmation, tool execution, external APIs, missing context, permission gates, and error blockers must be attributed separately; do not collapse human waiting into "the agent was slow."
 
@@ -380,7 +402,7 @@ Before adding any visible element, answer "Which user step does this help comple
 4. 修改 memory 读写逻辑时，要确认 dry-run、validate、simulate 的路径解析一致。
 5. 不要把 generator 自评作为完成条件；评审应由独立 evaluator 执行。
 6. 新增或评审前端工程能力时，遵守 `loop-engineering/docs/frontend-platform-standards.md`。
-7. 进入代码实现阶段时，先遵守根目录 `SKILL.md`，再叠加项目级 `workspace/projects/<project>/SKILL.md`。
+7. 进入普通小白代码实现阶段时，先遵守根目录 `SKILL.md`，再叠加项目级 `workspace/projects/<project>/SKILL.md`；如果 Codex `UserPromptSubmit` 的 `additionalContext` 含 `[XIGUA PRE-DISPATCH LOCK]`，本轮 T-MAX 页面执行入口改为锁中给出的 xigua `AGENT.md`，保留本文件的安全、范围和提交边界，但跳过小白原生页面技能与项目页面技能。
 8. 新增、澄清或评审产品需求时，遵守 `loop-engineering/docs/product-requirement-platform-standards.md`。
 9. 评价小白自身能力时，遵守 `loop-engineering/docs/xiaobai-evaluation-engineering-system.md`，并把节点停留时间作为必填评价维度。
 10. 删除任何由 runtime 生成的仓库产物前，必须先同步下线生成它的 runtime 代码与声明它的文档契约，并处理历史产物中的引用；只删产物不改引擎与文档，产物会被下次运行重新生成并留下悬空引用。恢复产物用 `git revert` 闭环，不事后修改历史报告。
@@ -393,7 +415,7 @@ Before adding any visible element, answer "Which user step does this help comple
 4. When changing memory read/write behavior, confirm dry-run, validate, and simulate resolve paths consistently.
 5. Do not use generator self-review as a completion gate; reviews should be performed by an independent evaluator.
 6. When adding or reviewing frontend engineering capabilities, follow `loop-engineering/docs/frontend-platform-standards.md`.
-7. During code implementation phases, follow the root `SKILL.md` first, then layer on the project-level `workspace/projects/<project>/SKILL.md`.
+7. During ordinary Xiaobai implementation phases, follow the root `SKILL.md` first, then layer on the project-level `workspace/projects/<project>/SKILL.md`. When Codex `UserPromptSubmit` `additionalContext` contains `[XIGUA PRE-DISPATCH LOCK]`, the xigua `AGENT.md` named by the lock becomes this turn's T-MAX page entrypoint; retain this file's safety, scope, and commit boundaries, but skip Xiaobai native page skills and project page skills.
 8. When adding, clarifying, or reviewing product requirements, follow `loop-engineering/docs/product-requirement-platform-standards.md`.
 9. When evaluating Xiaobai's own capability, follow `loop-engineering/docs/xiaobai-evaluation-engineering-system.md` and treat stage dwell time as a required evaluation dimension.
 10. Before deleting any repository artifact generated by a runtime, retire the generating runtime code and the documentation contracts that declare it in the same change, and resolve references inside historical artifacts. Deleting only the files leaves the engine silently regenerating them and live references dangling. Restore artifacts with `git revert`; never edit historical reports retroactively.

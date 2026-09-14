@@ -1,52 +1,51 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isXiaobaiProjectContext } from './xiaobai-host-scope.mjs';
-import { ensureBuilt } from './build-if-stale.mjs';
+import { isBuildStale } from './build-if-stale.mjs';
 
 const hostDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(process.env.XIAOBAI_PROJECT_ROOT || path.join(hostDir, '../..'));
 const input = await readHookInput();
-const rawTargetCwd = firstString(input.cwd);
-if (!rawTargetCwd) process.exit(0);
+const rawTargetCwd = firstString(
+  input.cwd,
+  process.cwd()
+);
 
 const targetCwd = path.resolve(rawTargetCwd);
-const requestText = firstString(input.prompt, input.userPrompt, input.message);
+const requestText = firstString(input.prompt);
 
 // This is a user-level hook, but its routing authority is limited to the Xiaobai
 // engineering checkout that installed it. Every external project/repository
 // belongs to its own host and must not be bridged through Xiaobai.
 if (!(await isXiaobaiProjectContext(projectRoot, targetCwd))) process.exit(0);
 
+// Codex's UserPromptSubmit payload is the only trustworthy source for the
+// current request. A missing prompt must stop the turn instead of routing an
+// unrelated message from a stale transcript or another session.
+if (!requestText) {
+  blockRoute('Codex did not provide the current UserPromptSubmit prompt or it was empty.');
+}
+
 const route = await resolveRoute({ projectRoot, targetCwd, requestText });
 
 if (route.status === 'not-applicable') process.exit(0);
 
 if (route.status === 'blocked') {
-  process.stdout.write([
-    '[XIGUA PRE-DISPATCH BLOCKED]',
-    'The T-MAX route could not be verified before this user turn.',
-    `Reason: ${route.reason}`,
-    'Do not answer the business request, read page skills, or modify files.',
-    'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
-  ].join('\n') + '\n');
-  process.exit(0);
+  blockRoute(route.reason);
 }
 
 if (route.result.executor === 'xigua') {
   if (!route.result.xigua) {
-    process.stdout.write([
-      '[XIGUA PRE-DISPATCH BLOCKED]',
-      'The standalone project resolved without a complete Xigua handoff.',
-      'Do not answer the business request or fall back to Xiaobai.',
-      'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
-    ].join('\n') + '\n');
-    process.exit(0);
+    blockRoute(
+      'The standalone project resolved without a complete Xigua handoff. Do not fall back to Xiaobai.'
+    );
   }
 
   const xigua = route.result.xigua;
-  process.stdout.write([
+  const additionalContext = [
     '[XIGUA PRE-DISPATCH LOCK]',
     'This evidence was produced by the user-prompt hook before the assistant processed the request.',
     'Treat it as the mandatory top-level route for this turn.',
@@ -62,23 +61,38 @@ if (route.result.executor === 'xigua') {
     'Required next action: continue this turn as the xigua-frontend-agent top-level role using the mounted source above.',
     'Forbidden: Xiaobai native page skills, frontend-generator, silent fallback, or reading repositories outside the routed project scope.',
     'If any required source or handoff evidence is missing, stop with XIGUA_CONTEXT_INCOMPLETE.'
-  ].join('\n') + '\n');
+  ].join('\n');
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext
+    }
+  }) + '\n');
   process.exit(0);
 }
 
-process.stdout.write([
-  '[XIGUA PRE-DISPATCH BLOCKED]',
-  'The resolved route is not a Xigua standalone project.',
-  'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
-].join('\n') + '\n');
+blockRoute('The resolved route is not a Xigua standalone project.');
 
 async function resolveRoute({ projectRoot, targetCwd, requestText }) {
   const cliPath = path.join(projectRoot, 'dist/loop-engineering/cli/loop.js');
-  // Rebuild when the CLI is missing OR stale (sources/tsconfig newer than the
-  // compiled output), so a branch switch can never route on a foreign build.
-  const build = ensureBuilt(projectRoot);
-  if (!build.ok) {
-    return { status: 'blocked', reason: 'Xiaobai route CLI is not built and the engineering build failed.' };
+  const sourcePaths = [
+    path.join(projectRoot, 'loop-engineering/cli'),
+    path.join(projectRoot, 'loop-engineering/packages'),
+    path.join(projectRoot, 'tsconfig.json')
+  ];
+  // UserPromptSubmit is on the interactive hot path. Never compile the
+  // engineering repository here; setup/installation owns that lifecycle.
+  if (!existsSync(cliPath)) {
+    return {
+      status: 'blocked',
+      reason: 'Xiaobai route CLI is missing. Run npm run setup:codex before submitting a routed request.'
+    };
+  }
+  if (isBuildStale(cliPath, sourcePaths)) {
+    return {
+      status: 'blocked',
+      reason: 'Xiaobai route CLI is stale. Run npm run setup:codex before submitting a routed request.'
+    };
   }
 
   const args = [
@@ -97,8 +111,17 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
   const result = spawnSync(process.execPath, args, {
     cwd: projectRoot,
     encoding: 'utf8',
-    stdio: 'pipe'
+    stdio: 'pipe',
+    timeout: 8000
   });
+  if (result.error) {
+    return {
+      status: 'blocked',
+      reason: result.error.code === 'ETIMEDOUT'
+        ? 'Xiaobai route CLI timed out before the xigua handoff was verified.'
+        : 'Xiaobai route CLI could not be executed.'
+    };
+  }
   if (result.status === 0) {
     try {
       const parsed = JSON.parse(result.stdout);
@@ -119,6 +142,17 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
     return { status: 'not-applicable' };
   }
   return { status: 'blocked', reason: 'Xiaobai route CLI failed to resolve the current T-MAX context.' };
+}
+
+function blockRoute(reason) {
+  process.stderr.write([
+    '[XIGUA PRE-DISPATCH BLOCKED]',
+    'The current Codex turn is blocked before assistant processing.',
+    `Reason: ${reason}`,
+    'Do not answer the business request, read page skills, or modify files.',
+    'Stop and report XIGUA_CONTEXT_INCOMPLETE.'
+  ].join('\n') + '\n');
+  process.exit(2);
 }
 
 function hostTraceId() {

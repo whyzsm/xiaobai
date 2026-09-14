@@ -9,8 +9,8 @@
 ## 背景与迁移状态
 
 - 所有原 t-max 仓库已迁移为独立 Project（kind: Project，executor=xigua）：`KPIUI`、`max-console-ui`、`max-operate-monitor-ui`、`operateBusiness`、`operateSupport`、`dcm`、`scan`。
-- 旧 xiaoneng（manifest-source）路由已随 Batch E 下线：背景声明、挂载软链接与入口规则一并移除；xiaoneng 源码仓本身未删除。
-- 本组保留共享基础设施：`scripts/mount-local.mjs`（维护整个挂载根，含独立子项目）、frontend-delivery loop 技能与 loop 默认项目引用。
+- 旧 xiaoneng（manifest-source）路由已随 Batch E 下线：背景声明与入口规则已移除；本机遗留挂载软链接在明确执行 Batch E 前保留；xiaoneng 源码仓本身未删除。
+- 本组保留共享基础设施：`scripts/mount-local.mjs`（维护整个挂载根，含独立子项目）、frontend-delivery loop 技能与 loop 默认项目引用。普通挂载刷新不会删除未声明的旧背景；Batch E 删除必须显式开启删除开关并单独确认。
 - Local paths are resolved from each project's `.loop/local.paths.yaml`, which is intentionally not committed.
 
 ## 规则（T-MAX 仓操作约定，随各独立项目继续生效）
@@ -42,8 +42,8 @@ Persist the T-MAX group infrastructure in this loop workspace. After Batch E, th
 ## Background And Migration Status
 
 - All former t-max repositories migrated to standalone Projects (kind: Project, executor=xigua): `KPIUI`, `max-console-ui`, `max-operate-monitor-ui`, `operateBusiness`, `operateSupport`, `dcm`, `scan`.
-- The legacy Xiaoneng (manifest-source) route was retired with Batch E: its background declaration, mount symlink, and entry rules were removed; the Xiaoneng source repository itself was not deleted.
-- The group keeps shared infrastructure: `scripts/mount-local.mjs` (maintains the whole mounts root including standalone child projects), the frontend-delivery loop skills, and the loop's default project reference.
+- The legacy Xiaoneng (manifest-source) route was retired with Batch E: its background declaration and entry rules were removed; any legacy local mount symlink is preserved until Batch E is explicitly executed; the Xiaoneng source repository itself was not deleted.
+- The group keeps shared infrastructure: `scripts/mount-local.mjs` (maintains the whole mounts root including standalone child projects), the frontend-delivery loop skills, and the loop's default project reference. A normal mount refresh does not delete undeclared legacy backgrounds; Batch E deletion requires the explicit removal switch and separate confirmation.
 - Local paths are resolved from each project's `.loop/local.paths.yaml`, which is intentionally not committed.
 
 ## Rules (operating conventions for T-MAX repositories, effective through each standalone project)

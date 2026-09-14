@@ -362,9 +362,17 @@ Only an explicit yes in the current message authorizes E. Prior plan approval, t
     test ! -e workspace/.local/t-max/mounts/background/xiaoneng
     node dist/loop-engineering/cli/loop.js route --loop frontend-delivery --target-project KPIUI --json
 
-删除后必须确认 KPIUI 仍为 KPIUI -> xigua，dcm 仍为独立 dcm -> xigua，鸿蒙仍然不调用 xigua，且没有任务回退到小白原生页面技能。
+删除前必须在当前消息取得明确 `yes`，然后仅对已展示的清单执行带删除开关的挂载命令：
 
-After deletion, confirm that KPIUI remains KPIUI -> xigua, dcm remains independent dcm -> xigua, HarmonyOS still does not call Xigua, and no task falls back to a native Xiaobai page skill.
+    XIAOBAI_ALLOW_STALE_BACKGROUND_MOUNT_REMOVAL=1 npm run mount:tmax
+
+普通 `npm run mount:tmax` 只刷新声明的挂载，不删除未声明的旧背景软链接。删除后必须确认 KPIUI 仍为 KPIUI -> xigua，dcm 仍为独立 dcm -> xigua，鸿蒙仍然不调用 xigua，且没有任务回退到小白原生页面技能。
+
+After explicit `yes` in the current message, run the removal command only for the displayed target list:
+
+    XIAOBAI_ALLOW_STALE_BACKGROUND_MOUNT_REMOVAL=1 npm run mount:tmax
+
+A normal `npm run mount:tmax` only refreshes declared mounts and does not delete undeclared legacy backgrounds. After deletion, confirm that KPIUI remains KPIUI -> xigua, dcm remains independent dcm -> xigua, HarmonyOS still does not call Xigua, and no task falls back to a native Xiaobai page skill.
 
 ## 9. 回滚方案 / Rollback Plan
 
@@ -379,9 +387,9 @@ A-D changes engineering code, configuration, and ignored symlinks only; business
 
 Before rollback, confirm the worktree baseline represented by the patch. Never perform a broad restore on a worktree containing user changes. Prefer a separate branch or a human-reviewed reverse patch, restoring files one by one.
 
-E 批次的软链接删除可以通过恢复 local.paths.yaml 中的 background.xiaoneng，再运行 npm run mount:tmax 重建。工程仓配置删除或修改使用 E 批次前保存的逐文件 patch 或 VCS checkpoint 恢复。Xiaoneng 源码仓库在 E 批次中不删除。
+E 批次的软链接删除可以通过明确恢复目标后，使用 `ln -s /absolute/path/to/xiaoneng workspace/.local/t-max/mounts/background/xiaoneng` 单独重建 mount；仅恢复 local.paths.yaml 不会触发普通挂载刷新删除或重建未声明的旧背景。工程仓配置删除或修改使用 E 批次前保存的逐文件 patch 或 VCS checkpoint 恢复。Xiaoneng 源码仓库在 E 批次中不删除。
 
-The Batch E symlink deletion can be reversed by restoring background.xiaoneng in local.paths.yaml and running npm run mount:tmax. Restore engineering configuration edits from the per-file patch or VCS checkpoint saved before E. The Xiaoneng source repository is not deleted in E.
+The Batch E symlink deletion can be reversed by explicitly restoring the target and running `ln -s /absolute/path/to/xiaoneng workspace/.local/t-max/mounts/background/xiaoneng`; restoring local.paths.yaml alone does not make a normal mount refresh delete or recreate an undeclared legacy background. Restore engineering configuration edits from the per-file patch or VCS checkpoint saved before E. The Xiaoneng source repository is not deleted in E.
 
 ## 10. 最终判定 / Final Disposition
 
