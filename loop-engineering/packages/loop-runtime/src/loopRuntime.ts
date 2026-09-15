@@ -18,7 +18,8 @@ import {
   ProjectSpec,
   RuntimeExecutionPlan,
   RuntimePlan,
-  WorkflowPlan
+  WorkflowPlan,
+  XiguaWorkflowPlan
 } from '../../shared/src/types';
 import { SkillRuntime } from '../../skill-runtime/src/skillRuntime';
 import { WorktreeManager } from '../../worktree-manager/src/worktreeManager';
@@ -73,17 +74,26 @@ export class LoopRuntime {
     const evaluatorRuntime = new EvaluatorRuntime();
     const humanGate = new HumanGate(loop);
 
-    const [state, inbox, skill, evidence, harness, evaluator, orchestrator] = await Promise.all([
-      memoryStore.readState(),
-      memoryStore.readInbox(),
-      // A xigua-bound route must finish route selection before any page skill
-      // is read; the native discovery skill load is skipped entirely.
-      usesXigua ? Promise.resolve(undefined) : skillRuntime.loadDiscoverySkill(loop, project.id),
-      connectorRuntime.collect(loop.discovery.sources),
-      harnessRuntime.load(loop),
-      usesXigua ? Promise.resolve(undefined) : agentRuntime.loadAgent(loop.verification.evaluator),
-      loop.orchestrator?.agent ? agentRuntime.loadAgent(loop.orchestrator.agent) : Promise.resolve(undefined)
-    ]);
+    let state = '';
+    let inbox = '';
+    let skill: Awaited<ReturnType<SkillRuntime['loadDiscoverySkill']>> | undefined;
+    let evidence: Awaited<ReturnType<ConnectorRuntime['collect']>> = [];
+    let harness: Awaited<ReturnType<HarnessRuntime['load']>> | undefined;
+    let evaluator: Awaited<ReturnType<AgentRuntime['loadAgent']>> | undefined;
+    const orchestrator = loop.orchestrator?.agent
+      ? await agentRuntime.loadAgent(loop.orchestrator.agent)
+      : undefined;
+
+    if (!usesXigua) {
+      [state, inbox, skill, evidence, harness, evaluator] = await Promise.all([
+        memoryStore.readState(),
+        memoryStore.readInbox(),
+        skillRuntime.loadDiscoverySkill(loop, project.id),
+        connectorRuntime.collect(loop.discovery.sources),
+        harnessRuntime.load(loop),
+        agentRuntime.loadAgent(loop.verification.evaluator)
+      ]);
+    }
 
     const context = usesXigua
       ? undefined
@@ -94,7 +104,7 @@ export class LoopRuntime {
           state,
           inbox,
           evidence,
-          maxCharacters: harness.context.maxCharacters
+          maxCharacters: harness!.context.maxCharacters
         });
     const findings = context ? skillRuntime.selectFindings(context.evidence) : [];
     const usesNativePipeline = !usesXigua;
@@ -105,14 +115,16 @@ export class LoopRuntime {
     const evaluations = usesNativePipeline && evaluator
       ? evaluatorRuntime.plan(loop, evaluator, worktrees)
       : [];
-    const memoryContext = await buildMemoryContextMetadata({
-      workspaceRoot,
-      memoryRoot,
-      memoryConfig,
-      loop,
-      projectId: project.id,
-      maxCharacters: context?.maxCharacters ?? harness.context.maxCharacters
-    });
+    const memoryContext = usesXigua
+      ? undefined
+      : await buildMemoryContextMetadata({
+          workspaceRoot,
+          memoryRoot,
+          memoryConfig,
+          loop,
+          projectId: project.id,
+          maxCharacters: context!.maxCharacters
+        });
     const xigua = usesXigua && projectRoute.targetRepository
       ? await resolveXiguaRuntime({
           sourceRoot: path.resolve(projectRoute.projectRoot, xiguaBackground!.mount),
@@ -145,7 +157,7 @@ export class LoopRuntime {
         evidenceSources: context?.evidence.length ?? evidence.length,
         stateFile: displayPath(workspaceRoot, memoryStore.stateFile()),
         inboxFile: displayPath(workspaceRoot, memoryStore.inboxFile()),
-        maxCharacters: context?.maxCharacters ?? harness.context.maxCharacters
+        maxCharacters: context?.maxCharacters ?? 0
       },
       findings,
       handoff: worktrees,
@@ -155,10 +167,12 @@ export class LoopRuntime {
         stateFile: displayPath(workspaceRoot, memoryStore.stateFile()),
         inboxFile: displayPath(workspaceRoot, memoryStore.inboxFile()),
         runLog: displayPath(workspaceRoot, memoryStore.runLog()),
+        stageEventsFile: displayPath(workspaceRoot, memoryStore.stageEventsFile()),
         plannedWrites: memoryStore.plannedWrites()
       },
       humanGate: humanGate.plan(),
       workflow: execution.executor === 'xiaobai' ? buildWorkflowPlan(loop) : undefined,
+      xiguaWorkflow: execution.executor === 'xigua' ? buildXiguaWorkflowPlan(loop) : undefined,
       memoryContext,
       xigua,
       nativePageSkill: skillRuntime.nativePageSkillPolicy(execution.executor).status === 'skipped'
@@ -360,6 +374,119 @@ function buildWorkflowPlan(loop: LoopSpec): WorkflowPlan | undefined {
       requiredBefore: stage.requiredBefore ?? [],
       outputs: stage.outputs ?? []
     }))
+  };
+}
+
+function buildXiguaWorkflowPlan(loop: LoopSpec): XiguaWorkflowPlan {
+  return {
+    profile: 'xigua-page-delivery',
+    maxParallelTasks: loop.budget.maxParallelTasks,
+    stages: [
+      {
+        id: 'xigua-requirement-intake',
+        kind: 'intake',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'intake-evidence',
+        dependsOn: [],
+        requiredChecks: ['requirement-source-normalized'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['requirementFacts']
+      },
+      {
+        id: 'xigua-contract-freeze',
+        kind: 'design',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'contract-freeze',
+        dependsOn: ['xigua-requirement-intake'],
+        requiredChecks: ['page-contract-locked'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['pageContract']
+      },
+      {
+        id: 'xigua-canonical-consumption',
+        kind: 'evidence',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'pre-write-evidence',
+        dependsOn: ['xigua-contract-freeze'],
+        requiredChecks: ['canonical-consumed'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['canonicalManifest']
+      },
+      {
+        id: 'xigua-component-and-api-facts',
+        kind: 'evidence',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'pre-write-evidence',
+        dependsOn: ['xigua-contract-freeze'],
+        requiredChecks: ['component-facts-locked', 'api-status-locked'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['fieldMatrix', 'apiContractRequest']
+      },
+      {
+        id: 'xigua-page-write',
+        kind: 'coding',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'single-writer',
+        dependsOn: ['xigua-canonical-consumption', 'xigua-component-and-api-facts'],
+        requiredChecks: ['planned-tree-locked'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['changedFiles']
+      },
+      {
+        id: 'xigua-static-contract-check',
+        kind: 'review',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'post-write',
+        dependsOn: ['xigua-page-write'],
+        requiredChecks: ['xigua-result-contract'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['verification']
+      },
+      {
+        id: 'xigua-uap-page-phase',
+        kind: 'authorization',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'post-write',
+        dependsOn: ['xigua-page-write'],
+        requiredChecks: ['uap-page-phase'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['uapEvidence']
+      },
+      {
+        id: 'xigua-api-continuation',
+        kind: 'external-wait',
+        status: 'planned',
+        gate: 'automatic',
+        agent: 'xigua-frontend-agent',
+        parallelGroup: 'api-continuation',
+        dependsOn: ['xigua-static-contract-check', 'xigua-uap-page-phase'],
+        requiredChecks: ['api-contract-locked'],
+        requiredGates: [],
+        requiredBefore: [],
+        outputs: ['apiEvidence', 'uapInterfaceEvidence']
+      }
+    ]
   };
 }
 

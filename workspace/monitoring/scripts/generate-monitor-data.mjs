@@ -225,7 +225,7 @@ function countJsonl(filePath) {
   return { count: lines.length, last };
 }
 
-function collectMemory(loopIds, warnings) {
+function resolveMemoryRoot(warnings) {
   const localConfigPath = path.join(WORKSPACE_ROOT, 'workspace.local.yaml');
   let memoryRoot = path.join(WORKSPACE_ROOT, 'memory');
   let source = 'workspace-default';
@@ -246,7 +246,11 @@ function collectMemory(loopIds, warnings) {
     }
   }
 
-  const rootAvailable = fs.existsSync(memoryRoot);
+  return { memoryRoot, source, rootAvailable: fs.existsSync(memoryRoot) };
+}
+
+function collectMemory(loopIds, warnings, memoryConfig) {
+  const { memoryRoot, source, rootAvailable } = memoryConfig;
   const loopDirectory = path.join(memoryRoot, 'loops');
   const directoryLoopIds = fs.existsSync(loopDirectory)
     ? fs.readdirSync(loopDirectory, { withFileTypes: true })
@@ -280,6 +284,127 @@ function collectMemory(loopIds, warnings) {
       findings: totals.findings + loop.findings,
       metrics: totals.metrics + loop.metrics,
     }), { runs: 0, findings: 0, metrics: 0 }),
+  };
+}
+
+function readStageEvents(filePath, warnings) {
+  if (!fs.existsSync(filePath)) return [];
+
+  const events = [];
+  for (const line of readText(filePath).split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      const event = JSON.parse(line);
+      if (
+        event?.kind === 'StageExecutionEvent'
+        && typeof event.loopId === 'string'
+        && typeof event.runId === 'string'
+        && typeof event.stageId === 'string'
+        && typeof event.timestamp === 'string'
+      ) {
+        events.push(event);
+      }
+    } catch {
+      warnings.push({
+        code: 'stage_event_unreadable',
+        source: relativeToProject(filePath),
+        message: 'A stage event line could not be parsed and was ignored.',
+      });
+    }
+  }
+
+  return events.sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp));
+}
+
+function latestRunEvents(events, loopId) {
+  const byRun = new Map();
+  for (const event of events.filter((item) => item.loopId === loopId)) {
+    const entry = byRun.get(event.runId) || [];
+    entry.push(event);
+    byRun.set(event.runId, entry);
+  }
+  const latest = [...byRun.values()]
+    .sort((left, right) => Date.parse(right.at(-1)?.timestamp || '') - Date.parse(left.at(-1)?.timestamp || ''))[0];
+  return latest || [];
+}
+
+export function mergeObservedStages(declaredStages, events, loopId) {
+  const declared = Array.isArray(declaredStages) ? declaredStages : [];
+  const declaredIds = new Set(declared.map((stage) => stage.id));
+  const latestObservedById = new Map();
+
+  for (const event of events) {
+    if (event?.loopId !== loopId || typeof event.stageId !== 'string' || event.stageId.length === 0) continue;
+    latestObservedById.set(event.stageId, event);
+  }
+
+  const observed = [...latestObservedById.values()]
+    .filter((event) => !declaredIds.has(event.stageId))
+    .map((event) => ({
+      id: event.stageId,
+      kind: typeof event.stageKind === 'string' && event.stageKind.length > 0
+        ? event.stageKind
+        : 'runtime-observed',
+      owner: typeof event.owner === 'string' && event.owner.length > 0
+        ? event.owner
+        : 'unassigned',
+      evidence: 'stage-events.jsonl'
+    }));
+
+  return [...declared, ...observed];
+}
+
+export function buildStageTiming(stage, events, now) {
+  const stageEvents = events.filter((event) => event.stageId === stage.id);
+  if (stageEvents.length === 0) {
+    return {
+      loopId: stage.loopId,
+      stageId: stage.id,
+      stageKind: stage.kind,
+      owner: stage.owner,
+      status: 'unmeasured',
+      enteredAt: null,
+      firstActionAt: null,
+      exitedAt: null,
+      durationMs: null,
+      activeMs: null,
+      waitingMs: null,
+      waitingReason: 'missing_instrumentation',
+      evidence: stage.evidence,
+    };
+  }
+
+  const entered = stageEvents.find((event) => event.event === 'entered');
+  const firstAction = stageEvents.find((event) => event.event === 'first_action');
+  const finalEvent = [...stageEvents].reverse().find((event) => (
+    ['completed', 'failed', 'skipped', 'blocked'].includes(event.event)
+  ));
+  const waitingEvent = [...stageEvents].reverse().find((event) => event.event === 'waiting');
+  const enteredAt = entered?.timestamp || null;
+  const exitedAt = finalEvent?.timestamp || null;
+  const startedAtMs = enteredAt ? Date.parse(enteredAt) : null;
+  const endedAtMs = exitedAt ? Date.parse(exitedAt) : null;
+  const waitingAtMs = waitingEvent ? Date.parse(waitingEvent.timestamp) : null;
+  const durationMs = startedAtMs != null && endedAtMs != null ? Math.max(0, endedAtMs - startedAtMs) : null;
+  const waitingMs = waitingAtMs != null
+    ? Math.max(0, (endedAtMs ?? now.getTime()) - waitingAtMs)
+    : 0;
+  const status = finalEvent?.status || stageEvents.at(-1)?.status || 'running';
+
+  return {
+    loopId: stage.loopId,
+    stageId: stage.id,
+    stageKind: stage.kind,
+    owner: stage.owner,
+    status,
+    enteredAt,
+    firstActionAt: firstAction?.timestamp || null,
+    exitedAt,
+    durationMs,
+    activeMs: durationMs == null ? null : Math.max(0, durationMs - waitingMs),
+    waitingMs,
+    waitingReason: waitingEvent?.waitingReason || null,
+    evidence: stageEvents.at(-1)?.evidence?.join('; ') || stage.evidence,
   };
 }
 
@@ -359,26 +484,21 @@ function collectConnectors(warnings) {
   }));
 }
 
-function buildTiming(loops) {
+function buildTiming(loops, memoryConfig, warnings) {
+  const stages = loops.flatMap((loop) => {
+    const events = latestRunEvents(
+      readStageEvents(path.join(memoryConfig.memoryRoot, 'loops', loop.id, 'stage-events.jsonl'), warnings),
+      loop.id,
+    );
+    return mergeObservedStages(loop.stages, events, loop.id)
+      .map((stage) => buildStageTiming({ ...stage, loopId: loop.id }, events, new Date()));
+  });
+  const instrumented = stages.some((stage) => stage.status !== 'unmeasured');
   return {
-    instrumented: false,
-    status: 'unmeasured',
-    waitingReason: 'missing_instrumentation',
-    stages: loops.flatMap((loop) => loop.stages.map((stage) => ({
-      loopId: loop.id,
-      stageId: stage.id,
-      stageKind: stage.kind,
-      owner: stage.owner,
-      status: 'unmeasured',
-      enteredAt: null,
-      firstActionAt: null,
-      exitedAt: null,
-      durationMs: null,
-      activeMs: null,
-      waitingMs: null,
-      waitingReason: 'missing_instrumentation',
-      evidence: stage.evidence,
-    }))),
+    instrumented,
+    status: instrumented ? 'measured' : 'unmeasured',
+    waitingReason: instrumented ? null : 'missing_instrumentation',
+    stages,
   };
 }
 
@@ -438,9 +558,10 @@ export function buildSnapshot() {
   const loops = collectLoops(warnings);
   const projects = collectProjects(warnings);
   const connectors = collectConnectors(warnings);
-  const memory = collectMemory(loops.map((loop) => loop.id), warnings);
+  const memoryConfig = resolveMemoryRoot(warnings);
+  const memory = collectMemory(loops.map((loop) => loop.id), warnings, memoryConfig);
   const graph = collectGraph(git, warnings);
-  const timing = buildTiming(loops);
+  const timing = buildTiming(loops, memoryConfig, warnings);
   const evaluation = buildEvaluation(loops, agents, timing);
 
   if (!memory.rootAvailable) {

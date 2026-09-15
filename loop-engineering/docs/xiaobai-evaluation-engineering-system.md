@@ -56,6 +56,20 @@
 
 如果没有真实采集数据，评价报告必须写 `unmeasured`，不能用估算值填充。未采集节点停留时间本身就是可观测性缺口，应进入评价发现。
 
+### 运行时事件与 xigua 可观测性
+
+运行时应把 `StageExecutionEvent` 逐行追加到 loop memory 下的 `stage-events.jsonl`，不得覆盖或重排已有事件。事件生命周期只能使用 `entered`、`first_action`、`waiting`、`completed`、`failed`、`skipped`、`blocked`；每条记录必须包含 `loopId`、`runId`、`taskId`、`stageId`、`stageKind`、`owner`、`event`、`status`、`timestamp`，并按需包含 `waitingReason` 与 `evidence`。
+
+`WorkflowExecutor` 只负责任务依赖、并发上限和事件证据的调度。它执行宿主提供的 `run()`，不自行创建 Agent、调用模型或写入业务仓库；真实 Agent 调用、权限和业务写入继续由宿主负责。因而阶段计划不能被描述为已经启用的多 Agent 并行执行，除非宿主提供了真实的调用适配器和对应事件证据。
+
+计时只从真实事件推导：`durationMs=exitedAt-enteredAt`，等待区间从最后一个 `waiting` 到退出或当前观测时间，`activeMs=durationMs-waitingMs`。`human_input`、`tool_running`、`external_api`、`missing_context`、`approval_required`、`error_blocker` 和 `dependency_waiting` 必须分别归因；缺少进入或退出事件时不得补估。
+
+监控可以从最新 run 的事件元数据展示未在 YAML loop spec 声明的运行时 xigua 阶段，并将来源标记为 `stage-events.jsonl`。没有真实事件时不得预填 xigua 阶段或时长，仍应报告 `unmeasured`。
+
+xigua 源消费证据中的 `sourceFingerprint` 是 `sourceCommit`、`AGENT.md` 内容哈希和完整源工作树状态的稳定哈希；`sourceDirty` 与 `sourceWorktreeStatus` 用于说明读取的是哪一个源状态，而不是业务仓写入证明。
+
+当 `Scaffold` 的 `apiStatus=api_contract_missing` 时，`continuation.deliveryStatus=scaffold_delivered` 表示页面目录、路由和静态交付已经完成；`nextMode=ApiWiring` 仅携带待确认 API 合同输入。它不等价于自动恢复、自动联调或自动派发，后续执行必须由用户或宿主显式发起。
+
 ### 报告格式
 
 评价报告至少包含以下表格：
@@ -133,6 +147,20 @@ Every workflow stage must be able to record, or explicitly mark, these fields:
 | `evidence` | Commands, files, reports, screenshots, remote SHAs, or logs supporting the stage status |
 
 If real collection data is unavailable, the evaluation report must write `unmeasured` instead of filling estimated values. Missing stage dwell-time collection is itself an observability gap and must become an evaluation finding.
+
+### Runtime Events And Xigua Observability
+
+The runtime should append each `StageExecutionEvent` as one line in `stage-events.jsonl` under loop memory. Existing events must never be overwritten or reordered. The lifecycle is limited to `entered`, `first_action`, `waiting`, `completed`, `failed`, `skipped`, and `blocked`; every record must include `loopId`, `runId`, `taskId`, `stageId`, `stageKind`, `owner`, `event`, `status`, and `timestamp`, with `waitingReason` and `evidence` when applicable.
+
+`WorkflowExecutor` schedules task dependencies, concurrency limits, and event evidence only. It executes host-provided `run()` functions; it does not create Agents, invoke models, or write business repositories. Actual Agent invocation, permissions, and business writes remain host-owned. A stage plan therefore must not be described as real multi-Agent parallel execution unless the host provides a real invocation adapter and corresponding event evidence.
+
+Timing is derived only from real events: `durationMs=exitedAt-enteredAt`; the waiting interval runs from the last `waiting` event to exit or the current observation time; and `activeMs=durationMs-waitingMs`. `human_input`, `tool_running`, `external_api`, `missing_context`, `approval_required`, `error_blocker`, and `dependency_waiting` must remain separately attributed. Never estimate a missing entry or exit event.
+
+Monitoring may display runtime xigua stages not declared in the YAML loop spec when they are observed in the latest run's event metadata, with `stage-events.jsonl` as the evidence source. Without real events, it must not prefill xigua stages or durations and must continue to report `unmeasured`.
+
+The xigua source-consumption `sourceFingerprint` is a stable hash of `sourceCommit`, the `AGENT.md` content hash, and the full source worktree status. `sourceDirty` and `sourceWorktreeStatus` identify the source state that was read; they are not evidence that a business repository was written.
+
+For `Scaffold` with `apiStatus=api_contract_missing`, `continuation.deliveryStatus=scaffold_delivered` means the page directory, route, and static delivery are complete. `nextMode=ApiWiring` carries only pending API contract input. It does not mean automatic resume, automatic integration, or automatic dispatch; later execution must be explicitly started by the user or host.
 
 ### Report Format
 

@@ -40,6 +40,28 @@ description: Loop Engineering repository-level implementation skill for coding p
 
 当规则冲突时，优先遵守更高层级的安全、边界和验证要求；项目级规则只能收窄实现方式，不能降低仓级安全和验证标准。
 
+### Codex Desktop 直聊回退 / Codex Desktop Direct-Chat Fallback
+
+如果本轮是 Xiaobai 工程根目录中的 Codex Desktop 直聊，用户消息明确指向独立 T-MAX 项目的页面需求，而 `additionalContext` 没有 `[XIGUA PRE-DISPATCH LOCK]`，先执行仓内宿主入口：
+
+```bash
+XIAOBAI_PROJECT_ROOT="$PWD" node workspace/host/xigua-codex-prompt-hook.mjs \
+  --cwd "$PWD" \
+  --prompt '<当前用户原始消息>'
+```
+
+这是本轮的第一项工具动作。命令返回完整锁后，先读取锁中的 xigua `AGENT.md`，再按 xigua 流程处理；不得先读取 Xiaobai 项目级页面技能、需求澄清器、原生 generator 或业务源码。命令失败或 handoff 不完整时停止并报告 `XIGUA_CONTEXT_INCOMPLETE`。这条回退不作用于鸿蒙等非 T-MAX 项目。
+
+If this is a Codex Desktop direct chat hosted at the Xiaobai engineering root, the user message names a standalone T-MAX page request, and `additionalContext` does not contain `[XIGUA PRE-DISPATCH LOCK]`, invoke the host entry first:
+
+```bash
+XIAOBAI_PROJECT_ROOT="$PWD" node workspace/host/xigua-codex-prompt-hook.mjs \
+  --cwd "$PWD" \
+  --prompt '<current raw user message>'
+```
+
+This must be the first tool action for the turn. After the command returns a complete lock, read the xigua `AGENT.md` from that lock before doing any page work; do not read Xiaobai project page skills, the requirement clarifier, the native generator, or business source first. Stop with `XIGUA_CONTEXT_INCOMPLETE` if the command fails or the handoff is incomplete. This fallback does not apply to non-T-MAX projects such as HarmonyOS.
+
 ## 四条实现原则
 
 ### 1. 编码前思考

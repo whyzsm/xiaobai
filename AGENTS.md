@@ -74,6 +74,28 @@ Core boundaries:
 2. 会话开始时识别当前可用工具、权限、网络和文件系统边界。
 3. 在会话期间缓存工具可用性状态；如果工具、权限或上下文发生变化，重新确认后再行动。
 
+#### Codex Desktop 直聊首跳兜底 / Codex Desktop Direct-Chat First-Hop Fallback
+
+当当前 Codex Desktop 对话的工作目录位于本仓库根目录，且用户消息同时明确了独立 T-MAX 项目（例如 `KPIUI`、`dcm`）和页面/需求地址时，必须先判断当前上下文是否已经包含 `[XIGUA PRE-DISPATCH LOCK]`。如果没有该锁，说明 Desktop 宿主没有把 `UserPromptSubmit` hook 注入本轮；此时第一项工具动作必须直接执行下面的路由入口，把当前用户原始消息原样作为 `--prompt` 传入：
+
+```bash
+XIAOBAI_PROJECT_ROOT="$PWD" node workspace/host/xigua-codex-prompt-hook.mjs \
+  --cwd "$PWD" \
+  --prompt '<当前用户原始消息>'
+```
+
+路由成功后，必须先读取输出中的 xigua `AGENT.md`，并把它作为本轮 T-MAX 页面执行入口；在此之前不得读取 `workspace/projects/<project>/SKILL.md`、`requirement-clarifier`、小白原生页面 generator 或业务页面源码。路由失败、输出不是 `[XIGUA PRE-DISPATCH LOCK]` 或缺少完整 handoff 时，停止并报告 `XIGUA_CONTEXT_INCOMPLETE`，不能继续走小白原生页面流程。该兜底只适用于本仓库上下文内的独立 T-MAX 页面请求；鸿蒙等非 T-MAX 项目继续使用其自身背景和小白默认路由。
+
+When a Codex Desktop conversation is hosted at this repository root and the user message names a standalone T-MAX project (for example, `KPIUI` or `dcm`) together with a page or requirement URL, first check whether the current context already contains `[XIGUA PRE-DISPATCH LOCK]`. If it does not, the Desktop host failed to inject `UserPromptSubmit` for this turn; the first tool action must invoke the route entry below and pass the user's raw message unchanged as `--prompt`:
+
+```bash
+XIAOBAI_PROJECT_ROOT="$PWD" node workspace/host/xigua-codex-prompt-hook.mjs \
+  --cwd "$PWD" \
+  --prompt '<current raw user message>'
+```
+
+After a successful route, read the xigua `AGENT.md` named by the output and use it as the T-MAX page entrypoint. Before that, do not read `workspace/projects/<project>/SKILL.md`, `requirement-clarifier`, Xiaobai's native page generator, or business page source. If routing fails, the output does not contain `[XIGUA PRE-DISPATCH LOCK]`, or the handoff is incomplete, stop and report `XIGUA_CONTEXT_INCOMPLETE`; do not continue through Xiaobai's native page workflow. This fallback applies only to standalone T-MAX page requests inside this repository context; non-T-MAX projects such as HarmonyOS continue with their own background and Xiaobai's default routing.
+
 #### 图像读取路由
 
 当前模型未声明图像输入能力时，读图需求（截图、原型图、扫描件等）按以下顺序路由，不做无效尝试：

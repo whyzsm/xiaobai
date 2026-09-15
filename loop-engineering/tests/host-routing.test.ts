@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 const execFileAsync = promisify(execFile);
 const repoRoot = process.cwd();
 const scopeModule = path.join(repoRoot, 'workspace/host/xiaobai-host-scope.mjs');
+const requestIntentModule = path.join(repoRoot, 'workspace/host/request-intent.mjs');
 const installerScript = path.join(repoRoot, 'workspace/host/install-codex-hook.mjs');
 const promptHookScript = path.join(repoRoot, 'workspace/host/xigua-codex-prompt-hook.mjs');
 
@@ -103,6 +104,85 @@ test('Codex UserPromptSubmit hook routes KPIUI before assistant processing', asy
   assert.match(output.hookSpecificOutput?.additionalContext ?? '', /Forbidden: Xiaobai native page skills/);
 });
 
+test('request intent routes any unique xigua project page task without hardcoded project names', async () => {
+  const intent = await classifyRequest('dcm 新增一个列表页并接入导出');
+
+  assert.equal(intent.decision, 'route-required');
+  assert.equal(intent.targetProject, 'dcm');
+  assert.deepEqual(intent.projectCandidates, ['dcm']);
+  assert.match(intent.reason, /explicit-xigua-project-page-task/);
+});
+
+test('hook routes a unique xigua project marker that is not at the start of the request', async () => {
+  const result = await runPromptHook({ cwd: repoRoot, prompt: '帮我在 dcm 项目里新增一个列表页' });
+
+  assert.equal(result.code, 0, result.stderr);
+  const output = JSON.parse(result.stdout) as {
+    hookSpecificOutput?: { additionalContext?: string };
+  };
+  assert.match(output.hookSpecificOutput?.additionalContext ?? '', /Route: dcm\/dcm -> xigua-frontend-agent/);
+});
+
+test('request intent skips ordinary conversation and project questions', async () => {
+  for (const prompt of ['你好', 'KPIUI 是什么项目', '帮我做一个页面']) {
+    const intent = await classifyRequest(prompt);
+    assert.equal(intent.decision, 'skip', prompt);
+  }
+});
+
+test('ordinary conversation skips before a stale or missing route CLI is checked', async () => {
+  const result = await runPromptHook({ cwd: repoRoot, prompt: '你好' });
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+});
+
+test('xigua page task remains strict when the route CLI is missing', async () => {
+  const isolatedRoot = await mkdtemp(path.join(tmpdir(), 'codex-hook-missing-cli-'));
+  const projectPath = path.join(isolatedRoot, 'workspace', 'projects', 'dcm', '.loop');
+  await mkdir(projectPath, { recursive: true });
+  await copyFile(path.join(repoRoot, 'workspace/projects/dcm/.loop/project.yaml'), path.join(projectPath, 'project.yaml'));
+
+  try {
+    const result = await runPromptHook(
+      { cwd: isolatedRoot, prompt: 'dcm 新增一个列表页' },
+      isolatedRoot,
+      isolatedRoot
+    );
+
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /XIGUA PRE-DISPATCH BLOCKED/);
+    assert.match(result.stderr, /route CLI is missing/);
+  } finally {
+    await rm(isolatedRoot, { recursive: true, force: true });
+  }
+});
+
+test('Codex Desktop fallback CLI routes KPIUI without a hook stdin payload', async () => {
+  const request =
+    '在 KPIUI 项目里，新增一个“简易流水管理”页面，在 KPI 一级目录下，需求地址：https://itxuqiu.yuque.com/gzlcs4/nuv8wt/lhu6g7vtqcukrfae';
+  const result = await execFileAsync(process.execPath, [
+    promptHookScript,
+    '--cwd',
+    repoRoot,
+    '--prompt',
+    request
+  ], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      XIAOBAI_PROJECT_ROOT: repoRoot
+    }
+  });
+
+  const output = JSON.parse(result.stdout) as {
+    hookSpecificOutput?: { additionalContext?: string };
+  };
+  assert.match(output.hookSpecificOutput?.additionalContext ?? '', /\[XIGUA PRE-DISPATCH LOCK\]/);
+  assert.match(output.hookSpecificOutput?.additionalContext ?? '', /Route: KPIUI\/KPIUI -> xigua-frontend-agent/);
+});
+
 test('Codex UserPromptSubmit hook blocks an empty payload inside Xiaobai', async () => {
   const result = await runPromptHook({});
 
@@ -143,7 +223,11 @@ test('Codex UserPromptSubmit hook ignores projects outside Xiaobai', async () =>
   await rm(externalRoot, { recursive: true, force: true });
 });
 
-async function runPromptHook(input: Record<string, unknown>, cwd = repoRoot): Promise<{
+async function runPromptHook(
+  input: Record<string, unknown>,
+  cwd = repoRoot,
+  xiaobaiRoot = repoRoot
+): Promise<{
   code: number | null;
   signal: NodeJS.Signals | null;
   stdout: string;
@@ -154,7 +238,7 @@ async function runPromptHook(input: Record<string, unknown>, cwd = repoRoot): Pr
       cwd,
       env: {
         ...process.env,
-        XIAOBAI_PROJECT_ROOT: repoRoot
+        XIAOBAI_PROJECT_ROOT: xiaobaiRoot
       },
       stdio: 'pipe'
     });
@@ -180,6 +264,21 @@ async function checkStale(cliPath: string, sourcePaths: string[]): Promise<boole
     cwd: repoRoot
   });
   return stdout.trim() === 'true';
+}
+
+async function classifyRequest(prompt: string): Promise<{
+  decision: string;
+  reason: string;
+  targetProject?: string;
+  projectCandidates: string[];
+}> {
+  const moduleUrl = pathToFileURL(requestIntentModule).href;
+  const script = `import { classifyRequest } from ${JSON.stringify(moduleUrl)};\n` +
+    `process.stdout.write(JSON.stringify(await classifyRequest(${JSON.stringify({ projectRoot: repoRoot, targetCwd: repoRoot, requestText: prompt })})));`;
+  const { stdout } = await execFileAsync(process.execPath, ['--input-type=module', '--eval', script], {
+    cwd: repoRoot
+  });
+  return JSON.parse(stdout);
 }
 
 test('Codex hook installer replaces legacy Xiaoneng entries without touching other hooks', async () => {

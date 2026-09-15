@@ -5,10 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isXiaobaiProjectContext } from './xiaobai-host-scope.mjs';
 import { isBuildStale } from './build-if-stale.mjs';
+import { classifyRequest } from './request-intent.mjs';
 
 const hostDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(process.env.XIAOBAI_PROJECT_ROOT || path.join(hostDir, '../..'));
-const input = await readHookInput();
+const input = parseCommandLineInput(process.argv.slice(2)) ?? await readHookInput();
 const rawTargetCwd = firstString(
   input.cwd,
   process.cwd()
@@ -29,7 +30,21 @@ if (!requestText) {
   blockRoute('Codex did not provide the current UserPromptSubmit prompt or it was empty.');
 }
 
-const route = await resolveRoute({ projectRoot, targetCwd, requestText });
+// Ordinary conversation must never depend on the engineering route build. The
+// classifier reads only xigua project metadata and the current prompt.
+const intent = await classifyRequest({
+  projectRoot,
+  targetCwd,
+  requestText
+});
+if (intent.decision !== 'route-required') process.exit(0);
+
+const route = await resolveRoute({
+  projectRoot,
+  targetCwd,
+  requestText,
+  targetProject: intent.targetProject
+});
 
 if (route.status === 'not-applicable') process.exit(0);
 
@@ -56,6 +71,8 @@ if (route.result.executor === 'xigua') {
     `Entry: ${path.resolve(xigua.sourceConsumption.sourceRoot, xigua.entryPath)}`,
     `Entry hash: ${xigua.entryHash}`,
     `Source commit: ${xigua.sourceCommit}`,
+    `Source fingerprint: ${xigua.sourceFingerprint}`,
+    `Source worktree: ${xigua.sourceDirty ? 'dirty' : 'clean'}`,
     `Requirement sources: ${xigua.requirementIntake.requirementSources.join(', ') || '(none)'}`,
     `Trace: ${route.result.trace?.traceId ?? 'unavailable'}`,
     'Required next action: continue this turn as the xigua-frontend-agent top-level role using the mounted source above.',
@@ -73,7 +90,7 @@ if (route.result.executor === 'xigua') {
 
 blockRoute('The resolved route is not a Xigua standalone project.');
 
-async function resolveRoute({ projectRoot, targetCwd, requestText }) {
+async function resolveRoute({ projectRoot, targetCwd, requestText, targetProject }) {
   const cliPath = path.join(projectRoot, 'dist/loop-engineering/cli/loop.js');
   const sourcePaths = [
     path.join(projectRoot, 'loop-engineering/cli'),
@@ -102,8 +119,8 @@ async function resolveRoute({ projectRoot, targetCwd, requestText }) {
     'workspace',
     '--trace-id',
     hostTraceId(),
-    '--target-cwd',
-    targetCwd,
+    '--target-project',
+    targetProject,
     '--json'
   ];
   if (requestText) args.push('--request-text', requestText);
@@ -173,4 +190,24 @@ async function readHookInput() {
   } catch {
     return {};
   }
+}
+
+// Desktop fallback mode passes the current prompt explicitly when the host did
+// not inject the UserPromptSubmit hook. The normal hook path still reads the
+// Codex JSON payload from stdin.
+function parseCommandLineInput(args) {
+  if (args.length === 0) return null;
+
+  const input = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (flag !== '--cwd' && flag !== '--prompt') {
+      blockRoute(`Unsupported direct-route argument: ${flag}`);
+    }
+    const value = args[index + 1];
+    if (!value) blockRoute(`${flag} requires a value.`);
+    input[flag === '--cwd' ? 'cwd' : 'prompt'] = value;
+    index += 1;
+  }
+  return input;
 }

@@ -234,6 +234,8 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
           entryPath: xigua.skillContext.entryPath,
           entryHash: xigua.skillContext.entryHash,
           sourceCommit: xigua.skillContext.sourceCommit,
+          sourceDirty: xigua.skillContext.sourceDirty,
+          sourceFingerprint: xigua.skillContext.sourceFingerprint,
           contextDigest: xigua.skillContext.contextDigest,
           sourceConsumption: xigua.sourceConsumption,
           requirementIntake: xigua.requirementIntake,
@@ -277,6 +279,8 @@ async function runRouteCommand(options: CliOptions, workspaceRoot: string): Prom
           `Agent: ${result.xigua.agentId}`,
           `Entry hash: ${result.xigua.entryHash}`,
           `Source commit: ${result.xigua.sourceCommit}`,
+          `Source fingerprint: ${result.xigua.sourceFingerprint}`,
+          `Source worktree: ${result.xigua.sourceDirty ? 'dirty' : 'clean'}`,
           `Requirement sources: ${result.xigua.requirementIntake.requirementSources.join(', ') || '(none)'}`
         ]
       : []),

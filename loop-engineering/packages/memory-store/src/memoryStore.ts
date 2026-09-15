@@ -22,6 +22,10 @@ export class MemoryStore {
     return resolveMemoryPath(this.memoryRoot, this.loop.persistence.memory.runLog);
   }
 
+  stageEventsFile(): string {
+    return path.join(path.dirname(this.runLog()), 'stage-events.jsonl');
+  }
+
   async readState(): Promise<string> {
     const state = this.stateFile();
     return (await pathExists(state)) ? readText(state) : '';
@@ -40,7 +44,8 @@ export class MemoryStore {
     return [
       displayPath(this.workspaceRoot, this.stateFile()),
       displayPath(this.workspaceRoot, this.inboxFile()),
-      displayPath(this.workspaceRoot, this.runLog())
+      displayPath(this.workspaceRoot, this.runLog()),
+      displayPath(this.workspaceRoot, this.stageEventsFile())
     ];
   }
 }

@@ -46,7 +46,11 @@ test('KPIUI explicit project route resolves to the standalone xigua executor', a
   assert.equal(plan.xigua?.skillContext.entryPath, 'AGENT.md');
   assert.match(plan.xigua?.skillContext.entryHash ?? '', /^[0-9a-f]{64}$/);
   assert.match(plan.xigua?.skillContext.sourceCommit ?? '', /^[0-9a-f]{40}$/);
+  assert.equal(typeof plan.xigua?.skillContext.sourceDirty, 'boolean');
+  assert.equal(Array.isArray(plan.xigua?.skillContext.sourceWorktreeStatus), true);
+  assert.match(plan.xigua?.skillContext.sourceFingerprint ?? '', /^[0-9a-f]{64}$/);
   assert.equal(plan.xigua?.sourceConsumption.consumedBy, 'xigua-agent');
+  assert.equal(plan.xigua?.sourceConsumption.sourceFingerprint, plan.xigua?.skillContext.sourceFingerprint);
   assert.equal(plan.xigua?.taskContextLock.targetRepository, 'KPIUI');
 });
 
@@ -120,6 +124,18 @@ test('xigua route skips the native Xiaobai page skill, worktree, generator, and 
   assert.equal(plan.generatorRuns.length, 0);
   assert.equal(plan.evaluations.length, 0);
   assert.equal(plan.workflow, undefined);
+  assert.equal(plan.xiguaWorkflow?.profile, 'xigua-page-delivery');
+  assert.equal(plan.xiguaWorkflow?.maxParallelTasks, 4);
+  assert.deepEqual(plan.xiguaWorkflow?.stages.map((stage) => stage.id), [
+    'xigua-requirement-intake',
+    'xigua-contract-freeze',
+    'xigua-canonical-consumption',
+    'xigua-component-and-api-facts',
+    'xigua-page-write',
+    'xigua-static-contract-check',
+    'xigua-uap-page-phase',
+    'xigua-api-continuation'
+  ]);
   assert.equal(plan.orchestrator?.routesTo.generatorAgent, undefined);
   assert.equal(plan.orchestrator?.routesTo.evaluatorAgent, undefined);
 });
@@ -196,7 +212,12 @@ test('route CLI emits the KPIUI xigua evidence and ordered trace events', async 
     targetRepository: { id: string };
     background: { id: string; runtime: string; provider?: string };
     executor: string;
-    xigua?: { entryPath: string; agentId: string };
+    xigua?: {
+      entryPath: string;
+      agentId: string;
+      sourceDirty: boolean;
+      sourceFingerprint: string;
+    };
     trace: { traceId: string; events: Array<{ event: string; detail?: string }> };
     write: string;
   };
@@ -212,6 +233,8 @@ test('route CLI emits the KPIUI xigua evidence and ordered trace events', async 
   assert.equal(result.executor, 'xigua');
   assert.equal(result.xigua?.entryPath, 'AGENT.md');
   assert.equal(result.xigua?.agentId, 'xigua-frontend-agent');
+  assert.equal(typeof result.xigua?.sourceDirty, 'boolean');
+  assert.match(result.xigua?.sourceFingerprint ?? '', /^[0-9a-f]{64}$/);
   assert.equal(result.write, 'none');
   assert.match(result.trace.traceId, /^[\w-]{8,}$/);
   assert.deepEqual(

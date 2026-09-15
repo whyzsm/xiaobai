@@ -44,7 +44,13 @@ export async function resolveXiguaRuntime(request: XiguaContextRequest): Promise
   const entryContent = await readFile(entryPath, 'utf8');
   const entryHash = sha256(entryContent);
   const agentId = readAgentName(entryContent);
-  const sourceCommit = await readGitHead(sourceRoot);
+  const [sourceCommit, sourceStatus] = await Promise.all([
+    readGitHead(sourceRoot),
+    gitOutput(sourceRoot, ['status', '--short', '--untracked-files=all'])
+  ]);
+  const sourceWorktreeStatus = sourceStatus ? sourceStatus.split('\n').filter(Boolean) : [];
+  const sourceDirty = sourceWorktreeStatus.length > 0;
+  const sourceFingerprint = sha256(stableJson({ sourceCommit, entryHash, sourceWorktreeStatus }));
   const targetMount = await resolveDirectory(
     path.resolve(request.projectRoot ?? process.cwd(), request.targetRepository.mount),
     'target repository mount'
@@ -56,7 +62,10 @@ export async function resolveXiguaRuntime(request: XiguaContextRequest): Promise
     agentId,
     entryPath: relativePath(sourceRoot, entryPath),
     entryHash,
-    sourceCommit
+    sourceCommit,
+    sourceDirty,
+    sourceWorktreeStatus,
+    sourceFingerprint
   };
   const skillContext: XiguaRuntimePlan['skillContext'] = {
     ...contextBase,
@@ -66,6 +75,7 @@ export async function resolveXiguaRuntime(request: XiguaContextRequest): Promise
     sourceRoot,
     entryPath: relativePath(sourceRoot, entryPath),
     entryHash,
+    sourceFingerprint,
     consumedBy: request.consumerAgent ?? CONSUMER_AGENT,
     consumedAt
   };

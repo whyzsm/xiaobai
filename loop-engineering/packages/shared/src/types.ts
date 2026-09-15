@@ -197,6 +197,9 @@ export interface XiguaSkillContext {
   entryPath: string;
   entryHash: string;
   sourceCommit: string;
+  sourceDirty: boolean;
+  sourceWorktreeStatus: string[];
+  sourceFingerprint: string;
   contextDigest: string;
 }
 
@@ -204,6 +207,7 @@ export interface XiguaSourceConsumptionEvidence {
   sourceRoot: string;
   entryPath: string;
   entryHash: string;
+  sourceFingerprint: string;
   consumedBy: string;
   consumedAt: string;
 }
@@ -228,6 +232,12 @@ export interface XiguaHandoffPlan {
   sourceRoot: string;
   entryPath: string;
   targetRepository: string;
+}
+
+export interface XiguaWorkflowPlan {
+  profile: 'xigua-page-delivery';
+  maxParallelTasks: number;
+  stages: WorkflowStagePlan[];
 }
 
 export interface RuntimeExecutionPlan {
@@ -526,6 +536,7 @@ export interface WorkflowStagePlan {
   kind: string;
   status: 'planned';
   gate: 'automatic' | 'manual';
+  parallelGroup?: string;
   agent?: string;
   harness?: string;
   evaluator?: string;
@@ -570,10 +581,12 @@ export interface RuntimePlan {
     stateFile: string;
     inboxFile: string;
     runLog: string;
+    stageEventsFile: string;
     plannedWrites: string[];
   };
   humanGate: HumanGatePlan;
   workflow?: WorkflowPlan;
+  xiguaWorkflow?: XiguaWorkflowPlan;
   memoryContext?: {
     indexPath: string;
     included: Array<{
